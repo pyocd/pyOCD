@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021-2022 Chris Reed
-# Copyright (c) 2025 Arm Limited
+# Copyright (c) 2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -170,10 +170,11 @@ class LoadSubcommand(SubcommandBase):
                 else:
                     LOG.info("Loading %s at %#010x", filename, base_address)
 
-                programmer.program(filename,
-                                base_address=base_address,
-                                skip=self._args.skip,
-                                file_format=file_format)
+                # Add file to programmer's buffer.
+                programmer.add_file(filename, file_format=file_format, base_address=base_address, skip=self._args.skip)
+
+            # Program the added files to the device memory.
+            programmer.commit()
 
             # Reset the target after programming unless --no-reset was specified.
             post_reset = session.options.get('load.post_reset')

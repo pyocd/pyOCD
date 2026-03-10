@@ -531,7 +531,8 @@ class Flash:
 
         fb = FlashBuilder(self)
         fb.add_data(addr, data)
-        info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
+        fb.erase(chip_erase, progress_cb, smart_flash, fast_verify)
+        info = fb.program(progress_cb, smart_flash, fast_verify)
         return info
 
     def _call_function(self, pc, r0=None, r1=None, r2=None, r3=None, init=False):

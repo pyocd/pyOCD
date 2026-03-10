@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2019,2025 Arm Limited
+# Copyright (c) 2006-2019,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -154,10 +154,14 @@ class Target(MemoryInterface, DelegateHavingMixIn):
         PRE_RESET = 7
         ## Sent after the target has been reset.
         POST_RESET = 8
+        ## Sent before erasing target flash.
+        PRE_FLASH_ERASE = 9
+        ## Sent after target flash has been erased.
+        POST_FLASH_ERASE = 10
         ## Sent before programming target flash.
-        PRE_FLASH_PROGRAM = 9
+        PRE_FLASH_PROGRAM = 11
         ## Sent after target flash has been reprogrammed.
-        POST_FLASH_PROGRAM = 10
+        POST_FLASH_PROGRAM = 12
 
     class RunType(Enum):
         """Run type for run notifications.

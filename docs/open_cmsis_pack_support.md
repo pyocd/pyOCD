@@ -150,7 +150,9 @@ Sequence name           | Delegate function   | Description
 `FlashUninit`           | -                   | Executed after a flash operation finished.
 `FlashEraseSector`      | -                   | Executed to erase a flash memory sector.
 `FlashEraseChip`        | -                   | Executed to erase all on-chip flash memory with target device specific erase technology.
+`FlashEraseDone`        | -                   | Executed after all flash memory erase operations are finished.
 `FlashProgramPage`      | -                   | Executed to program a single flash page.
+`FlashProgramDone`      | -                   | Executed after all flash programming operations are finished.
 `TraceStart`            | `trace_start`       | Enable target trace capture.
 `TraceStop`             | `trace_stop`        | Disable target trace capture.
 
@@ -158,8 +160,6 @@ Standard debug sequences not currently supported:
 
 Sequence name           | Description
 ------------------------|------------------------------------------------------
-`FlashProgramPage`      | Flash programming
-`FlashProgramDone`      | Flash programming
 `RecoverySupportStart`  | Before step or run command to support recovery from a lost target connection.
 `RecoverySupportStop`   | After step or run command in context of the `RecoverySupportStart`.
 `RecoveryAcknowledge`   | Debugger acknowledge after recovering from a lost target connection.

@@ -772,7 +772,9 @@ class DebugSequencesValue(ValueBase):
         "FlashUninit",
         "FlashEraseSector",
         "FlashEraseChip",
+        "FlashEraseDone",
         "FlashProgramPage",
+        "FlashProgramDone",
         "TraceStart",
         "TraceStop",
     ]

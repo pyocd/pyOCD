@@ -51,7 +51,8 @@ def get_sector_count(count: int) -> str:
 @dataclass
 class ProgrammingInfo:
     program_type: Any = None                # Type of programming performed - FLASH_SECTOR_ERASE or FLASH_CHIP_ERASE
-    program_time: float = 0.0               # Total programming time
+    program_time: float = 0.0               # Time to program flash
+    erase_time: float = 0.0                 # Time to erase flash contents
     analyze_type: Any = None                # Type of flash analysis performed - FLASH_ANALYSIS_CRC32 or FLASH_ANALYSIS_PARTIAL_PAGE_READ
     analyze_time: float = 0.0               # Time to analyze flash contents
     total_byte_count: int = 0
@@ -83,6 +84,11 @@ class MemoryBuilder(abc.ABC):
     @abc.abstractmethod
     def add_data(self, addr: int, data: Union[bytes, bytearray]) -> None:
         """@brief Add a chunk of data to the builder."""
+        ...
+
+    @abc.abstractmethod
+    def erase(self, **kwargs: Any) -> None:
+        """@brief Erase the destination memory region."""
         ...
 
     @abc.abstractmethod
@@ -175,7 +181,7 @@ class FlashBuilder(MemoryBuilder):
     fastest programming method.
 
     Individual flash algorithm operations are performed by the @ref pyocd.flash.flash.Flash
-    "Flash" instance provided to the contructor.
+    "Flash" instance provided to the constructor.
 
     Assumptions:
     1. Sector erases must be on sector boundaries.
@@ -210,7 +216,9 @@ class FlashBuilder(MemoryBuilder):
         self.chip_erase_weight = 0 # Erase/program weight using chip erase method.
         self.sector_erase_count = 0 # Number of pages to program using sector erase method.
         self.sector_erase_weight = 0 # Erase/program weight using sector erase method.
+        self.last_erase_was_chip = False
         self.algo_inited_for_read = False
+        self.prepared_sectors_and_pages = False
 
     @property
     def region(self) -> MemoryRegion:
@@ -257,6 +265,8 @@ class FlashBuilder(MemoryBuilder):
                             % (prev_flash_operation.addr, prev_flash_operation.addr + len(prev_flash_operation.data),
                                operation.addr, operation.addr + len(operation.data)))
             prev_flash_operation = operation
+
+        self.prepared_sectors_and_pages = False
 
     def _enable_read_access(self):
         """@brief Ensure flash is accessible by initing the algo for verify.
@@ -417,8 +427,27 @@ class FlashBuilder(MemoryBuilder):
                 page = add_page_with_existing_data()
                 sector_page_addr += page.size
 
-    def program(self, chip_erase=None, progress_cb=None, smart_flash=True, fast_verify=False, keep_unwritten=True, no_reset=False):
-        """@brief Determine fastest method of flashing and then run flash programming.
+    def _prepare_sectors_and_pages(self, keep_unwritten: bool, smart_flash: bool) -> None:
+        """@brief Build page/sector state if needed and apply smart-flash defaults."""
+        if not self.prepared_sectors_and_pages:
+            self._build_sectors_and_pages(keep_unwritten)
+            if not smart_flash:
+                # Mark all pages as needing programming if smart_flash is disabled.
+                self._mark_all_pages_for_programming()
+            self.prepared_sectors_and_pages = True
+
+    def _finalize_smart_flash(self, progress_cb, fast_verify: bool) -> None:
+        """@brief Resolve any pages still unknown after smart-flash estimation."""
+        if not any(page.same is None for page in self.page_list):
+            return
+
+        self._compute_sector_erase_pages_and_weight(fast_verify)
+
+        if any(page.same is None for page in self.page_list):
+            self._scan_pages_for_same(progress_cb)
+
+    def erase(self, chip_erase=None, progress_cb=None, smart_flash=True, fast_verify=False, keep_unwritten=True) -> None:
+        """@brief Determine fastest method of erasing and then run flash erase.
 
         Data must have already been added with add_data().
 
@@ -442,8 +471,104 @@ class FlashBuilder(MemoryBuilder):
             written, there may be ranges of flash that would be erased but not written with new
             data. This parameter sets whether the existing contents of those unwritten ranges will
             be read from memory and restored while programming.
-        @param no_reset Boolean indicating whether if the device should not be reset after the
-            programming process has finished.
+        """
+
+        # Send notification that we're about to erase flash.
+        self.flash.target.session.notify(Target.Event.PRE_FLASH_ERASE, self)
+
+        # Disable options if attempting to read erased sectors will fault.
+        if not self.flash.region.are_erased_sectors_readable:
+            smart_flash = False
+            fast_verify = False
+            keep_unwritten = False
+
+        if progress_cb is None:
+            progress_cb = _stub_progress
+
+        if len(self.flash_operation_list) == 0:
+            LOG.warning("No data to erase, skipping erase")
+            return
+
+        erase_start = time()
+
+        progress_cb(0.0)
+
+        # Prepare sectors and pages
+        self._prepare_sectors_and_pages(keep_unwritten, smart_flash)
+
+        # Convert chip_erase.
+        if chip_erase in (None, "auto"):
+            chip_erase = None
+        elif chip_erase == "sector":
+            chip_erase = False
+        elif chip_erase == "chip":
+            chip_erase = True
+        else:
+            raise ValueError("invalid chip_erase value '{}'".format(chip_erase))
+
+        # If the flash algo doesn't support erase all, disable chip erase.
+        if not self.flash.is_erase_all_supported:
+            chip_erase = False
+
+        # If the first page being programmed is not the first page
+        # in flash then don't use a chip erase unless explicitly directed to.
+        if self.page_list[0].addr > self.flash_start:
+            if chip_erase is None:
+                chip_erase = False
+
+        chip_erase_count, chip_erase_program_time = self._compute_chip_erase_pages_and_weight()
+        sector_erase_min_program_time = self._compute_sector_erase_pages_weight_min()
+
+        # If chip_erase hasn't been specified determine if chip erase is faster
+        # than page erase regardless of contents
+        if chip_erase is None:
+            chip_erase = chip_erase_program_time < sector_erase_min_program_time
+
+        # Only do full smart-flash verification if we're actually taking the sector-erase path.
+        if smart_flash and not chip_erase:
+            self._finalize_smart_flash(progress_cb, fast_verify)
+
+        self.algo_inited_for_read = False
+
+        if chip_erase:
+            self._chip_erase(progress_cb)
+        else:
+            self._erase_sectors(progress_cb)
+
+        progress_cb(1.0)
+
+        erase_finish = time()
+
+        self.flash.cleanup()
+
+        self.last_erase_was_chip = chip_erase
+        self.perf.erase_time = erase_finish - erase_start
+
+        # Send notification that we're done erasing flash.
+        self.flash.target.session.notify(Target.Event.POST_FLASH_ERASE, self)
+
+    def program(self, progress_cb=None, smart_flash=True, fast_verify=False, keep_unwritten=True):
+        """@brief Determine fastest method of flashing and then run flash programming.
+
+        Data must have already been added with add_data().
+
+        If the flash region's 'are_erased_sectors_readable' attribute is false, then the
+        smart_flash, fast_verify, and keep_unwritten options are forced disabled.
+
+        @param self
+        @param progress_cb A callable that accepts a single parameter of the percentage complete.
+        @param smart_flash If True, FlashBuilder will scan target memory to attempt to avoid
+            programming contents that are not changing with this program request. False forces
+            all requested data to be programmed.
+        @param fast_verify If smart_flash is enabled and the target supports the CRC32 analyzer,
+            this parameter controls whether positive results from the analyzer will be accepted.
+            In other words, pages with matching CRCs will be marked as the same. There is a small,
+            but non-zero, chance that the CRCs match even though the data is different, but the
+            odds of this happing are low: ~1/(2^32) = ~2.33*10^-8%.
+        @param keep_unwritten Depending on the sector versus page size and the amount of data
+            written, there may be ranges of flash that would be erased but not written with new
+            data. This parameter sets whether the existing contents of those unwritten ranges will
+            be read from memory and restored while programming.
         """
 
         # Send notification that we're about to program flash.
@@ -455,95 +580,39 @@ class FlashBuilder(MemoryBuilder):
             fast_verify = False
             keep_unwritten = False
 
-        # Examples
-        # - lpc4330     -Non 0 base address
-        # - nRF51       -UICR location far from flash (address 0x10001000)
-        # - LPC1768     -Different sized pages
-        program_start = time()
-
         if progress_cb is None:
             progress_cb = _stub_progress
 
-        # There must be at least 1 flash operation
         if len(self.flash_operation_list) == 0:
-            LOG.warning("No pages were programmed")
+            LOG.warning("No data to program, skipping programming")
             return
 
-        # Convert chip_erase.
-        if (chip_erase is None) or (chip_erase == "auto"):
-            chip_erase = None
-        elif chip_erase == "sector":
-            chip_erase = False
-        elif chip_erase == "chip":
-            chip_erase = True
+        program_start = time()
+
+        progress_cb(0.0)
+
+        # Check if we need to build sectors and pages.
+        self._prepare_sectors_and_pages(keep_unwritten, smart_flash)
+
+        if smart_flash:
+            self._finalize_smart_flash(progress_cb, fast_verify)
+
+        self.algo_inited_for_read = False
+
+        if self.flash.is_double_buffering_supported and self.enable_double_buffering:
+            LOG.debug("Using double buffer program")
+            self._program_double_buffer(progress_cb)
         else:
-            raise ValueError("invalid chip_erase value '{}'".format(chip_erase))
+            self._program_pages(progress_cb)
 
-        # Convert the list of flash operations into flash sectors and pages
-        self._build_sectors_and_pages(keep_unwritten)
-        assert len(self.sector_list) != 0 and len(self.sector_list[0].page_list) != 0
-        self.flash_operation_list = [] # Don't need this data in memory anymore.
-
-        # If smart flash was set to false then mark all pages
-        # as requiring programming
-        if not smart_flash:
-            self._mark_all_pages_for_programming()
-
-        # If the flash algo doesn't support erase all, disable chip erase.
-        if not self.flash.is_erase_all_supported:
-            chip_erase = False
-
-        # If the first page being programmed is not the first page
-        # in flash then don't use a chip erase unless explicitly directed to.
-        if self.page_list[0].addr > self.flash_start:
-            if chip_erase is None:
-                chip_erase = False
-            elif chip_erase is True:
-                LOG.warning('Chip erase used when flash address 0x%x is not the same as flash start 0x%x',
-                    self.page_list[0].addr, self.flash_start)
-
-        chip_erase_count, chip_erase_program_time = self._compute_chip_erase_pages_and_weight()
-        sector_erase_min_program_time = self._compute_sector_erase_pages_weight_min()
-
-        # If chip_erase hasn't been specified determine if chip erase is faster
-        # than page erase regardless of contents
-        if (chip_erase is None) and (chip_erase_program_time < sector_erase_min_program_time):
-            chip_erase = True
-
-        # If chip erase isn't True then analyze the flash
-        if chip_erase is not True:
-            sector_erase_count, page_program_time = self._compute_sector_erase_pages_and_weight(fast_verify)
-        else:
-            sector_erase_count, page_program_time = 0, 0
-
-        # If chip erase hasn't been set then determine fastest method to program
-        if chip_erase is None:
-            LOG.debug("Chip erase count %i, sector erase est count %i" % (chip_erase_count, sector_erase_count))
-            LOG.debug("Chip erase weight %f, sector erase weight %f" % (chip_erase_program_time, page_program_time))
-            chip_erase = chip_erase_program_time < page_program_time
-
-        if chip_erase:
-            if self.flash.is_double_buffering_supported and self.enable_double_buffering:
-                LOG.debug("Using double buffer chip erase program")
-                flash_operation = self._chip_erase_program_double_buffer(progress_cb)
-            else:
-                flash_operation = self._chip_erase_program(progress_cb)
-        else:
-            if self.flash.is_double_buffering_supported and self.enable_double_buffering:
-                LOG.debug("Using double buffer sector erase program")
-                flash_operation = self._sector_erase_program_double_buffer(progress_cb)
-            else:
-                flash_operation = self._sector_erase_program(progress_cb)
-
-        # Cleanup flash algo and reset target after programming.
-        self.flash.cleanup()
-
-        if no_reset is not True:
-            self.flash.target.reset_and_halt()
+        progress_cb(1.0)
 
         program_finish = time()
+
+        self.flash.cleanup()
+
         self.perf.program_time = program_finish - program_start
-        self.perf.program_type = flash_operation
+        self.perf.program_type = FlashBuilder.FLASH_CHIP_ERASE if self.last_erase_was_chip else FlashBuilder.FLASH_SECTOR_ERASE
 
         erase_byte_count = 0
         erase_sector_count = 0
@@ -552,7 +621,7 @@ class FlashBuilder(MemoryBuilder):
         skipped_byte_count = 0
         skipped_page_count = 0
         for page in self.page_list:
-            if (page.same is True) or (page.erased and chip_erase):
+            if page.same is True:
                 skipped_byte_count += page.size
                 skipped_page_count += 1
             else:
@@ -572,17 +641,19 @@ class FlashBuilder(MemoryBuilder):
         self.perf.skipped_page_count = skipped_page_count
 
         if self.log_performance:
-            if chip_erase:
+            total_time = self.perf.erase_time + self.perf.program_time
+            kbps = (self.program_byte_count / 1024) / total_time if total_time > 0 else 0
+            if self.last_erase_was_chip:
                 LOG.info("Erased chip, programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
                     actual_program_byte_count, get_page_count(actual_program_page_count),
                     skipped_byte_count, get_page_count(skipped_page_count),
-                    ((self.program_byte_count/1024) / self.perf.program_time))
+                    kbps)
             else:
                 LOG.info("Erased %d bytes (%s), programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
                     erase_byte_count, get_sector_count(erase_sector_count),
                     actual_program_byte_count, get_page_count(actual_program_page_count),
                     skipped_byte_count, get_page_count(skipped_page_count),
-                    ((self.program_byte_count/1024) / self.perf.program_time))
+                    kbps)
 
         # Send notification that we're done programming flash.
         self.flash.target.session.notify(Target.Event.POST_FLASH_PROGRAM, self)
@@ -596,7 +667,6 @@ class FlashBuilder(MemoryBuilder):
         for sector in self.sector_list:
             sector.erased = False
             for page in sector.page_list:
-                sector.erased = False
                 page.same = False
 
     def _compute_chip_erase_pages_and_weight(self):
@@ -728,29 +798,6 @@ class FlashBuilder(MemoryBuilder):
 
         return sector_erase_count, sector_erase_weight
 
-    def _chip_erase_program(self, progress_cb=_stub_progress):
-        """@brief Program by first performing an erase all."""
-        LOG.debug("%i of %i pages have erased data", len(self.page_list) - self.chip_erase_count, len(self.page_list))
-        progress_cb(0.0)
-        progress = 0
-
-        self.flash.init(self.flash.Operation.ERASE)
-        self.flash.erase_all()
-        self.flash.uninit()
-
-        progress += self.flash.get_flash_info().erase_weight
-        progress_cb(float(progress) / float(self.chip_erase_weight))
-
-        self.flash.init(self.flash.Operation.PROGRAM)
-        for page in self.page_list:
-            if not page.erased:
-                self.flash.program_page(page.addr, page.data)
-                progress += page.get_program_weight()
-                progress_cb(float(progress) / float(self.chip_erase_weight))
-        self.flash.uninit()
-        progress_cb(1.0)
-        return FlashBuilder.FLASH_CHIP_ERASE
-
     def _next_unerased_page(self, i):
         if i >= len(self.page_list):
             return None, i
@@ -761,111 +808,6 @@ class FlashBuilder(MemoryBuilder):
                 return None, i
             page = self.page_list[i]
         return page, i + 1
-
-    def _chip_erase_program_double_buffer(self, progress_cb=_stub_progress):
-        """@brief Double-buffered program by first performing an erase all."""
-        LOG.debug("%i of %i pages have erased data", len(self.page_list) - self.chip_erase_count, len(self.page_list))
-        progress_cb(0.0)
-        progress = 0
-
-        program_timeout = self.flash.target.session.options.get('flash.timeout.program')
-
-        self.flash.init(self.flash.Operation.ERASE)
-        self.flash.erase_all()
-        self.flash.uninit()
-
-        progress += self.flash.get_flash_info().erase_weight
-        progress_cb(float(progress) / float(self.chip_erase_weight))
-
-        # Set up page and buffer info.
-        current_buf = 0
-        next_buf = 1
-        page, i = self._next_unerased_page(0)
-        assert page is not None
-
-        # Load first page buffer
-        self.flash.load_page_buffer(current_buf, page.addr, page.data)
-
-        self.flash.init(self.flash.Operation.PROGRAM)
-        while page is not None:
-            # Kick off this page program.
-            current_addr = page.addr
-            current_weight = page.get_program_weight()
-            self.flash.start_program_page_with_buffer(current_buf, current_addr)
-
-            # Get next page and load it.
-            page, i = self._next_unerased_page(i)
-            if page is not None:
-                self.flash.load_page_buffer(next_buf, page.addr, page.data)
-
-            # Wait for the program to complete.
-            result = self.flash.wait_for_completion(timeout=program_timeout)
-            if result == self.flash.TIMEOUT_ERROR:
-                raise FlashProgramFailure('flash program page timeout', address=current_addr, result_code=result)
-            elif result != 0:
-                raise FlashProgramFailure('flash program page failure', address=current_addr, result_code=result)
-
-            # Swap buffers.
-            current_buf, next_buf = next_buf, current_buf
-
-            # Update progress.
-            progress += current_weight
-            progress_cb(float(progress) / float(self.chip_erase_weight))
-
-        self.flash.uninit()
-        progress_cb(1.0)
-        return FlashBuilder.FLASH_CHIP_ERASE
-
-    def _sector_erase_program(self, progress_cb=_stub_progress):
-        """@brief Program by performing sector erases."""
-        actual_sector_erase_count = 0
-        actual_sector_erase_weight = 0
-        progress = 0
-
-        progress_cb(0.0)
-
-        # Fill in same flag for all pages. This is done up front so we're not trying
-        # to read from flash while simultaneously programming it.
-        progress = self._scan_pages_for_same(progress_cb)
-
-        for sector in self.sector_list:
-            if sector.are_any_pages_not_same():
-                if self.region.is_erasable:
-                    # Erase the sector
-                    self.flash.init(self.flash.Operation.ERASE)
-                    for addr in sector.addrs:
-                        self.flash.erase_sector(addr)
-                    self.flash.uninit()
-
-                    actual_sector_erase_weight += sector.erase_weight
-
-                # Update progress
-                if self.sector_erase_weight > 0:
-                    progress_cb(float(progress) / float(self.sector_erase_weight))
-
-                # The sector was erased, so we must program all pages in the sector
-                # regardless of whether they were the same or not.
-                self.flash.init(self.flash.Operation.PROGRAM)
-                for page in sector.page_list:
-
-                    progress += page.get_program_weight()
-
-                    self.flash.program_page(page.addr, page.data)
-
-                    actual_sector_erase_count += 1
-                    actual_sector_erase_weight += page.get_program_weight()
-
-                    # Update progress
-                    if self.sector_erase_weight > 0:
-                        progress_cb(float(progress) / float(self.sector_erase_weight))
-                self.flash.uninit()
-
-        progress_cb(1.0)
-
-        LOG.debug("Estimated sector erase programmed page count: %i", self.sector_erase_count)
-        LOG.debug("Actual sector erase programmed page count: %i", actual_sector_erase_count)
-
-        return FlashBuilder.FLASH_SECTOR_ERASE
 
     def _scan_pages_for_same(self, progress_cb=_stub_progress):
         """@brief Read the full page data to determine if it is unchanged.
@@ -889,8 +831,7 @@ class FlashBuilder(MemoryBuilder):
                     data = []
                     offset = 0
                 assert len(page.data) == page.size, "page data size (%d) != page size (%d)" % (len(page.data), page.size)
-                data.extend(self.flash.target.read_memory_block8(page.addr + offset,
-                                                                    page.size - offset))
+                data.extend(self.flash.target.read_memory_block8(page.addr + offset, page.size - offset))
                 page.same = same(page.data, data)
                 page.cached_estimate_data = None # This data isn't needed anymore.
                 progress += page.get_verify_weight()
@@ -907,6 +848,32 @@ class FlashBuilder(MemoryBuilder):
 
         return progress
 
+    def _chip_erase(self, progress_cb=_stub_progress):
+        """@brief Perform chip erase."""
+        self.flash.init(self.flash.Operation.ERASE)
+        self.flash.erase_all()
+        self.flash.uninit()
+
+    def _erase_sectors(self, progress_cb=_stub_progress):
+        """@brief Perform sector erase on sectors that need it."""
+        progress = 0
+        erase_weight = sum(
+            sector.erase_weight
+            for sector in self.sector_list if sector.are_any_pages_not_same()
+        )
+
+        self.flash.init(self.flash.Operation.ERASE)
+        for sector in self.sector_list:
+            if sector.are_any_pages_not_same():
+                if self.region.is_erasable:
+                    # Erase the sector
+                    for addr in sector.addrs:
+                        self.flash.erase_sector(addr)
+                    progress += sector.erase_weight
+                    if erase_weight > 0:
+                        progress_cb(float(progress) / float(erase_weight))
+        self.flash.uninit()
+
     def _next_nonsame_page(self, i):
         if i >= len(self.page_list):
             return None, i
@@ -918,34 +885,15 @@ class FlashBuilder(MemoryBuilder):
             page = self.page_list[i]
         return page, i + 1
 
-    def _sector_erase_program_double_buffer(self, progress_cb=_stub_progress):
-        """@brief Double-buffered program by performing sector erases."""
-        actual_sector_erase_count = 0
-        actual_sector_erase_weight = 0
+    def _program_double_buffer(self, progress_cb=_stub_progress):
+        """@brief Double-buffered program."""
         progress = 0
-
-        progress_cb(0.0)
-
         program_timeout = self.flash.target.session.options.get('flash.timeout.program')
-
-        # Fill in same flag for all pages. This is done up front so we're not trying
-        # to read from flash while simultaneously programming it.
-        progress = self._scan_pages_for_same(progress_cb)
-
-        if self.region.is_erasable:
-            # Erase all sectors up front.
-            self.flash.init(self.flash.Operation.ERASE)
-            for sector in self.sector_list:
-                if sector.are_any_pages_not_same():
-                    # Erase the sector
-                    for addr in sector.addrs:
-                        self.flash.erase_sector(addr)
-
-                    # Update progress
-                    progress += sector.erase_weight
-                    if self.sector_erase_weight > 0:
-                        progress_cb(float(progress) / float(self.sector_erase_weight))
-            self.flash.uninit()
+        program_weight = sum(
+            page.get_program_weight()
+            for sector in self.sector_list if sector.are_any_pages_not_same()
+            for page in sector.page_list
+        )
 
         # Set up page and buffer info.
         current_buf = 0
@@ -968,9 +916,6 @@ class FlashBuilder(MemoryBuilder):
 
                 self.flash.start_program_page_with_buffer(current_buf, current_addr)
 
-                actual_sector_erase_count += 1
-                actual_sector_erase_weight += page.get_program_weight()
-
                 # Get next page and load it.
                 page, i = self._next_nonsame_page(i)
                 if page is not None:
@@ -988,14 +933,28 @@ class FlashBuilder(MemoryBuilder):
 
                 # Update progress
                 progress += current_weight
-                if self.sector_erase_weight > 0:
-                    progress_cb(float(progress) / float(self.sector_erase_weight))
-
+                if program_weight > 0:
+                    progress_cb(float(progress) / float(program_weight))
             self.flash.uninit()
 
-        progress_cb(1.0)
+    def _program_pages(self, progress_cb=_stub_progress):
+        """@brief Program pages that need programming."""
+        progress = 0
+        program_weight = sum(
+            page.get_program_weight()
+            for sector in self.sector_list if sector.are_any_pages_not_same()
+            for page in sector.page_list
+        )
 
-        LOG.debug("Estimated sector erase programmed page count: %i", self.sector_erase_count)
-        LOG.debug("Actual sector erase programmed page count: %i", actual_sector_erase_count)
-
-        return FlashBuilder.FLASH_SECTOR_ERASE
+        self.flash.init(self.flash.Operation.PROGRAM)
+        for sector in self.sector_list:
+            if sector.are_any_pages_not_same():
+                # The sector was erased, so we must program all pages in the sector
+                # regardless of whether they were the same or not.
+                for page in sector.page_list:
+                    self.flash.program_page(page.addr, page.data)
+                    progress += page.get_program_weight()
+                    # Update progress
+                    if program_weight > 0:
+                        progress_cb(float(progress) / float(program_weight))
+        self.flash.uninit()
