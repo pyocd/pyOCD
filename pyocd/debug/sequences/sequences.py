@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020,2025 Arm Limited
+# Copyright (c) 2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -73,7 +73,7 @@ class _ConvertLiterals(lark.visitors.Transformer):
         return int(tok.value.upper().rstrip('U'), base=0)
 
     def STRLIT(self, tok: LarkToken) -> LarkToken:
-        tok.value = tok.value.strip('"')
+        tok.value = tok.value[1:-1]
         return tok
 
 class Parser:
