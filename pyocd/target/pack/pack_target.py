@@ -368,10 +368,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         """
         session = self._target.session
         assert session.probe, "must have a valid probe"
-        # Not having a wire protocol set is allowed if performing pre-reset since it will only
-        # execute ResetHardware (or equivalent), which can only access pins and such (theoretically).
-        assert self._session.context_state.is_performing_pre_reset or session.probe.wire_protocol, \
-            "must have valid, connected probe"
+
         if session.probe.wire_protocol == DebugProbe.Protocol.JTAG:
             protocol = 1
         elif session.probe.wire_protocol == DebugProbe.Protocol.SWD:
@@ -392,7 +389,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         - [16] connect under reset?
         - [17] pre-connect reset?
         """
-        ctype = 1
+        ctype = 1 if self._session.command not in ('load', 'erase') else 2
         ctype |= self.RESET_TYPE_MAP.get(self._session.options.get('reset_type'), 0) << 8
 
         connect_mode = self._target.session.options.get('connect_mode')
