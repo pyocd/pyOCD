@@ -897,6 +897,7 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         except exceptions.TransferError as error:
             LOG.error("Transfer error while reading %s ROM table: %s", self.short_description, error,
                 exc_info=self.dp.session.log_tracebacks)
+            raise
 
     @property
     def implemented_hprot_mask(self) -> int:

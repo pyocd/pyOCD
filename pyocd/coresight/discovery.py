@@ -175,9 +175,25 @@ class ADIv5Discovery(CoreSightDiscovery):
         seq = CallSequence()
         for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
             seq.append(
-                ('init_ap.{}'.format(ap.address.apsel), ap.find_components)
+                ('init_ap.{}'.format(ap.address.apsel), lambda _ap=ap: self._safe_find_components(_ap))
                 )
         return seq
+
+    def _safe_find_components(self, ap):
+        """@brief Wrapper around AP component discovery with fault tolerance.
+        If an AP returns a transfer fault (e.g. a secured/locked HSM AP),
+        the error is logged and discovery continues with remaining APs.
+        This prevents a single inaccessible AP from blocking discovery of
+        all cores on other, accessible APs.
+        """
+        try:
+            return ap.find_components()
+        except exceptions.TransferFaultError as e:
+            LOG.warning("AP#%s returned FAULT during component scan, skipping: %s", ap.address, e)
+        except exceptions.TransferError as e:
+            LOG.warning("Transfer error scanning AP#%s, skipping: %s", ap.address, e)
+        except exceptions.Error as e:
+            LOG.error("Error scanning AP#%s components: %s", ap.address, e, exc_info=self.session.log_tracebacks)
 
 class ADIv6Discovery(CoreSightDiscovery):
     """@brief Component discovery process for ADIv6.
@@ -277,9 +293,33 @@ class ADIv6Discovery(CoreSightDiscovery):
         seq = CallSequence()
         for ap in [x for x in self.dp.aps.values() if x.has_rom_table]:
             seq.append(
-                ('init_ap.{}'.format(str(ap.address)), ap.find_components)
+                ('init_ap.{}'.format(str(ap.address)), lambda _ap=ap: self._safe_find_components_v6(_ap))
                 )
         return seq
+
+    def _safe_find_components_v6(self, ap):
+        """@brief Wrapper around AP component discovery with fault tolerance for ADIv6.
+        Same rationale as ADIv5Discovery._safe_find_components -- prevents a
+        single secured/locked AP from blocking discovery on other APs.
+        """
+        try:
+            return ap.find_components()
+        except exceptions.TransferFaultError as e:
+            LOG.warning(
+                "AP#%s returned FAULT during component scan, skipping: %s",
+                ap.address,
+                e,
+            )
+        except exceptions.TransferError as e:
+            LOG.warning("Transfer error scanning AP#%s, skipping: %s", ap.address, e)
+        except exceptions.Error as e:
+            LOG.error(
+                "Error scanning AP#%s components: %s",
+                ap.address,
+                e,
+                exc_info=self.session.log_tracebacks,
+            )
+
 
 ## Map from ADI version to the discovery class.
 ADI_DISCOVERY_CLASS_MAP = {
