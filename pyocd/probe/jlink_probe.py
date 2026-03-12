@@ -2,6 +2,7 @@
 # Copyright (c) 2020,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2023 Marian Muller Rebeyrol
+# Copyright (c) 2026 Christophe Dufaza
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -185,13 +186,14 @@ class JLinkProbe(DebugProbe):
         assert self.session
 
         try:
+            # Open probe before issuing commands.
+            self._link.open(self._serial_number_int)
+            self._is_open = True
+
             # Configure UI usage. We must do this here rather than in the ctor because the ctor
             # doesn't have access to the session.
             if self.session.options.get('jlink.non_interactive'):
                 self._link.disable_dialog_boxes()
-
-            self._link.open(self._serial_number_int)
-            self._is_open = True
 
             # Get available wire protocols.
             ifaces = self._link.supported_tifs()
