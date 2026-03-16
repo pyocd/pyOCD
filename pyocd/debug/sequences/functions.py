@@ -100,6 +100,11 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
     def target(self) -> CoreSightTarget:
         return cast(CoreSightTarget, self.context.session.target)
 
+    def restore_temp_ap_csw(self) -> None:
+        """@brief Restore CSW on any temporary MEM-AP objects created during sequence execution."""
+        for ap in self._ap_cache.values():
+            ap.restore_original_csw_if_cached_modified()
+
     def set_flash_buffer(self, data: Union[bytes, bytearray], filler: Optional[int] = None) -> None:
         """@brief Provide flash buffer content for FlashBufferWrite()."""
 

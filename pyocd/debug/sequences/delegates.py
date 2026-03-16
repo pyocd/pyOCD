@@ -127,3 +127,7 @@ class DebugSequenceFunctionsDelegate:
     def context(self) -> DebugSequenceExecutionContext:
         from .sequences import DebugSequenceExecutionContext
         return DebugSequenceExecutionContext.get_active_context()
+
+    def restore_temp_ap_csw(self) -> None:
+        """@brief Restore CSW on any temporary MEM-AP objects created during sequence execution."""
+        raise NotImplementedError()

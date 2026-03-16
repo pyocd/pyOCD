@@ -181,6 +181,7 @@ class CoreSightTarget(SoCTarget):
             else:
                 if self.has_debug_sequence(sequence, pname=pcore_pname):
                     self.debug_sequence_delegate.run_sequence(sequence, pname=pcore_pname)
+                    self.debug_sequence_delegate.get_sequence_functions().restore_temp_ap_csw()
                     return True
 
         # Sequence wasn't run.
