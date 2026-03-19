@@ -393,6 +393,33 @@ class CbuildRun:
         return self._memory_map
 
     @property
+    def proj_path(self) -> str:
+        """@brief Path to the project directory, including trailing slash."""
+        return str(Path(self.proj_path_name).parent)
+
+    @property
+    def proj_path_name(self) -> str:
+        """@brief Csolution file path."""
+        solution = self._data.get('solution')
+        if solution is not None:
+            # Expand environment variables first, then resolve relative to base_path
+            proj_path = Path(os.path.expandvars(solution)).expanduser()
+            if not proj_path.is_absolute():
+                proj_path = self._base_path / proj_path
+            proj_path = proj_path.resolve()
+            # Return the solution file name
+            return str(proj_path)
+        else:
+            return ''
+
+    @property
+    def pack_path(self) -> str:
+        #TODO: handle local pack installations (no CMSIS_PACK_ROOT)
+        if not self._required_packs:
+            self._get_required_packs()
+        return str(self._required_packs.get(self._data.get('device-pack', ''), ''))
+
+    @property
     def svd(self) -> Optional[str]:
         """@brief Path to the SVD file for the target device."""
         #TODO handle multicore devices

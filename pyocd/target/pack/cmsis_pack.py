@@ -136,52 +136,51 @@ class CmsisPack:
             from within the pack.
         """
         self._is_dir = False
+        self._pack_path = ''
         if isinstance(file_or_path, zipfile.ZipFile):
             self._pack_file = file_or_path
+            self._pack_path = file_or_path.filename or ''
         else:
-            # Check for an expanded pack as a directory.
             if isinstance(file_or_path, (str, Path)):
                 path = Path(file_or_path).expanduser()
-                file_or_path = str(path) # Update with expanded path.
-
-                self._is_dir = path.is_dir()
-                if self._is_dir:
+                self._pack_path = str(path)
+                if path.is_dir():
+                    self._is_dir = True
                     self._dir_path = path
+                else:
+                    file_or_path = path  # use expanded path for ZipFile
 
             if not self._is_dir:
                 try:
                     self._pack_file = zipfile.ZipFile(file_or_path, 'r')
                 except zipfile.BadZipFile as err:
-                    raise MalformedCmsisPackError(f"Failed to open CMSIS-Pack '{file_or_path}': {err}") from err
+                    raise MalformedCmsisPackError(
+                        f"Failed to open CMSIS-Pack '{self._pack_path or 'stream'}': {err}") from err
 
-        # Find the .pdsc file.
+        # Find and open the .pdsc file.
         if self._is_dir:
             for child_path in self._dir_path.iterdir():
                 if child_path.suffix == '.pdsc':
                     self._pdsc_name = child_path.name
+                    with child_path.open('rb') as pdsc_file:
+                        self._pdsc = CmsisPackDescription(self, pdsc_file)
                     break
             else:
-                raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
+                raise MalformedCmsisPackError(f"CMSIS-Pack '{self._pack_path}' is missing a .pdsc file")
         else:
             for name in self._pack_file.namelist():
                 if name.endswith('.pdsc'):
                     self._pdsc_name = name
+                    with self._pack_file.open(name) as pdsc_file:
+                        self._pdsc = CmsisPackDescription(self, pdsc_file)
                     break
             else:
-                raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
-
-        if self._is_dir:
-            with (self._dir_path / self._pdsc_name).open('rb') as pdsc_file:
-                self._pdsc = CmsisPackDescription(self, pdsc_file)
-        else:
-            with self._pack_file.open(self._pdsc_name) as pdsc_file:
-                self._pdsc = CmsisPackDescription(self, pdsc_file)
+                raise MalformedCmsisPackError(f"CMSIS-Pack '{self._pack_path}' is missing a .pdsc file")
 
     @property
-    def filename(self) -> Optional[str]:
-        """@brief Accessor for the filename or path of the .pack file."""
-        if not self._is_dir:
-            return self._pack_file.filename
+    def pack_path(self) -> str:
+        """@brief The file path or directory of the pack root (zip file or expanded directory)."""
+        return self._pack_path
 
     @property
     def pdsc(self) -> "CmsisPackDescription":
@@ -254,6 +253,11 @@ class CmsisPackDescription:
     def pack(self) -> CmsisPack:
         """@brief Reference to the containing CmsisPack object."""
         return self._pack
+
+    @property
+    def pack_path(self) -> str:
+        """@brief The file path or directory of the pack that defines this description."""
+        return self._pack.pack_path if self._pack else ''
 
     @property
     def devices(self) -> List["CmsisPackDevice"]:
@@ -460,7 +464,7 @@ class CmsisPackDescription:
                     # different processors to override each other, since we don't yet support maps for each
                     # processor.
                     if (pname == prev_pname) and not self._warned_overlapping_memory_regions:
-                        filename = self.pack.filename if self.pack else "unknown"
+                        filename = self.pack.pack_path if self.pack else "unknown"
                         LOG.warning("Overlapping memory regions in file %s (%s); deleting outer region. "
                                     "Further warnings will be suppressed for this file.",
                                     filename, _get_part_number_from_element(self._state_stack[-1].element))
@@ -993,6 +997,11 @@ class CmsisPackDevice:
     def pack_description(self) -> CmsisPackDescription:
         """@brief The CmsisPackDescription object that defines this device."""
         return self._pdsc
+
+    @property
+    def pack_path(self) -> str:
+        """@brief The file path of the pack that defines this device."""
+        return self._pdsc.pack_path
 
     @property
     def part_number(self) -> str:
