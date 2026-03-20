@@ -531,7 +531,7 @@ class GDBServer(threading.Thread):
                     # Make sure the target is halted. Otherwise gdb gets easily confused.
                     self.target.halt()
 
-                        # Start the per-client handler thread (server.run_session() will be invoked there).
+                    # Start the per-client handler thread (server.run_session() will be invoked there).
                     client.start()
                     if remote_address:
                         LOG.info("Client %d connected on port %d from remote address %s", index, self.port, remote_address)
@@ -585,6 +585,7 @@ class GDBServer(threading.Thread):
             if not any(c.is_attached_to_target for c in self.client_sessions):
                 self.thread_provider = None
                 self.did_init_thread_providers = False
+                self.first_run_after_reset_or_flash = True
 
                 # Resume target when no clients are connected
                 try:
