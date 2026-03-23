@@ -2,6 +2,7 @@
 # Copyright (c) 2020,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2023 Marian Muller Rebeyrol
+# Copyright (c) 2026 Christophe Dufaza
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -159,7 +160,7 @@ class JLinkProbe(DebugProbe):
 
     @property
     def is_open(self):
-        return self._link.opened
+        return self._link.opened()
 
     @property
     def capabilities(self):
