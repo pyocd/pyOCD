@@ -39,7 +39,7 @@ The debug description can set a target's default reset type and disable certain 
 
 Debug access sequences, simply called "debug sequences" below, contain a set of instructions to tell the debugger how to perform different debug related activities such as connect, reset, configuring the device for trace, and so on. Silicon vendors can provide debug sequences for cases where their device has special control requirements or nonstandard behaviours. Many devices do not need debug sequences, and they are entirely optional.
 
-A set of standard debug sequences is defined by the [Open-CMSIS-Pack](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec) specification to be executed by the debugger when performing certain activities. Some of these standard sequences have pre-defined behaviour performed by the debugger if the DFP does not override that sequence. Others sequences exist only to allow the DFP to insert custom actions.
+A set of standard debug sequences is defined by the [Open-CMSIS-Pack](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec) specification to be executed by the debugger when performing certain activities. Some of these standard sequences have pre-defined behavior performed by the debugger if the DFP does not override that sequence. Others sequences exist only to allow the DFP to insert custom actions.
 
 In addition to the standard debug sequences, a DFP can define its own custom sequences. These can be called like subroutines by other sequences.
 
@@ -107,7 +107,7 @@ This section documents details of the debug sequence engine provided by pyOCD, s
 
 ### Core-specific sequences
 
-The DFP debug sequence architecture is currently based on the fact that most debuggers only "connect" to a single CPU core chosen by the user when debugging or running a project. All debug sequences can be customised per core, and there can be separate sequences for each core.
+The DFP debug sequence architecture is currently based on the fact that most debuggers only "connect" to a single CPU core chosen by the user when debugging or running a project. All debug sequences can be customized per core, and there can be separate sequences for each core.
 
 PyOCD is somewhat different in that it connects to the device as a whole, and then debugs one or more cores after the connection is established. This more closely reflects the hardware situation.
 
@@ -118,7 +118,7 @@ The `primary_core` session option is used to select which core-specific version 
 
 ### Custom default reset sequences
 
-The DFP specification allows the definition of custom (nonstandard) reset sequences, and these can be selected as the default reset sequence for a core. The purpose of this is to keep the standard sequences unmodified and available for user selection. Because pyOCD does not currently support a custom reset type, this DFP feature is not supported. A custom default reset sequence will be replaced with `ResetSystem` and the custom behaviour not performed.
+The DFP specification allows the definition of custom (nonstandard) reset sequences, and these can be selected as the default reset sequence for a core. The purpose of this is to keep the standard sequences unmodified and available for user selection. Because pyOCD does not currently support a custom reset type, this DFP feature is not supported. A custom default reset sequence will be replaced with `ResetSystem` and the custom behavior not performed.
 
 
 ### Debug sequences and delegate functions
@@ -130,29 +130,29 @@ Effectively, debug sequences are handled as pre-defined [delegate functions]({% 
 
 The following standard debug sequences are supported and will by called by pyOCD. The corresponding delegate function is listed for each.
 
-Sequence name         | Delegate function   | Description
-----------------------|---------------------|------------------------------------------------------
-`DebugPortSetup`      | -                   | SWJ-DP switch; reading `DPIDR`; writing `TARGETSEL`.
-`DebugPortStart`      | -                   | Connect to the target debug port and power it up.
-`DebugPortStop`       | -                   | Power down and disconnect from target debug port.
-`DebugDeviceUnlock`   | `unlock_device`     | Ensure the device is accessible.
-`DebugCoreStart`      | `start_debug_core`  | Initialize core debug.
-`DebugCoreStop`       | `stop_debug_core`   | Uninitialized core debug.
-`ResetSystem`         | `will_reset`        | System-wide reset without debug domain via software mechanisms.
-`ResetProcessor`      | `will_reset`        | Local processor reset without peripherals and debug domains.
-`ResetHardware`       | `will_reset`        | System-wide reset without debug domain via the dedicated debugger reset line, e.g. nRST.
-`ResetCatchSet`       | `set_reset_catch`   | Configure the vector catch to stop code execution after the reset.
-`ResetCatchClear`     | `clear_reset_catch` | Free hardware resources allocated by `ResetCatchSet`.
-`TraceStart`          | `trace_start`       | Enable target trace capture.
-`TraceStop`           | `trace_stop`        | Disable target trace capture.
+Sequence name           | Delegate function   | Description
+------------------------|---------------------|------------------------------------------------------
+`DebugPortSetup`        | -                   | SWJ-DP switch; reading `DPIDR`; writing `TARGETSEL`.
+`DebugPortStart`        | -                   | Connect to the target debug port and power it up.
+`DebugPortStop`         | -                   | Power down and disconnect from target debug port.
+`DebugDeviceUnlock`     | `unlock_device`     | Ensure the device is accessible.
+`DebugCoreStart`        | `start_debug_core`  | Initialize core debug.
+`DebugCoreStop`         | `stop_debug_core`   | Uninitialized core debug.
+`ResetSystem`           | `will_reset`        | System-wide reset without debug domain via software mechanisms.
+`ResetProcessor`        | `will_reset`        | Local processor reset without peripherals and debug domains.
+`ResetHardware`         | `will_reset`        | System-wide reset without debug domain via the dedicated debugger reset line, e.g. nRST.
+`ResetHardwareAssert`   | -                   | Assert a system-wide reset via the dedicated debugger reset line, e.g. nRST.
+`ResetHardwareDeassert` | -                   | De-assert a system-wide reset via the dedicated debugger reset line, e.g. nRST.
+`ResetCatchSet`         | `set_reset_catch`   | Configure the vector catch to stop code execution after the reset.
+`ResetCatchClear`       | `clear_reset_catch` | Free hardware resources allocated by `ResetCatchSet`.
+`TraceStart`            | `trace_start`       | Enable target trace capture.
+`TraceStop`             | `trace_stop`        | Disable target trace capture.
 
 Standard debug sequences not currently supported:
 
-Sequence name         | Description
-----------------------|------------------------------------------------------
+Sequence name           | Description
+------------------------|------------------------------------------------------
 `DebugCodeMemRemap`     | Remap memory to execution location.
-`ResetHardwareAssert`   | Assert a system-wide reset via the dedicated debugger reset line, e.g. nRST.
-`ResetHardwareDeassert` | De-assert a system-wide reset via the dedicated debugger reset line, e.g. nRST.
 `FlashInit`             | Flash programming
 `FlashUninit`           | Flash programming
 `FlashEraseSector`      | Flash programming
@@ -163,7 +163,3 @@ Sequence name         | Description
 `RecoverySupportStart`  | Before step or run command to support recovery from a lost target connection.
 `RecoverySupportStop`   | After step or run command in context of the `RecoverySupportStart`.
 `RecoveryAcknowledge`   | Debugger acknowledge after recovering from a lost target connection.
-
-
-
-

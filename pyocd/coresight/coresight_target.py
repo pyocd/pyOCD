@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020,2025 Arm Limited
+# Copyright (c) 2015-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -224,7 +224,8 @@ class CoreSightTarget(SoCTarget):
                 self.session.context_state.is_performing_pre_reset = False
         elif mode == 'under-reset':
             LOG.info("Asserting reset prior to connect")
-            self.dp.assert_reset(True)
+            if not self.call_pre_discovery_debug_sequence('ResetHardwareAssert'):
+                self.dp.assert_reset(True)
 
     def perform_halt_on_connect(self) -> None:
         """@brief Halt cores.
@@ -255,7 +256,8 @@ class CoreSightTarget(SoCTarget):
         mode = self.session.options.get('connect_mode')
         if mode == 'under-reset':
             LOG.info("Deasserting reset post connect")
-            self.dp.assert_reset(False)
+            if not self.call_pre_discovery_debug_sequence('ResetHardwareDeassert'):
+                self.dp.assert_reset(False)
 
             LOG.debug("Clearing reset catch")
             # Apply to all cores.
