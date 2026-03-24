@@ -137,7 +137,7 @@ class RunSubcommand(SubcommandBase):
                     if timelimit is not None:
                         elapsed = time() - start_time
                         if elapsed >= timelimit:
-                            LOG.info("Time limit of %.1f seconds reached; shutting down Run servers", timelimit)
+                            LOG.info("Time limit of %.1f seconds reached; shutting down all Run servers", timelimit)
                             timelimit_triggered = True
                             self.shutdown()
                             break
@@ -156,8 +156,6 @@ class RunSubcommand(SubcommandBase):
                 return 0
             if any(getattr(server, "eot_flag", False) for server in self._run_servers):
                 return 0
-            if any(getattr(server, "error_flag", False) for server in self._run_servers):
-                return 1
 
         LOG.warning("Run servers exited without EOT, reached timelimit or error; this is unexpected")
         return 1
@@ -180,7 +178,6 @@ class RunServer(threading.Thread):
                  systemview_config: "SystemViewConfig" = None, enable_eot: bool = False, shutdown_event: Optional[threading.Event] = None):
         super().__init__(daemon=True)
         self._session = session
-        self.error_flag = False
         self.eot_flag = False
         self._board = session.board
         if core is None:
@@ -236,7 +233,9 @@ class RunServer(threading.Thread):
     def run(self):
         stdio_info = self._stdio_handler.info
         node_name = self._session.board.target.cores[self.core].node_name
-        LOG.info("Run server started for %s (core %d); STDIO mode: %s", node_name, self.core, stdio_info)
+        rtt_status = "enabled" if self._rtt_server else "disabled"
+        LOG.info("Run server started for %s (core %d); STDIO mode: %s; RTT: %s",
+                node_name, self.core, stdio_info, rtt_status)
 
         # Timeout used only if the target starts returning faults. The is_running property of this timeout
         # also serves as a flag that a fault occurred and we're attempting to retry.
@@ -255,7 +254,7 @@ class RunServer(threading.Thread):
                 try:
                     if self._stdio_handler.eot_seen:
                         # EOT received, terminate execution
-                        LOG.info("EOT (0x04) character received for core %d; shutting down Run servers", self.core)
+                        LOG.info("EOT (0x04) character received for core %d; shutting down all Run servers", self.core)
                         self.eot_flag = True
                         self._shutdown_event.set()
                         continue
@@ -305,12 +304,10 @@ class RunServer(threading.Thread):
                 # that the timeout expires, this loop is exited and an error raised.
                 if not fault_retry_timeout.is_running:
                     LOG.warning("Transfer error while checking target status; retrying: %s", e,
-                            exc_info=self._session.log_tracebacks)
-                fault_retry_timeout.start()
+                                exc_info=self._session.log_tracebacks)
+                    fault_retry_timeout.start()
             except exceptions.Error as e:
-                LOG.error("Error while target core %d running: %s; shutting down Run servers", self.core, e, exc_info=self._session.log_tracebacks)
-                self.error_flag = True
-                self._shutdown_event.set()
+                LOG.error("Error while target core %d running: %s; exiting Run server for core %d", self.core, e, self.core, exc_info=self._session.log_tracebacks)
                 break
             finally:
                 self._lock.release()
@@ -318,9 +315,7 @@ class RunServer(threading.Thread):
 
         # Check if we exited the above loop due to a timeout after a fault.
         if fault_retry_timeout.did_time_out:
-            LOG.error("Timeout re-establishing target core %d control; shutting down Run servers", self.core)
-            self.error_flag = True
-            self._shutdown_event.set()
+            LOG.error("Timeout re-establishing target core %d control; exiting Run server for core %d", self.core, self.core)
 
         # Cleanup resources for this RunServer.
         try:
