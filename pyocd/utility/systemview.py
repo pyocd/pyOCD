@@ -70,6 +70,10 @@ class SystemViewSVDat():
         self._systemview = systemview_config
         self._files_per_core: Dict[int, List[str]] = {}
 
+        if not self._systemview.file:
+            LOG.debug("No SystemView output file configured; cannot configure SystemView SVDat generation")
+            return
+
         # Create a list of output files for each core
         # and delete any existing files with the same name to ensure clean output for SystemView
         fname_root = self._systemview.file.rsplit('.', 1)[0]
@@ -107,7 +111,7 @@ class SystemViewSVDat():
                             LOG.warning("Failed to remove empty SystemView file '%s'", f)
 
         if not collected_files:
-            LOG.debug("No temporary SystemView files; skipping SVDat generation.")
+            LOG.debug("No temporary SystemView files; skipping SVDat generation")
             return False
 
         try:
@@ -144,6 +148,8 @@ class SystemViewSVDat():
                     except OSError:
                         LOG.warning("Failed to remove SystemView file '%s' after appending", f)
         except OSError as e:
-            raise OSError(f"Failed to open/write SystemView output file {self._systemview.file}: {e}")
+            LOG.error("Failed to open/write SystemView output file '%s': %s", self._systemview.file, e)
+            return False
 
+        LOG.info("SystemView SVDat file '%s' generated successfully from %d SystemView RTT channels", self._systemview.file, len(collected_files))
         return True
