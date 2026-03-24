@@ -952,7 +952,29 @@ class UnlockCommand(CommandBase):
             }
 
     def execute(self):
-        self.context.target.mass_erase()
+        unlock = getattr(self.context.target, "unlock", None)
+        if callable(unlock):
+            if not unlock():
+                raise exceptions.CommandError("unlock failed")
+        else:
+            self.context.target.mass_erase()
+
+class LockCommand(CommandBase):
+    INFO = {
+            'names': ['lock'],
+            'group': 'standard',
+            'category': 'device',
+            'nargs': 0,
+            'usage': "",
+            'help': "Enable security on the target.",
+            }
+
+    def execute(self):
+        lock = getattr(self.context.target, "lock", None)
+        if not callable(lock):
+            raise exceptions.CommandError("target does not support lock")
+        if not lock():
+            raise exceptions.CommandError("lock failed")
 
 class ContinueCommand(CommandBase):
     INFO = {

@@ -67,6 +67,8 @@ class LoadSubcommand(SubcommandBase):
             help="Skip programming the first N bytes. Binary files only.")
         parser_options.add_argument("--no-reset", action="store_true",
             help="Specify to prevent resetting device after programming has finished.")
+        parser_options.add_argument("--lock", action="store_true",
+            help="Re-enable target security after programming if the target supports locking.")
 
         parser.add_argument("file", metavar="<file-path>", nargs="*",
             help="File to write to memory. Binary files can have an optional base address appended to the file "
@@ -175,6 +177,16 @@ class LoadSubcommand(SubcommandBase):
 
             # Program the added files to the device memory.
             programmer.commit()
+
+            if self._args.lock:
+                lock = getattr(session.target, "lock", None)
+                if not callable(lock):
+                    LOG.error("Target does not support locking after load")
+                    return 1
+                LOG.info("Locking target after programming")
+                if not lock():
+                    LOG.error("Failed to lock target after programming")
+                    return 1
 
             # Reset the target after programming unless --no-reset was specified.
             post_reset = session.options.get('load.post_reset')

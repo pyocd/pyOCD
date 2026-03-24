@@ -25,6 +25,7 @@ from . import target_nRF52
 from . import target_nRF54L
 from . import target_nRF91
 from . import target_rp2
+from . import target_gd32c2x1
 
 class FamilyInfo(NamedTuple):
     """@brief Container for family matching information."""
@@ -42,6 +43,8 @@ class FamilyInfo(NamedTuple):
 # specific to general, starting with the part number.
 FAMILIES = [
     FamilyInfo("NXP",                   re.compile(r'MK[LEVWS]?.*'),        target_kinetis.Kinetis          ),
+    FamilyInfo("GigaDevice",            re.compile(r'GD32C2x1 Series|GD32C23[01].*|GD32C22[01].*'),
+                                                                                target_gd32c2x1.GD32C2x1    ),
     FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF52[0-9]+.*'),       target_nRF52.NRF52              ),
     FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF54L[0-9]+.*'),      target_nRF54L.NRF54L              ),
     FamilyInfo("Nordic Semiconductor",  re.compile(r'nRF91[0-9]+.*'),       target_nRF91.NRF91              ),
