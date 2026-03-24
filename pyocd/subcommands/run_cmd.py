@@ -242,6 +242,7 @@ class RunServer(threading.Thread):
         # also serves as a flag that a fault occurred and we're attempting to retry.
         fault_retry_timeout = Timeout(self._session.options.get('debug.status_fault_retry_timeout'))
 
+        state_check_interval_counter = 0
         while fault_retry_timeout.check():
             if self._shutdown_event.is_set():
                 # Exit the thread
@@ -260,33 +261,40 @@ class RunServer(threading.Thread):
                 except Exception as e:
                     LOG.debug("Error while waiting for EOT (0x04): %s", e)
 
+            state_check_interval_counter += 1
+
             self._lock.acquire()
 
             try:
-                state = self._target.get_state()
-
                 if self._rtt_server:
                     self._rtt_server.poll()
 
-                # If we were able to successfully read the target state after previously receiving a fault,
-                # then clear the timeout.
-                if fault_retry_timeout.is_running:
-                    LOG.debug("Target control re-established")
-                    fault_retry_timeout.clear()
+                # Check target state and handle semihosting every 10ms (every 10 loop iterations)
+                # to avoid slowing down RTT polling
+                if state_check_interval_counter == 10:
+                    state_check_interval_counter = 0
 
-                if state == Target.State.HALTED:
-                    # Handle semihosting
-                    if self._enable_semihosting:
-                        was_semihost = self._semihost.check_and_handle_semihost_request()
-                        if was_semihost:
-                            self._target.resume()
-                            continue
+                    state = self._target.get_state()
 
-                    pc = self._target_context.read_core_register('pc')
-                    LOG.error("Target core %d unexpectedly halted at pc=0x%08x; shutting down Run servers", self.core, pc)
-                    self.error_flag = True
-                    self._shutdown_event.set()
-                    break
+                    # If we were able to successfully read the target state after previously receiving a fault,
+                    # then clear the timeout.
+                    if fault_retry_timeout.is_running:
+                        LOG.debug("Target control re-established")
+                        fault_retry_timeout.clear()
+
+                    if state == Target.State.HALTED:
+                        # Handle semihosting
+                        if self._enable_semihosting:
+                            was_semihost = self._semihost.check_and_handle_semihost_request()
+                            if was_semihost:
+                                self._target.resume()
+                                continue
+
+                        pc = self._target_context.read_core_register('pc')
+                        LOG.error("Target core %d unexpectedly halted at pc=0x%08x; shutting down Run servers", self.core, pc)
+                        self.error_flag = True
+                        self._shutdown_event.set()
+                        break
 
             except exceptions.TransferError as e:
                 # If we get any sort of transfer error or fault while checking target status, then start
@@ -303,7 +311,7 @@ class RunServer(threading.Thread):
                 break
             finally:
                 self._lock.release()
-                sleep(0.01)
+                sleep(0.001)
 
         # Check if we exited the above loop due to a timeout after a fault.
         if fault_retry_timeout.did_time_out:
