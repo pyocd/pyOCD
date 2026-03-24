@@ -216,7 +216,7 @@ class RunServer(threading.Thread):
             self._rtt_server = rtt_manager.start_server()
             rtt_manager.configure_channels(stdio_handler=self._stdio_handler)
         except RuntimeError as e:
-            LOG.warning("RTT configuration failed for core %d: %s", self.core, e)
+            LOG.debug("RTT configuration failed for core %d: %s", self.core, e)
 
         #
         # If SWV is enabled, create a SWVReader thread. Note that we only do
@@ -242,6 +242,7 @@ class RunServer(threading.Thread):
         # also serves as a flag that a fault occurred and we're attempting to retry.
         fault_retry_timeout = Timeout(self._session.options.get('debug.status_fault_retry_timeout'))
 
+        state_halted = False
         state_check_interval_counter = 0
         while fault_retry_timeout.check():
             if self._shutdown_event.is_set():
@@ -289,12 +290,14 @@ class RunServer(threading.Thread):
                             if was_semihost:
                                 self._target.resume()
                                 continue
-
-                        pc = self._target_context.read_core_register('pc')
-                        LOG.error("Target core %d unexpectedly halted at pc=0x%08x; shutting down Run servers", self.core, pc)
-                        self.error_flag = True
-                        self._shutdown_event.set()
-                        break
+                        if not state_halted:
+                            state_halted = True
+                            pc = self._target_context.read_core_register('pc')
+                            LOG.warning("Target core %d unexpectedly halted at pc=0x%08x", self.core, pc)
+                    else:
+                        if state_halted:
+                            state_halted = False
+                            LOG.info("Target core %d resumed from halt", self.core)
 
             except exceptions.TransferError as e:
                 # If we get any sort of transfer error or fault while checking target status, then start
