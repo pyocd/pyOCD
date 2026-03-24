@@ -193,7 +193,7 @@ class RTTManager:
                     return symbol_info.address
             return None
         except Exception as e:
-            LOG.warning("Failed to get RTT symbol address from ELF for core %d: %s", self._core, e)
+            LOG.warning("Failed to get _SEGGER_RTT symbol address from ELF for core %d: %s", self._core, e)
             return None
 
     def start_server(self) -> Optional[RTTServer]:
@@ -216,23 +216,30 @@ class RTTManager:
                 self._rtt_server = self._start_rtt_server(address, size)
                 if self._rtt_server is not None:
                     return self._rtt_server
+                else:
+                    if size:
+                        LOG.warning("Failed to start RTT server with specified address 0x%X and size 0x%X for core %d", address, size, self._core)
+                    else:
+                        LOG.warning("Failed to start RTT server with specified address 0x%X for core %d", address, self._core)
             if auto_detect:
                 # Fallback: auto-detect via memory scan in default memory region if no address specified
                 self._rtt_server = self._start_rtt_server(None, None)
                 if self._rtt_server is not None:
                     return self._rtt_server
-
-            LOG.warning("Failed to create and start RTT server for core %d", self._core)
+                else:
+                    LOG.warning("Failed to start RTT server with auto-detected address for core %d", self._core)
             return None
         else:
             # Auto-detect via symbol "_SEGGER_RTT" lookup in the ELF file
             address = self._find_segger_rtt_symbol()
-            if address is not None:
-                self._rtt_server = self._start_rtt_server(address, None)
-                if self._rtt_server is not None:
-                    return self._rtt_server
+            if address is None:
+                LOG.warning("Failed to find _SEGGER_RTT symbol in ELF for core %d; cannot auto-detect RTT control block address", self._core)
+                return None
+            self._rtt_server = self._start_rtt_server(address, None)
+            if self._rtt_server is not None:
+                return self._rtt_server
 
-            LOG.warning("Failed to create and start RTT server for core %d", self._core)
+            LOG.warning("Failed to start RTT server with _SEGGER_RTT symbol address 0x%X for core %d", address, self._core)
             return None
 
     def configure_channels(self, stdio_handler: Optional[StdioHandler] = None):
@@ -257,29 +264,29 @@ class RTTManager:
                     LOG.warning("StdioHandler for core %d is not provided; skipping configuration for channel %d", self._core, number)
                     continue
                 if stdio_enabled:
-                    LOG.warning("STDIO RTT channel already enabled for core %d; skipping configuration for channel %d", self._core, number)
+                    LOG.warning("STDIO mode is already enabled for core %d; skipping configuration for channel %d", self._core, number)
                     continue
                 try:
                     self._rtt_server.add_channel_worker(number, lambda: RTTChanStdioWorker(channel=number, stdio=stdio_handler))
-                    LOG.info("STDIO enabled on RTT channel %d for core %d", number, self._core)
+                    LOG.info("STDIO mode enabled on RTT channel %d for core %d", number, self._core)
                     stdio_enabled = True
                 except exceptions.RTTError as e:
-                    LOG.error("Failed to enable STDIO for RTT channel %d for core %d: %s", number, self._core, e)
+                    LOG.error("Failed to enable STDIO mode for RTT channel %d for core %d: %s", number, self._core, e)
             # Telnet mode
             elif mode == 'telnet':
                 try:
                     self._rtt_server.add_channel_worker(number, lambda: RTTChanTCPWorker(telnet_port, listen=True))
-                    LOG.info("Telnet enabled on RTT channel %d for core %d", number, self._core)
+                    LOG.info("Telnet mode on port %d enabled on RTT channel %d for core %d", telnet_port, number, self._core)
                 except exceptions.RTTError as e:
-                    LOG.error("Failed to enable Telnet server for RTT channel %d for core %d: %s", number, self._core, e)
+                    LOG.error("Failed to enable telnet mode for RTT channel %d for core %d: %s", number, self._core, e)
             # SystemView mode
             elif mode == 'systemview':
                 try:
                     fname_root = self._systemview.file.rsplit('.', 1)[0]
                     fname = f'{fname_root}.core{self._core}.ch{number}.bin'
                     self._rtt_server.add_channel_worker(number, lambda: RTTChanSystemViewWorker(rtt_server=self._rtt_server, rtt_channel=number, file_out=fname, auto_start=self._systemview.auto_start, auto_stop=self._systemview.auto_stop))
-                    LOG.info("SystemView enabled on RTT channel %d for core %d", number, self._core)
+                    LOG.info("SystemView mode enabled on RTT channel %d for core %d", number, self._core)
                 except (IOError, exceptions.RTTError) as e:
-                    LOG.error("Failed to enable SystemView for RTT channel %d for core %d: %s", number, self._core, e)
+                    LOG.error("Failed to enable SystemView mode for RTT channel %d for core %d: %s", number, self._core, e)
             else:
                 LOG.warning("Unsupported RTT channel mode '%s' for channel %d for core %d; skipping configuration for channel %d", mode, number, self._core, number)
