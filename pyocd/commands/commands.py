@@ -919,6 +919,16 @@ class EraseCommand(CommandBase):
                 self.count = self._convert_value(args[1])
 
     def execute(self):
+        secondary_cores = [c for c in self.context.session.target.cores.values()
+                           if c != self.context.session.target.primary_core]
+        try:
+            for core in secondary_cores:
+                core.set_reset_catch()
+            self.context.session.target.reset_and_halt()
+        finally:
+            for core in secondary_cores:
+                core.clear_reset_catch()
+
         if self.erase_chip:
             eraser = FlashEraser(self.context.session, FlashEraser.Mode.CHIP)
             eraser.erase()
