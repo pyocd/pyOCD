@@ -189,7 +189,7 @@ class RTTChanFileWorker(RTTChanWorker):
         if self._f_in is not None:
             self._f_in.close()
 
-class RTTChanSystemViewWorker(RTTChanWorker):
+class RTTChanSysViewFileWorker(RTTChanWorker):
     """@brief Implementation of channel worker that writes data from RTT channel
               to a SystemView file and handles START and STOP commands. """
     _START_CMD = b"\x01"
@@ -269,6 +269,43 @@ class RTTChanSystemViewWorker(RTTChanWorker):
                 down_chan.write(self._STOP_CMD)
         if self._f_out is not None:
             self._f_out.close()
+
+class RTTChanSysViewTCPWorker(RTTChanTCPWorker):
+    """@brief Implementation of channel worker that handles SystemView Hello messages and
+              forwards RTT data via a TCP socket. """
+
+    _HELLO_MSG = b"SEGGER SystemView"
+
+    hello_received: bool
+
+    def __init__(self, port: int, listen: bool = True):
+        super().__init__(port, listen)
+        self.hello_received = False
+
+    def get_down_data(self):
+        data = super().get_down_data()
+
+        if self.client is None:
+            self.hello_received = False
+            return b''
+
+        if not data:
+            return b''
+
+        if not self.hello_received:
+            # First message from SystemView client should be 32 byte hello message starting with _HELLO_MSG
+            if len(data) == 32 and data.startswith(self._HELLO_MSG):
+                self.hello_received = True
+                LOG.debug("Received hello message from SystemView client on port %d; connection established", self.port)
+                # Return hello response
+                response = self._HELLO_MSG
+                response += b"\x00" * (32 - len(response))
+                self.client.send(response)
+            else:
+                LOG.debug("Received non-hello message from SystemView client before hello message; ignoring")
+            return b''
+
+        return data
 
 class RTTChanStdioWorker(RTTChanWorker):
     """@brief Implementation of channel worker that forwards RTT data via a STDIO"""

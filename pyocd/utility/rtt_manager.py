@@ -24,7 +24,7 @@ from ..core import exceptions
 from ..core.session import Session
 from ..debug.elf.elf import ELFBinaryFile
 from .stdio import StdioHandler
-from .rtt_server import RTTServer, RTTChanStdioWorker, RTTChanTCPWorker, RTTChanSystemViewWorker
+from .rtt_server import RTTServer, RTTChanStdioWorker, RTTChanTCPWorker, RTTChanSysViewFileWorker
 from .systemview import SystemViewConfig
 
 LOG = logging.getLogger(__name__)
@@ -284,7 +284,7 @@ class RTTManager:
                 try:
                     fname_root = self._systemview.file.rsplit('.', 1)[0]
                     fname = f'{fname_root}.core{self._core}.ch{number}.bin'
-                    self._rtt_server.add_channel_worker(number, lambda: RTTChanSystemViewWorker(rtt_server=self._rtt_server, rtt_channel=number, file_out=fname, auto_start=self._systemview.auto_start, auto_stop=self._systemview.auto_stop))
+                    self._rtt_server.add_channel_worker(number, lambda: RTTChanSysViewFileWorker(rtt_server=self._rtt_server, rtt_channel=number, file_out=fname, auto_start=self._systemview.auto_start, auto_stop=self._systemview.auto_stop))
                     LOG.info("SystemView mode enabled on RTT channel %d for core %d", number, self._core)
                 except (IOError, exceptions.RTTError) as e:
                     LOG.error("Failed to enable SystemView mode for RTT channel %d for core %d: %s", number, self._core, e)
