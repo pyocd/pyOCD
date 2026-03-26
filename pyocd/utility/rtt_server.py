@@ -247,10 +247,6 @@ class RTTChanSysViewFileWorker(RTTChanWorker):
 
     def get_down_data(self):
         if not self._started:
-            if self._rtt_server.is_channel_configured(self._rtt_channel) == False:
-                # Should not happen
-                LOG.error("SystemView worker for channel %d does not have a configured RTT channel; ignoring start request", self._rtt_channel)
-                return b''
             down_chan: RTTDownChannel = self._rtt_server.control_block.down_channels[self._rtt_channel]
             if down_chan.bytes_free == down_chan.size:
                 # Channel is empty, can start
@@ -260,8 +256,7 @@ class RTTChanSysViewFileWorker(RTTChanWorker):
 
     def close(self):
         if self._auto_stop:
-            if self._rtt_server.is_channel_configured(self._rtt_channel) == False:
-                # Should not happen
+            if self._rtt_channel >= len(self._rtt_server.control_block.down_channels):
                 LOG.error("SystemView worker for channel %d does not have a configured RTT channel; ignoring stop request", self._rtt_channel)
             else:
                 down_chan: RTTDownChannel = self._rtt_server.control_block.down_channels[self._rtt_channel]
@@ -360,29 +355,31 @@ class RTTServer:
         self.down_buffers = None
 
     def _channel_handler(self, ch_idx: int, worker: RTTChanWorker):
-        # Read from up channel
-        try:
-            up_chan: RTTUpChannel = self.control_block.up_channels[ch_idx]
-        except IndexError:
-            pass
-        else:
-            self.up_buffers[ch_idx] += up_chan.read()
+        if ch_idx < len(self.control_block.up_channels):
+            try:
+                # Read from up channel
+                self.up_buffers[ch_idx] += self.control_block.up_channels[ch_idx].read()
+            except (exceptions.TransferError, exceptions.RTTError) as e:
+                LOG.error("Error reading RTT up channel %d: %s", ch_idx, e)
+            try:
+                # Write to worker
+                bytes_written = worker.write_up_data(self.up_buffers[ch_idx])
+                self.up_buffers[ch_idx] = self.up_buffers[ch_idx][bytes_written:]
+            except Exception as e:
+                LOG.error("Error writing to RTT channel worker %d: %s", ch_idx, e)
 
-        # Write to worker
-        bytes_written = worker.write_up_data(self.up_buffers[ch_idx])
-        self.up_buffers[ch_idx] = self.up_buffers[ch_idx][bytes_written:]
-
-        # Read from worker
-        self.down_buffers[ch_idx] += worker.get_down_data()
-
-        # Write data to down channel
-        try:
-            down_chan: RTTDownChannel = self.control_block.down_channels[ch_idx]
-        except IndexError:
-            pass
-        else:
-            bytes_out: int = down_chan.write(self.down_buffers[ch_idx])
-            self.down_buffers[ch_idx] = self.down_buffers[ch_idx][bytes_out:]
+        if ch_idx < len(self.control_block.down_channels):
+            try:
+                # Read from worker
+                self.down_buffers[ch_idx] += worker.get_down_data()
+            except Exception as e:
+                LOG.error("Error reading from RTT channel worker %d: %s", ch_idx, e)
+            try:
+                # Write to down channel
+                bytes_out = self.control_block.down_channels[ch_idx].write(self.down_buffers[ch_idx])
+                self.down_buffers[ch_idx] = self.down_buffers[ch_idx][bytes_out:]
+            except (exceptions.TransferError, exceptions.RTTError) as e:
+                LOG.error("Error writing RTT down channel %d: %s", ch_idx, e)
 
     def poll(self):
         """@brief Reads from and writes to active RTT channels. """
