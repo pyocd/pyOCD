@@ -24,7 +24,7 @@ from ..core import exceptions
 from ..core.session import Session
 from ..debug.elf.elf import ELFBinaryFile
 from .stdio import StdioHandler
-from .rtt_server import RTTServer, RTTChanStdioWorker, RTTChanTCPWorker, RTTChanSysViewFileWorker
+from .rtt_server import RTTServer, RTTChanStdioWorker, RTTChanTCPWorker, RTTChanSysViewFileWorker, RTTChanSysViewTCPWorker
 from .systemview import SystemViewConfig
 
 LOG = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class RTTConfig:
 
     # Helper methods
     def _add_channel(self, ch_list: List["RTTConfig.RTTChannel"], number: int, mode: str, port: Optional[int] = None) -> None:
-        SUPPORTED_MODES = {'stdio', 'server', 'systemview'}
+        SUPPORTED_MODES = {'stdio', 'server', 'systemview', 'systemview-server'}
 
         if number is None:
             # Warn about missing channel number
@@ -67,10 +67,10 @@ class RTTConfig:
             LOG.warning("RTT channel %d configuration for core %d has unsupported mode '%s'; channel disabled",
                         number, self._core, mode)
             return
-        # Server mode
-        if mode == 'server':
+        # Server mode or SystemView server mode requires a port number
+        if mode in {'server', 'systemview-server'}:
             if port is None:
-                LOG.warning("RTT channel %d configuration for core %d is missing port for server mode; channel disabled", number, self._core)
+                LOG.warning("RTT channel %d configuration for core %d is missing port for %s mode; channel disabled", number, self._core, mode)
                 return
             conflict = next((ch for ch in ch_list if ch[1] == 'telnet' and ch[2] == port), None)
             if next((ch for ch in ch_list if ch[1] == 'telnet' and ch[2] == port), None) is not None:
@@ -288,5 +288,12 @@ class RTTManager:
                     LOG.info("SystemView mode enabled on RTT channel %d for core %d", number, self._core)
                 except (IOError, exceptions.RTTError) as e:
                     LOG.error("Failed to enable SystemView mode for RTT channel %d for core %d: %s", number, self._core, e)
+            # SystemView server mode
+            elif mode == 'systemview-server':
+                try:
+                    self._rtt_server.add_channel_worker(number, lambda: RTTChanSysViewTCPWorker(server_port, listen=True))
+                    LOG.info("SystemView server mode on port %d enabled on RTT channel %d for core %d", server_port, number, self._core)
+                except exceptions.RTTError as e:
+                    LOG.error("Failed to enable SystemView server mode for RTT channel %d for core %d: %s", number, self._core, e)
             else:
                 LOG.warning("Unsupported RTT channel mode '%s' for channel %d for core %d; skipping configuration for channel %d", mode, number, self._core, number)
