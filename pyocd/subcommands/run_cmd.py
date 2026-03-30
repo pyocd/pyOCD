@@ -62,8 +62,6 @@ class RunSubcommand(SubcommandBase):
     def invoke(self) -> int:
         """@brief Handle 'run' subcommand."""
 
-        self._increase_logging(["pyocd.subcommands.run_cmd", __name__])
-
         # Create shared shutdown event for all RunServer threads
         self.shared_shutdown = threading.Event()
 
@@ -96,6 +94,11 @@ class RunSubcommand(SubcommandBase):
 
         timelimit_triggered = False
         with session:
+
+            # Increase log level to INFO if it is still at the default WARNING level
+            root_logger = logging.getLogger()
+            if root_logger.level == logging.WARNING:
+                root_logger.setLevel(logging.INFO)
             #
             # ToDo: load support
             #
