@@ -72,9 +72,9 @@ class RTTConfig:
             if port is None:
                 LOG.warning("RTT channel %d configuration for core %d is missing port for %s mode; channel disabled", number, self._core, mode)
                 return
-            conflict = next((ch for ch in ch_list if ch[1] == 'telnet' and ch[2] == port), None)
-            if next((ch for ch in ch_list if ch[1] == 'telnet' and ch[2] == port), None) is not None:
-                LOG.warning("RTT telnet port %d is already in use for channel %d on core %d; channel disabled", port, conflict[0], self._core)
+            conflict = next((ch for ch in ch_list if ch[1] in {'server', 'systemview-server'} and ch[2] == port), None)
+            if conflict is not None:
+                LOG.warning("RTT server port %d is already in use for channel %d on core %d; channel disabled", port, conflict[0], self._core)
                 return
         else:
             port = None
