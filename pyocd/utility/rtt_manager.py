@@ -113,8 +113,8 @@ class RTTConfig:
         else:
             address = cb_l.get('address') if (cb_l and cb_l.get('address') is not None) else (cb_g.get('address') if cb_g else None)
             size = cb_l.get('size') if (cb_l and cb_l.get('size') is not None) else (cb_g.get('size') if cb_g else None)
-            auto_detect = cb_l.get('auto-detect') if (cb_l and cb_l.get('auto-detect') is not None) else (cb_g.get('auto-detect', False) if cb_g else False)
-            if address is not None or auto_detect:
+            auto_detect = cb_l.get('auto-detect') if (cb_l and cb_l.get('auto-detect') is not None) else (cb_g.get('auto-detect', None) if cb_g else None)
+            if address is not None or auto_detect is not None:
                 rtt_cb = (address, size, auto_detect)
             else:
                 rtt_cb = None
@@ -222,6 +222,9 @@ class RTTManager:
 
         if rtt_cb is not None:
             address, size, auto_detect = rtt_cb
+            if address is None and auto_detect is False:
+                LOG.warning("RTT for core %d: control block configuration is missing address while auto-detect is disabled; RTT disabled", self._core)
+                return None
             if address is not None:
                 self._rtt_server = self._start_rtt_server(address, size)
                 if self._rtt_server is not None:
