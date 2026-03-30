@@ -41,6 +41,7 @@ class RTTConfig:
     _session: Session
     _target: str
     _core: int
+    has_rtt_config: bool = False
     control_block: RTTControlBlock = None
     channels: RTTChannelList = None
 
@@ -87,6 +88,8 @@ class RTTConfig:
         rtt_config_list = self._session.options.get('rtt') or []
         if not rtt_config_list:
             return
+
+        self.has_rtt_config = True
 
         rtt_config_by_pname = {cfg.get('pname'): cfg for cfg in rtt_config_list}
         proc_name = self._target.node_name if self._target.node_name else None
@@ -197,6 +200,10 @@ class RTTManager:
 
     def start_server(self) -> Optional[RTTServer]:
         """@brief Create and start RTT server."""
+
+        if not self._rtt_config.has_rtt_config:
+            LOG.debug("RTT for core %d: no RTT configuration; RTT disabled", self._core)
+            return None
 
         if self._rtt_config.channels is None:
             LOG.warning("RTT for core %d: no channels configured; RTT disabled", self._core)
