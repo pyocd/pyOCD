@@ -214,7 +214,8 @@ class RunServer(threading.Thread):
         try:
             rtt_manager = RTTManager(session=session, core=core, rtt_config=rtt_config, systemview_config=systemview_config)
             self._rtt_server = rtt_manager.start_server()
-            rtt_manager.configure_channels(stdio_handler=self._stdio_handler)
+            if self._rtt_server is not None:
+                rtt_manager.configure_channels(stdio_handler=self._stdio_handler)
         except RuntimeError as e:
             LOG.debug("RTT configuration failed for core %d: %s", self.core, e)
 
