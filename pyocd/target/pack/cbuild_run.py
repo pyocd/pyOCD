@@ -753,15 +753,32 @@ class CbuildRun:
         return tuple(rtt) if rtt else None
 
     @property
-    def systemview(self) -> Optional[Tuple]:
+    def systemview_file(self) -> Optional[str]:
         rtt = self.debugger.get('rtt') or []
         if not rtt:
             return None
         sv = self.debugger.get('systemview') or {}
-        if sv.get('file') is None:
+        file = sv.get('file')
+        if file is None:
             # Set default systemview file name if not provided
-            sv['file'] = self._cbuild_run_path.split('.cbuild-run')[0] + '.SVDat'
-        return sv if sv else None
+            file = self._cbuild_run_path.split('.cbuild-run')[0] + '.SVDat'
+        return file if file else None
+
+    @property
+    def systemview_auto_start(self) -> Optional[bool]:
+        rtt = self.debugger.get('rtt') or []
+        if not rtt:
+            return None
+        sv = self.debugger.get('systemview') or {}
+        return sv.get('auto-start')
+
+    @property
+    def systemview_auto_stop(self) -> Optional[bool]:
+        rtt = self.debugger.get('rtt') or []
+        if not rtt:
+            return None
+        sv = self.debugger.get('systemview') or {}
+        return sv.get('auto-stop')
 
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""

@@ -38,31 +38,27 @@ class SystemViewConfig:
     auto_stop: bool = True
 
     def __post_init__(self):
-        systemview = self._session.options.get('systemview') or {}
+        # Auto start
+        self.auto_start = (self._session.options.get('systemview_auto_start')
+                           if self._session.options.is_set('systemview_auto_start') else True)
 
-        # Set default values
-        file = f"{self._session.board.target_type}.SVDat"
-        auto_start = True
-        auto_stop = True
+        # Auto stop
+        self.auto_stop = (self._session.options.get('systemview_auto_stop')
+                          if self._session.options.is_set('systemview_auto_stop') else True)
 
-        if systemview:
-            file = systemview.get('file', file)
-            auto_start = systemview.get('auto-start', auto_start)
-            auto_stop = systemview.get('auto-stop', auto_stop)
-            if file is not None:
-                file = str(Path(os.path.expandvars(str(file))).expanduser().resolve())
-
+        # SystemView file
+        _file = (self._session.options.get('systemview_file')
+             if self._session.options.is_set('systemview_file')
+             else f"{self._session.board.target_type}.SVDat")
+        _file = str(Path(os.path.expandvars(str(_file))).expanduser().resolve()) if _file else _file
         # Check if the folder exists for output file
-        outdir = os.path.dirname(file)
+        outdir = os.path.dirname(_file)
         if outdir and not os.path.exists(outdir):
-            fname = os.path.basename(file)
+            fname = os.path.basename(_file)
             raise FileNotFoundError(
                 f"Output directory '{outdir}' for SystemView output file '{fname}' does not exist"
             )
-
-        self.file = file
-        self.auto_start = auto_start
-        self.auto_stop = auto_stop
+        self.file = _file
 
 class SystemViewSVDat():
     def __init__(self, session: Session, rtt_configs: Dict[int, "RTTConfig"], systemview_config: SystemViewConfig):

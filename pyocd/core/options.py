@@ -217,8 +217,12 @@ BUILTIN_OPTIONS = [
         "List of telnet output file paths for each core."),
     OptionInfo('rtt', tuple, None,
         "List of RTT configurations for each core."),
-    OptionInfo('systemview', tuple, None,
-        "SystemView configuration."),
+    OptionInfo('systemview_file', str, None,
+        "SystemView output file path."),
+    OptionInfo('systemview_auto_start', bool, None,
+        "Enable automatic start of SystemView."),
+    OptionInfo('systemview_auto_stop', bool, None,
+        "Enable automatic stop of SystemView."),
     ]
 
 ## @brief The runtime dictionary of options.
