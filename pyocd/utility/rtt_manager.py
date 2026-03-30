@@ -44,6 +44,7 @@ class RTTConfig:
     has_rtt_config: bool = False
     control_block: RTTControlBlock = None
     channels: RTTChannelList = None
+    num_systemview_channels: int = 0
 
     def __post_init__(self):
         self._rtt_configuration()
@@ -80,6 +81,9 @@ class RTTConfig:
                 return
         else:
             port = None
+        if mode == 'systemview':
+            # Count the number of SystemView channels
+            self.num_systemview_channels += 1
 
         port_str = f", port={port}" if port is not None else ""
         ch_list.append((number, mode, port))
