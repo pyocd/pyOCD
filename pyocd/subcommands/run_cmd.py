@@ -110,8 +110,17 @@ class RunSubcommand(SubcommandBase):
                 core_number: RTTConfig(_session=session, _target=core_target, _core=core_number)
                 for core_number, core_target in session.board.target.cores.items()
             }
+
             systemview_config = SystemViewConfig(_session=session)
-            self._systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list, systemview_config=systemview_config)
+            systemview_enabled = any(
+                cfg.has_rtt_config and cfg.num_systemview_channels > 0
+                for cfg in rtt_config_list.values()
+            )
+
+            if systemview_enabled:
+                self._systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list, systemview_config=systemview_config)
+            else:
+                self._systemview = None
             try:
                 # Start up the run servers
                 for core_number, core in session.board.target.cores.items():
@@ -173,7 +182,8 @@ class RunSubcommand(SubcommandBase):
                 LOG.warning("Run server for core %d did not terminate cleanly", server.core)
 
         # Generate SystemView output file
-        self._systemview.assemble_file()
+        if self._systemview is not None:
+            self._systemview.assemble_file()
 
 class RunServer(threading.Thread):
 
