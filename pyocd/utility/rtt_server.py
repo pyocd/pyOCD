@@ -300,7 +300,7 @@ class RTTChanSysViewTCPWorker(RTTChanTCPWorker):
                 LOG.debug("Received non-hello message from SystemView client before hello message; ignoring")
             return b''
 
-        return data
+        return data[1:data[0] + 1]
 
 class RTTChanStdioWorker(RTTChanWorker):
     """@brief Implementation of channel worker that forwards RTT data via a STDIO"""
