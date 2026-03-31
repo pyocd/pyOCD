@@ -165,7 +165,7 @@ BUILTIN_OPTIONS = [
         "Duration in seconds that a failed target status check will be retried before an error is raised. "
         "Only applies while the target is running after a resume operation in the debugger and pyOCD is waiting "
         "for it to halt again."),
-    OptionInfo('gdbserver_port', int, 3333,
+    OptionInfo('gdbserver_port', (int, tuple), 3333,
         "Base TCP port for the gdbserver."),
     OptionInfo('persist', bool, False,
         "If True, the GDB server will not exit after GDB disconnects."),
@@ -194,7 +194,7 @@ BUILTIN_OPTIONS = [
         "Enable flag for the raw SWV stream server."),
     OptionInfo('swv_raw_port', int, 3443,
         "TCP port number for the raw SWV stream server."),
-    OptionInfo('telnet_port', int, 4444,
+    OptionInfo('telnet_port', (int, tuple), 4444,
         "Base TCP port number for the semihosting telnet server."),
     OptionInfo('vector_catch', str, 'h',
         "Enable vector catch sources."),
@@ -205,15 +205,11 @@ BUILTIN_OPTIONS = [
         "Replace software breakpoints with hardware breakpoints."),
 
     # Internal cbuild-run session options
-    OptionInfo('cbuild_run.gdbserver_port', tuple, None,
-        "List of TCP ports for the gdbserver."),
-    OptionInfo('cbuild_run.telnet_port', tuple, None,
-        "List of TCP ports for telnet server."),
-    OptionInfo('cbuild_run.telnet_mode', tuple, None,
+    OptionInfo('telnet_mode', (str, tuple), None,
         "List of telnet modes for each core."),
-    OptionInfo('cbuild_run.telnet_file_in', tuple, None,
+    OptionInfo('telnet_file_in', (str, tuple), None,
         "List of telnet input file paths for each core."),
-    OptionInfo('cbuild_run.telnet_file_out', tuple, None,
+    OptionInfo('telnet_file_out', (str, tuple), None,
         "List of telnet output file paths for each core."),
     OptionInfo('rtt', tuple, None,
         "List of RTT configurations for each core."),

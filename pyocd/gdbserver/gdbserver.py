@@ -301,13 +301,13 @@ class GDBServer(threading.Thread):
             self.target = self.board.target.cores[core]
         self.name = "gdb-server-core%d" % self.core
 
-        if session.options.is_set('cbuild_run.gdbserver_port'):
-            # Per-core gdbserver ports configured.
-            _port = session.options.get('cbuild_run.gdbserver_port')[self.core]
-            # Check if no port was configured for this core, use 0 in that case.
-            self.port = _port if _port is not None else 0
+        _ports = session.options.get('gdbserver_port')
+        if isinstance(_ports, (list, tuple)):
+            if len(_ports) <= self.core:
+                raise ValueError(f"GDB server for core {self.core} requires a port number in the 'gdbserver_port' list")
+            self.port = _ports[self.core]
         else:
-            self.port = session.options.get('gdbserver_port')
+            self.port = _ports
             if self.port != 0:
                 self.port += self.core
 

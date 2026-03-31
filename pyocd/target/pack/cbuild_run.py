@@ -646,11 +646,10 @@ class CbuildRun:
         """@brief Telnet server mode assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
-        SUPPORTED_MODES = { 'off', 'telnet', 'file', 'console' }
+        SUPPORTED_MODES = { 'off', 'server', 'file', 'console' }
         MODE_ALIASES = { False: 'off',
-                        'monitor': 'telnet',
-                        'server': 'telnet'
-                      }
+                        'monitor': 'server'
+                       }
         # Get telnet configuration from debugger section
         telnet_config = self.debugger.get('telnet') or []
         valid_config = any('mode' in t for t in telnet_config)
