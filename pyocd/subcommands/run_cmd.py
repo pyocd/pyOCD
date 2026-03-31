@@ -206,8 +206,12 @@ class RunServer(threading.Thread):
 
         self.name = "run-server-%d" % self.core
 
-        # Semihosting always enabled
-        self._enable_semihosting = True
+        # Semihosting enabled by default,
+        # but can be explicitly disabled via the 'enable_semihosting' option
+        if session.options.is_set("enable_semihosting"):
+            self._enable_semihosting = session.options.get("enable_semihosting")
+        else:
+            self._enable_semihosting = True
 
         # Lock to synchronize SWO with other activity
         self._lock = threading.RLock()
