@@ -58,14 +58,13 @@ class StdioTelnet(StdioBase):
     """STDIO backend that uses a telnet server for reading from and writing to stdin/stdout."""
 
     def __init__(self, session: Session, core: int = 0) -> None:
-        if session.options.is_set('cbuild_run.telnet_port'):
-            # Per-core telnet ports configured.
-            telnet_port = session.options.get('cbuild_run.telnet_port')[core]
-            if telnet_port is None:
-                LOG.info("Telnet port for core %d is not specified and will be auto-assigned", core)
-                telnet_port = 0
+        _telnet_ports = session.options.get('telnet_port')
+        if isinstance(_telnet_ports, (list, tuple)):
+            if len(_telnet_ports) <= core or _telnet_ports[core] is None:
+                raise ValueError(f"STDIO: telnet for core {core} requires a port number in the 'telnet_port' list")
+            telnet_port = _telnet_ports[core]
         else:
-            telnet_port = session.options.get('telnet_port')
+            telnet_port = _telnet_ports
             if telnet_port != 0:
                 telnet_port += core
         serve_local_only = session.options.get('serve_local_only')
@@ -112,24 +111,47 @@ class StdioTelnet(StdioBase):
 
     @property
     def info(self) -> str:
-        return f"telnet (port: {self._server.port})"
+        return f"server (port: {self._server.port})"
 
 class StdioFile(StdioBase):
     """STDIO backend that reads from and writes to files."""
 
     def __init__(self, session: Session, core: int = 0) -> None:
-        # Get file paths from session options
-        if session.options.is_set('cbuild_run.telnet_file_out'):
-            telnet_file_out = session.options.get('cbuild_run.telnet_file_out')[core]
-            if telnet_file_out is None:
-                raise ValueError(f"STDIO file for core {core} requires a valid output file path")
-        else:
-            raise ValueError(f"STDIO file for core {core} requires a valid output file path")
 
-        if session.options.is_set('cbuild_run.telnet_file_in'):
-            telnet_file_in = session.options.get('cbuild_run.telnet_file_in')[core]
+        is_multi_core = len(session.board.target.cores) > 1
+        # Get file paths from session options
+        if session.options.is_set('telnet_file_out'):
+            _telnet_file_out = session.options.get('telnet_file_out')
+            if isinstance(_telnet_file_out, (list, tuple)):
+                if len(_telnet_file_out) <= core or _telnet_file_out[core] is None:
+                    raise ValueError(f"STDIO file for core {core} requires a valid output file path")
+                telnet_file_out = _telnet_file_out[core]
+            else:
+                if is_multi_core:
+                    root, ext = os.path.splitext(_telnet_file_out)
+                    _telnet_file_out = root + f"_{core}" + ext
+                telnet_file_out = _telnet_file_out
         else:
-            telnet_file_in = None
+            # Default
+            target_type = session.board.target_type
+            telnet_file_out = f"{target_type}_{core}.out" if is_multi_core else f"{target_type}.out"
+
+        telnet_file_in = None
+        if session.options.is_set('telnet_file_in'):
+            _telnet_file_in = session.options.get('telnet_file_in')
+            if isinstance(_telnet_file_in, (list, tuple)):
+                if len(_telnet_file_in) <= core or _telnet_file_in[core] is None:
+                    LOG.debug("No input file configured for core %d", core)
+                telnet_file_in = _telnet_file_in[core]
+            else:
+                if is_multi_core:
+                    root, ext = os.path.splitext(_telnet_file_in)
+                    _telnet_file_in = root + f"_{core}" + ext
+                telnet_file_in = _telnet_file_in
+        else:
+            # Default
+            target_type = session.board.target_type
+            telnet_file_in = f"{target_type}_{core}.in" if is_multi_core else f"{target_type}.in"
 
         # Check if the folder exists for input/output files
         dir_out = os.path.dirname(telnet_file_out)
@@ -271,8 +293,10 @@ class StdioConsole(StdioBase):
         return "console"
 
 # Backend mapping
-_BACKEND_CLASSES: Dict[str, Type[StdioBase]] = {
+_BACKEND_CLASSES: Dict[str or bool, Type[StdioBase]] = {
+     False:    StdioOff,
     "off":     StdioOff,
+    "server":  StdioTelnet,
     "telnet":  StdioTelnet,
     "file":    StdioFile,
     "console": StdioConsole
@@ -284,10 +308,14 @@ class StdioHandler(StdioBase):
     """
 
     def __init__(self, session: Session, core: int = 0, eot_enabled: bool = False) -> None:
-
-        if session.options.is_set('cbuild_run.telnet_mode'):
-            # Per-core telnet modes configured.
-            stdio_mode = session.options.get('cbuild_run.telnet_mode')[core]
+        if session.options.is_set('telnet_mode'):
+            _telnet_mode = session.options.get('telnet_mode')
+            if isinstance(_telnet_mode, (list, tuple)):
+                if len(_telnet_mode) <= core or _telnet_mode[core] is None:
+                    raise ValueError(f"STDIO mode for core {core} requires a 'telnet_mode'")
+                stdio_mode = _telnet_mode[core]
+            else:
+                stdio_mode = _telnet_mode
         else:
             stdio_mode = session.options.get('semihost_console_type')
 

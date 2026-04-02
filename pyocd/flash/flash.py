@@ -18,7 +18,7 @@
 
 from dataclasses import dataclass
 import logging
-from enum import Enum
+from enum import IntEnum
 
 from ..core import exceptions
 from ..core.target import Target
@@ -109,7 +109,7 @@ class Flash:
 
     All of the "pc_" entry point key values must have bit 0 set to indicate a Thumb function.
     """
-    class Operation(Enum):
+    class Operation(IntEnum):
         """@brief Operations passed to init()."""
         ## Erase all or sector erase.
         ERASE = 1
@@ -531,7 +531,8 @@ class Flash:
 
         fb = FlashBuilder(self)
         fb.add_data(addr, data)
-        info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
+        fb.erase(chip_erase, progress_cb, smart_flash, fast_verify)
+        info = fb.program(progress_cb, smart_flash, fast_verify)
         return info
 
     def _call_function(self, pc, r0=None, r1=None, r2=None, r3=None, init=False):

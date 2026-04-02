@@ -301,13 +301,13 @@ class GDBServer(threading.Thread):
             self.target = self.board.target.cores[core]
         self.name = "gdb-server-core%d" % self.core
 
-        if session.options.is_set('cbuild_run.gdbserver_port'):
-            # Per-core gdbserver ports configured.
-            _port = session.options.get('cbuild_run.gdbserver_port')[self.core]
-            # Check if no port was configured for this core, use 0 in that case.
-            self.port = _port if _port is not None else 0
+        _ports = session.options.get('gdbserver_port')
+        if isinstance(_ports, (list, tuple)):
+            if len(_ports) <= self.core:
+                raise ValueError(f"GDB server for core {self.core} requires a port number in the 'gdbserver_port' list")
+            self.port = _ports[self.core]
         else:
-            self.port = session.options.get('gdbserver_port')
+            self.port = _ports
             if self.port != 0:
                 self.port += self.core
 
@@ -531,7 +531,7 @@ class GDBServer(threading.Thread):
                     # Make sure the target is halted. Otherwise gdb gets easily confused.
                     self.target.halt()
 
-                        # Start the per-client handler thread (server.run_session() will be invoked there).
+                    # Start the per-client handler thread (server.run_session() will be invoked there).
                     client.start()
                     if remote_address:
                         LOG.info("Client %d connected on port %d from remote address %s", index, self.port, remote_address)
@@ -585,6 +585,7 @@ class GDBServer(threading.Thread):
             if not any(c.is_attached_to_target for c in self.client_sessions):
                 self.thread_provider = None
                 self.did_init_thread_providers = False
+                self.first_run_after_reset_or_flash = True
 
                 # Resume target when no clients are connected
                 try:

@@ -31,8 +31,8 @@ from ..coresight.generic_mem_ap import GenericMemAPTarget
 from ..core.target import Target
 from ..debug import semihost
 from ..utility.timeout import Timeout
-from ..utility.rtt_cbuild_run import RttCbuildRun
-from ..utility.systemview import SystemViewSVDat
+from ..utility.rtt_manager import RTTConfig, RTTManager
+from ..utility.systemview import SystemViewConfig, SystemViewSVDat
 from ..trace.swv import SWVReader
 
 from ..utility.stdio import StdioHandler
@@ -61,8 +61,6 @@ class RunSubcommand(SubcommandBase):
 
     def invoke(self) -> int:
         """@brief Handle 'run' subcommand."""
-
-        self._increase_logging(["pyocd.subcommands.run_cmd", __name__])
 
         # Create shared shutdown event for all RunServer threads
         self.shared_shutdown = threading.Event()
@@ -96,6 +94,11 @@ class RunSubcommand(SubcommandBase):
 
         timelimit_triggered = False
         with session:
+
+            # Increase log level to INFO if it is still at the default WARNING level
+            root_logger = logging.getLogger()
+            if root_logger.level == logging.WARNING:
+                root_logger.setLevel(logging.INFO)
             #
             # ToDo: load support
             #
@@ -103,7 +106,21 @@ class RunSubcommand(SubcommandBase):
             for _, core in session.board.target.cores.items():
                 core.halt()
 
-            self._systemview = SystemViewSVDat(session)
+            rtt_config_list = {
+                core_number: RTTConfig(_session=session, _target=core_target, _core=core_number)
+                for core_number, core_target in session.board.target.cores.items()
+            }
+
+            systemview_config = SystemViewConfig(_session=session)
+            systemview_enabled = any(
+                cfg.has_rtt_config and cfg.num_systemview_channels > 0
+                for cfg in rtt_config_list.values()
+            )
+
+            if systemview_enabled:
+                self._systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list, systemview_config=systemview_config)
+            else:
+                self._systemview = None
             try:
                 # Start up the run servers
                 for core_number, core in session.board.target.cores.items():
@@ -111,7 +128,10 @@ class RunSubcommand(SubcommandBase):
                     if isinstance(session.board.target.cores[core_number], GenericMemAPTarget):
                         continue
 
-                    run_server = RunServer(session, core=core_number,
+                    run_server = RunServer(session=session,
+                                           core=core_number,
+                                           rtt_config=rtt_config_list[core_number],
+                                           systemview_config=systemview_config,
                                            enable_eot=self._args.eot,
                                            shutdown_event=self.shared_shutdown)
                     self._run_servers.append(run_server)
@@ -129,32 +149,30 @@ class RunSubcommand(SubcommandBase):
                     if timelimit is not None:
                         elapsed = time() - start_time
                         if elapsed >= timelimit:
-                            LOG.info("Time limit of %.1f seconds reached; shutting down Run servers", timelimit)
+                            LOG.info("Time limit of %.1f seconds reached; shutting down all Run servers", timelimit)
                             timelimit_triggered = True
-                            self.ShutDown()
+                            self.shutdown()
                             break
                     sleep(0.1)
 
             except KeyboardInterrupt:
                 LOG.info("KeyboardInterrupt received; shutting down Run servers")
-                self.ShutDown()
+                self.shutdown()
                 return 0
             except Exception:
                 LOG.exception("Unhandled exception in 'run' subcommand")
-                self.ShutDown()
+                self.shutdown()
                 return 1
 
             if timelimit_triggered:
                 return 0
             if any(getattr(server, "eot_flag", False) for server in self._run_servers):
                 return 0
-            if any(getattr(server, "error_flag", False) for server in self._run_servers):
-                return 1
 
         LOG.warning("Run servers exited without EOT, reached timelimit or error; this is unexpected")
         return 1
 
-    def ShutDown(self):
+    def shutdown(self):
         self.shared_shutdown.set()
         # Wait for servers to finish
         for server in self._run_servers:
@@ -164,15 +182,15 @@ class RunSubcommand(SubcommandBase):
                 LOG.warning("Run server for core %d did not terminate cleanly", server.core)
 
         # Generate SystemView output file
-        self._systemview.assemble_file()
+        if self._systemview is not None:
+            self._systemview.assemble_file()
 
 class RunServer(threading.Thread):
 
-    def __init__(self, session: Session, core: Optional[int] = None, enable_eot: bool = False,
-                 shutdown_event: Optional[threading.Event] = None):
+    def __init__(self, session: Session, core: Optional[int] = None, rtt_config: "RTTConfig" = None,
+                 systemview_config: "SystemViewConfig" = None, enable_eot: bool = False, shutdown_event: Optional[threading.Event] = None):
         super().__init__(daemon=True)
         self._session = session
-        self.error_flag = False
         self.eot_flag = False
         self._board = session.board
         if core is None:
@@ -188,8 +206,12 @@ class RunServer(threading.Thread):
 
         self.name = "run-server-%d" % self.core
 
-        # Semihosting always enabled
-        self._enable_semihosting = True
+        # Semihosting enabled by default,
+        # but can be explicitly disabled via the 'enable_semihosting' option
+        if session.options.is_set("enable_semihosting"):
+            self._enable_semihosting = session.options.get("enable_semihosting")
+        else:
+            self._enable_semihosting = True
 
         # Lock to synchronize SWO with other activity
         self._lock = threading.RLock()
@@ -204,11 +226,12 @@ class RunServer(threading.Thread):
         # Start RTT server
         self._rtt_server = None
         try:
-            rtt_cbuild_run = RttCbuildRun(session=session, core=core)
-            self._rtt_server = rtt_cbuild_run.start_server()
-            rtt_cbuild_run.configure_channels(stdio_handler=self._stdio_handler)
+            rtt_manager = RTTManager(session=session, core=core, rtt_config=rtt_config, systemview_config=systemview_config)
+            self._rtt_server = rtt_manager.start_server()
+            if self._rtt_server is not None:
+                rtt_manager.configure_channels(stdio_handler=self._stdio_handler)
         except RuntimeError as e:
-            LOG.warning("RTT configuration failed for core %d: %s", self.core, e)
+            LOG.debug("RTT configuration failed for core %d: %s", self.core, e)
 
         #
         # If SWV is enabled, create a SWVReader thread. Note that we only do
@@ -228,12 +251,16 @@ class RunServer(threading.Thread):
     def run(self):
         stdio_info = self._stdio_handler.info
         node_name = self._session.board.target.cores[self.core].node_name
-        LOG.info("Run server started for %s (core %d); STDIO mode: %s", node_name, self.core, stdio_info)
+        rtt_status = "enabled" if self._rtt_server else "disabled"
+        LOG.info("Run server started for %s (core %d); STDIO mode: %s; RTT: %s",
+                node_name, self.core, stdio_info, rtt_status)
 
         # Timeout used only if the target starts returning faults. The is_running property of this timeout
         # also serves as a flag that a fault occurred and we're attempting to retry.
         fault_retry_timeout = Timeout(self._session.options.get('debug.status_fault_retry_timeout'))
 
+        state_halted = False
+        state_check_interval_counter = 0
         while fault_retry_timeout.check():
             if self._shutdown_event.is_set():
                 # Exit the thread
@@ -245,40 +272,49 @@ class RunServer(threading.Thread):
                 try:
                     if self._stdio_handler.eot_seen:
                         # EOT received, terminate execution
-                        LOG.info("EOT (0x04) character received for core %d; shutting down Run servers", self.core)
+                        LOG.info("EOT (0x04) character received for core %d; shutting down all Run servers", self.core)
                         self.eot_flag = True
                         self._shutdown_event.set()
                         continue
                 except Exception as e:
                     LOG.debug("Error while waiting for EOT (0x04): %s", e)
 
+            state_check_interval_counter += 1
+
             self._lock.acquire()
 
             try:
-                state = self._target.get_state()
-
                 if self._rtt_server:
                     self._rtt_server.poll()
 
-                # If we were able to successfully read the target state after previously receiving a fault,
-                # then clear the timeout.
-                if fault_retry_timeout.is_running:
-                    LOG.debug("Target control re-established")
-                    fault_retry_timeout.clear()
+                # Check target state and handle semihosting every 10ms (every 10 loop iterations)
+                # to avoid slowing down RTT polling
+                if state_check_interval_counter == 10:
+                    state_check_interval_counter = 0
 
-                if state == Target.State.HALTED:
-                    # Handle semihosting
-                    if self._enable_semihosting:
-                        was_semihost = self._semihost.check_and_handle_semihost_request()
-                        if was_semihost:
-                            self._target.resume()
-                            continue
+                    state = self._target.get_state()
 
-                    pc = self._target_context.read_core_register('pc')
-                    LOG.error("Target core %d unexpectedly halted at pc=0x%08x; shutting down Run servers", self.core, pc)
-                    self.error_flag = True
-                    self._shutdown_event.set()
-                    break
+                    # If we were able to successfully read the target state after previously receiving a fault,
+                    # then clear the timeout.
+                    if fault_retry_timeout.is_running:
+                        LOG.debug("Target control re-established")
+                        fault_retry_timeout.clear()
+
+                    if state == Target.State.HALTED:
+                        # Handle semihosting
+                        if self._enable_semihosting:
+                            was_semihost = self._semihost.check_and_handle_semihost_request()
+                            if was_semihost:
+                                self._target.resume()
+                                continue
+                        if not state_halted:
+                            state_halted = True
+                            pc = self._target_context.read_core_register('pc')
+                            LOG.warning("Target core %d unexpectedly halted at pc=0x%08x", self.core, pc)
+                    else:
+                        if state_halted:
+                            state_halted = False
+                            LOG.info("Target core %d resumed from halt", self.core)
 
             except exceptions.TransferError as e:
                 # If we get any sort of transfer error or fault while checking target status, then start
@@ -286,22 +322,18 @@ class RunServer(threading.Thread):
                 # that the timeout expires, this loop is exited and an error raised.
                 if not fault_retry_timeout.is_running:
                     LOG.warning("Transfer error while checking target status; retrying: %s", e,
-                            exc_info=self._session.log_tracebacks)
-                fault_retry_timeout.start()
+                                exc_info=self._session.log_tracebacks)
+                    fault_retry_timeout.start()
             except exceptions.Error as e:
-                LOG.error("Error while target core %d running: %s; shutting down Run servers", self.core, e, exc_info=self._session.log_tracebacks)
-                self.error_flag = True
-                self._shutdown_event.set()
+                LOG.error("Error while target core %d running: %s; exiting Run server for core %d", self.core, e, self.core, exc_info=self._session.log_tracebacks)
                 break
             finally:
                 self._lock.release()
-                sleep(0.01)
+                sleep(0.001)
 
         # Check if we exited the above loop due to a timeout after a fault.
         if fault_retry_timeout.did_time_out:
-            LOG.error("Timeout re-establishing target core %d control; shutting down Run servers", self.core)
-            self.error_flag = True
-            self._shutdown_event.set()
+            LOG.error("Timeout re-establishing target core %d control; exiting Run server for core %d", self.core, self.core)
 
         # Cleanup resources for this RunServer.
         try:

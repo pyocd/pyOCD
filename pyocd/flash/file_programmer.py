@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -88,13 +88,7 @@ class FileProgrammer(object):
             programming process has finished.
         """
         self._session = session
-        self._chip_erase = chip_erase
-        self._smart_flash = smart_flash
-        self._trust_crc = trust_crc
-        self._keep_unwritten = keep_unwritten
-        self._no_reset = no_reset
-        self._progress = progress
-        self._loader = None
+        self._loader = FlashLoader(session, progress, chip_erase, smart_flash, trust_crc, keep_unwritten, no_reset)
 
         self._format_handlers: Dict[str, Callable[..., None]] = {
             'axf': self._program_elf,
@@ -103,8 +97,12 @@ class FileProgrammer(object):
             'hex': self._program_hex,
             }
 
-    def program(self, file_or_path: Union[str, IO[bytes]], file_format: Optional[str] = None, **kwargs: Any):
-        """@brief Program a file into flash.
+    def add_file(self, file_or_path: Union[str, IO[bytes]], file_format: Optional[str] = None, **kwargs: Any) -> None:
+        """@brief Add data from a file to the programmer's buffer.
+
+        This method can be called multiple times to add data from multiple files before committing
+        the data to flash with the commit() method. The data from each file will be buffered and
+        then programmed together when commit() is called.
 
         @param self
         @param file_or_path Either a string that is a path to a file, or a file-like object.
@@ -146,15 +144,6 @@ class FileProgrammer(object):
         if file_format is None or file_format not in self._format_handlers:
             raise ValueError("unknown file format '%s'" % file_format)
 
-        self._loader = FlashLoader(self._session,
-                                    progress=self._progress,
-                                    chip_erase=self._chip_erase,
-                                    smart_flash=self._smart_flash,
-                                    trust_crc=self._trust_crc,
-                                    keep_unwritten=self._keep_unwritten,
-                                    no_reset=self._no_reset)
-
-        # file_obj = None
         # Open the file if a path was provided.
         if is_path:
             mode = 'rb'
@@ -167,13 +156,46 @@ class FileProgrammer(object):
             assert not isinstance(file_or_path, str)
             file_obj = file_or_path
         try:
-
             # Pass to the format-specific programmer.
             self._format_handlers[file_format](file_obj, **kwargs)
-            self._loader.commit()
         finally:
             if is_path and file_obj is not None:
                 file_obj.close()
+
+    def commit(self) -> None:
+        """@brief Commit buffered data to flash memory.
+
+        Programs all data that has been added via add_file() calls to the target device's flash memory.
+
+        @param self
+        """
+        self._loader.commit()
+
+    def program(self, file_or_path: Union[str, IO[bytes]], file_format: Optional[str] = None, **kwargs: Any) -> None:
+        """@brief Program a file into flash.
+
+        Convenience method that adds a single file and commits it to flash in one call.
+        For adding multiple files, use add_file() multiple times and then call commit().
+
+        @param self
+        @param file_or_path Either a string that is a path to a file, or a file-like object.
+        @param file_format Optional file format name, one of "bin", "hex", "elf", "axf". If not provided,
+            the file's extension will be used. If a file object is passed for _file_or_path_ then
+            this parameter must be used to set the format.
+        @param kwargs Optional keyword arguments for format-specific parameters.
+
+        The only current format-specific keyword parameters are for the binary format:
+        - `base_address`: Memory address at which to program the binary data. If not set, the base
+            of the boot memory will be used.
+        - `skip`: Number of bytes to skip at the start of the binary file. Does not affect the
+            base address.
+
+        @exception FileNotFoundError Provided file_or_path string does not reference a file.
+        @exception ValueError Invalid argument value, for instance providing a file object but
+            not setting file_format.
+        """
+        self.add_file(file_or_path, file_format, **kwargs)
+        self.commit()
 
     def _program_bin(self, file_obj: IO[bytes], **kwargs: Any) -> None:
         """@brief Binary file format loader"""

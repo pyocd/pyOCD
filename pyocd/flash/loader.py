@@ -65,6 +65,10 @@ class RamBuilder(MemoryBuilder):
         self._chunks.sort(key=lambda c: c.addr)
         self._buffered_data_size += len(data)
 
+    def erase(self, progress_cb: Optional[ProgressCallback] = None, **kwargs: Any) -> None:
+        # Nothing to erase in RAM.
+        pass
+
     def program(self, progress_cb: Optional[ProgressCallback] = None, **kwargs: Any) -> ProgrammingInfo:
         target = self._session.target
         assert isinstance(target, Target)
@@ -178,6 +182,7 @@ class MemoryLoader:
         self._session = session
         assert session.board
         target = session.board.target
+        self._delegate = target.debug_sequence_delegate
         self._map = target.memory_map
         # Non-internal targets have double buffering disabled
         self._disable_double_buffering = any(hasattr(target, attr) for attr in ('_cbuild_device', '_pack_device'))
@@ -286,26 +291,44 @@ class MemoryLoader:
 
         After calling this method, the loader instance can be reused to program more data.
         """
-        didChipErase = False
         perfList = []
+        sorted_builders = sorted(self._builders.values(), key=lambda v: v.region.start)
 
-        # Iterate over builders we've created and program the data.
-        for builder in sorted(self._builders.values(), key=lambda v: v.region.start):
-            # Determine this builder's portion of total progress.
+        LOG.info("Erasing...")
+        self._progress_offset = 0.0
+        for builder in sorted_builders:
+            self._current_progress_fraction = builder.buffered_data_size / self._total_data_size
+
+            # Erase the data.
+            builder.erase(chip_erase=self._chip_erase,
+                          progress_cb=self._progress_cb,
+                          smart_flash=self._smart_flash,
+                          fast_verify=self._trust_crc,
+                          keep_unwritten=self._keep_unwritten)
+            self._progress_offset += self._current_progress_fraction
+
+        # Call FlashEraseDone after all erase operations are finished.
+        if self._delegate is not None and self._delegate.has_sequence_with_name('FlashEraseDone'):
+            self._delegate.run_sequence('FlashEraseDone')
+
+        LOG.info("Programming...")
+        self._progress_offset = 0.0
+        for builder in sorted_builders:
             self._current_progress_fraction = builder.buffered_data_size / self._total_data_size
 
             # Program the data.
-            chipErase = self._chip_erase if not didChipErase else "sector"
-            perf = builder.program(chip_erase=chipErase,
-                                    progress_cb=self._progress_cb,
-                                    smart_flash=self._smart_flash,
-                                    fast_verify=self._trust_crc,
-                                    keep_unwritten=self._keep_unwritten,
-                                    no_reset=self._no_reset)
+            perf = builder.program(progress_cb=self._progress_cb,
+                                   smart_flash=self._smart_flash,
+                                   fast_verify=self._trust_crc,
+                                   keep_unwritten=self._keep_unwritten)
             perfList.append(perf)
-            didChipErase = True
-
             self._progress_offset += self._current_progress_fraction
+
+        # Call FlashProgramDone after all program operations are finished.
+        if self._delegate is not None and self._delegate.has_sequence_with_name('FlashProgramDone'):
+            self._delegate.run_sequence('FlashProgramDone')
+
+        #TODO: Verify code
 
         # Report programming statistics.
         self._log_performance(perfList)
@@ -316,6 +339,7 @@ class MemoryLoader:
     def _log_performance(self, perf_list):
         """@brief Log a report of programming performance numbers."""
         # Compute overall performance numbers.
+        totalEraseTime = sum(perf.erase_time for perf in perf_list)
         totalProgramTime = sum(perf.program_time for perf in perf_list)
         program_byte_count = sum(perf.total_byte_count for perf in perf_list)
         actual_program_byte_count = sum(perf.program_byte_count for perf in perf_list)
@@ -324,10 +348,11 @@ class MemoryLoader:
         skipped_page_count = sum(perf.skipped_page_count for perf in perf_list)
 
         # Compute kbps while avoiding a potential zero-div error.
-        if totalProgramTime == 0:
+        totalTime = totalEraseTime + totalProgramTime
+        if totalTime == 0:
             kbps = 0
         else:
-            kbps = (program_byte_count/1024) / totalProgramTime
+            kbps = (program_byte_count/1024) / totalTime
 
         if any(perf.program_type == FlashBuilder.FLASH_CHIP_ERASE for perf in perf_list):
             LOG.info("Erased chip, programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",

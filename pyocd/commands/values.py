@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020,2025 Arm Limited
+# Copyright (c) 2015-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -760,11 +760,21 @@ class DebugSequencesValue(ValueBase):
         "DebugDeviceUnlock",
         "DebugCoreStart",
         "DebugCoreStop",
+        "DebugCodeMemRemap",
         "ResetSystem",
         "ResetProcessor",
         "ResetHardware",
+        "ResetHardwareAssert",
+        "ResetHardwareDeassert",
         "ResetCatchSet",
         "ResetCatchClear",
+        "FlashInit",
+        "FlashUninit",
+        "FlashEraseSector",
+        "FlashEraseChip",
+        "FlashEraseDone",
+        "FlashProgramPage",
+        "FlashProgramDone",
         "TraceStart",
         "TraceStop",
     ]

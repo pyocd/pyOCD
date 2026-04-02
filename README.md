@@ -7,7 +7,7 @@ pyOCD
 
 ### News
 
-- The v0.43 release introduces SEGGER RTT and SystemView support with flexible channel configuration in the `run` subcommand
+- The v0.44 release introduces default debug sequences and flash programming support via debug sequences
 
 See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recent news.
 

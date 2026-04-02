@@ -285,23 +285,17 @@ class Session(Notifier):
             connect_mode = 'halt'
         debugger_options['connect_mode'] = connect_mode
 
-        # Only set gdbserver_port if it wasn't already set in options (command line).
-        if not self.options.is_set('gdbserver_port'):
-            debugger_options['cbuild_run.gdbserver_port'] = self.cbuild_run.gdbserver_port
+        debugger_options['gdbserver_port'] = self.cbuild_run.gdbserver_port
+        debugger_options['telnet_port'] = self.cbuild_run.telnet_port
+        debugger_options['telnet_mode'] = self.cbuild_run.telnet_mode
+        telnet_file = self.cbuild_run.telnet_file
+        debugger_options['telnet_file_in'] = telnet_file.get('in')
+        debugger_options['telnet_file_out'] = telnet_file.get('out')
 
-        # Only set telnet_port if it wasn't already set in options (command line).
-        if not self.options.is_set('telnet_port'):
-            debugger_options['cbuild_run.telnet_port'] = self.cbuild_run.telnet_port
-
-        if not self.options.is_set('semihost_console_type'):
-            debugger_options['cbuild_run.telnet_mode'] = self.cbuild_run.telnet_mode
-            telnet_file = self.cbuild_run.telnet_file
-            debugger_options['cbuild_run.telnet_file_in'] = telnet_file.get('in')
-            debugger_options['cbuild_run.telnet_file_out'] = telnet_file.get('out')
-
-        debugger_options['cbuild_run.rtt_control_block'] = self.cbuild_run.rtt_control_block
-        debugger_options['cbuild_run.rtt_channel'] = self.cbuild_run.rtt_channel
-        debugger_options['cbuild_run.systemview'] = self.cbuild_run.systemview
+        debugger_options['rtt'] = self.cbuild_run.rtt
+        debugger_options['systemview_file'] = self.cbuild_run.systemview_file
+        debugger_options['systemview_auto_start'] = self.cbuild_run.systemview_auto_start
+        debugger_options['systemview_auto_stop'] = self.cbuild_run.systemview_auto_stop
 
         # Set reset types for load operations.
         debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset

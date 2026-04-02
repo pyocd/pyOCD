@@ -14,64 +14,80 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, TYPE_CHECKING
 import os
+import logging
 from pathlib import Path
 from datetime import datetime
-import logging
+from dataclasses import dataclass
 
 from ..core.session import Session
 
+if TYPE_CHECKING:
+    from .rtt_manager import RTTConfig
+
 LOG = logging.getLogger(__name__)
 
-class SystemViewSVDat():
-    def __init__(self, session: Session):
-        self._session = session
-        self._files_per_core: Dict[int, List[str]] = {}
-        self._out_file: Optional[str] = None
+@dataclass
+class SystemViewConfig:
+    """@brief Data class representing SystemView configuration."""
 
-        if not session.cbuild_run:
-            raise RuntimeError("No cbuild-run configuration found; cannot enable SystemView")
+    _session: Session
+    file: Optional[str] = None
+    auto_start: bool = True
+    auto_stop: bool = True
 
-        systemview = session.options.get('cbuild_run.systemview') or {}
+    def __post_init__(self):
+        # Auto start
+        self.auto_start = (self._session.options.get('systemview_auto_start')
+                           if self._session.options.is_set('systemview_auto_start') else True)
 
+        # Auto stop
+        self.auto_stop = (self._session.options.get('systemview_auto_stop')
+                          if self._session.options.is_set('systemview_auto_stop') else True)
+
+        # SystemView file
+        _file = (self._session.options.get('systemview_file')
+             if self._session.options.is_set('systemview_file')
+             else f"{self._session.board.target_type}.SVDat")
+        _file = str(Path(os.path.expandvars(str(_file))).expanduser().resolve()) if _file else _file
         # Check if the folder exists for output file
-        out_file = systemview.get('file')
-        if not out_file:
-            raise RuntimeError("SystemView output file is not configured; cannot enable SystemView")
-
-        dir_out = os.path.dirname(out_file)
-        if dir_out and not os.path.exists(dir_out):
-            f_name_out = os.path.basename(out_file)
+        outdir = os.path.dirname(_file)
+        if outdir and not os.path.exists(outdir):
+            fname = os.path.basename(_file)
             raise FileNotFoundError(
-                f"Output directory '{dir_out}' for SystemView output file '{f_name_out}' does not exist; cannot enable SystemView"
+                f"Output directory '{outdir}' for SystemView output file '{fname}' does not exist"
             )
-        self._out_file = out_file
+        self.file = _file
 
-        # Determine output file names for each core and channel based on cbuild-run configuration
-        cbuild_run = self._session.options.get('cbuild_run')
-        if 'cbuild-run' in cbuild_run:
-            path = Path(cbuild_run).resolve()
-            fname_root = path.stem.split('.cbuild-run')[0]
-        else:
-            fname_root = os.getcwd()
+class SystemViewSVDat():
+    def __init__(self, session: Session, rtt_configs: Dict[int, "RTTConfig"], systemview_config: SystemViewConfig):
+        self._session = session
+        self._systemview = systemview_config
+        self._files_per_core: Dict[int, List[str]] = {}
 
-        channel_cfg_list = self._session.options.get('cbuild_run.rtt_channel')
+        if not self._systemview.file:
+            LOG.debug("SystemView: No output file configured; cannot configure SystemView SVDat generation")
+            return
 
         # Create a list of output files for each core
         # and delete any existing files with the same name to ensure clean output for SystemView
-        for core in range(len(self._session.target.cores)):
-            channel_cfg = channel_cfg_list[core] if (channel_cfg_list and core < len(channel_cfg_list)) else []
+        fname_root = self._systemview.file.rsplit('.', 1)[0]
+        for core_number, rtt in rtt_configs.items():
+            if not rtt.channels:
+                # No RTT channel configuration for this core; skip to next core
+                self._files_per_core[core_number] = []
+                continue
+
             file_list: List[str] = []
-            for ch_cfg in channel_cfg or []:
-                ch_num = ch_cfg.get('number')
-                ch_mode = ch_cfg.get('mode')
-                if ch_mode == 'systemview':
-                    fname = f'{fname_root}.core{core}.ch{ch_num}.bin'
+            for ch in rtt.channels:
+                number, mode, _ = ch
+                if mode == 'systemview':
+                    fname = f'{fname_root}.core{core_number}.ch{number}.bin'
                     if os.path.exists(fname):
                         os.remove(fname)
                     file_list.append(fname)
-            self._files_per_core[core] = file_list
+            self._files_per_core[core_number] = file_list
 
     def assemble_file(self) -> bool:
         """@brief Assemble SystemView .SVDat file from individual channel binary files collected for each core."""
@@ -88,22 +104,22 @@ class SystemViewSVDat():
                         try:
                             os.remove(f)
                         except OSError:
-                            LOG.warning("Failed to remove empty SystemView file '%s'", f)
+                            LOG.error("SystemView: failed to remove temporary empty SystemView file '%s'", f)
 
         if not collected_files:
-            LOG.debug("No temporary SystemView files; skipping SVDat generation.")
+            LOG.debug("SystemView: no temporary SystemView files; skipping SVDat generation")
             return False
 
         try:
-            with open(self._out_file, 'wb') as f_out:
+            with open(self._systemview.file, 'wb') as f_out:
                 # Write header
                 header = [
                     ";",
                     f"; RecordTime   {datetime.now().strftime('%d %b %Y %H:%M:%S')}",
-                    f"; Author       pyOCD",
+                    "; Author       pyOCD",
                 ]
 
-                # Core index in the SVDat file is determined by the order how files collected from each core are appended
+                # Core index in the SVDat file is determined by the order in which files from each core are appended
                 # and it is not necessarily the same as the core index in the target
                 svdat_core_idx = 0
                 offset = 0
@@ -126,8 +142,10 @@ class SystemViewSVDat():
                     try:
                         os.remove(f)
                     except OSError:
-                        LOG.warning("Failed to remove SystemView file '%s' after appending", f)
+                        LOG.error("SystemView: failed to remove SystemView file '%s' after appending", f)
         except OSError as e:
-            raise OSError(f"Failed to open/write SystemView output file {self._out_file}: {e}")
+            LOG.error("SystemView: failed to open/write SystemView output file '%s': %s", self._systemview.file, e)
+            return False
 
+        LOG.info("SystemView: SVDat file '%s' generated", self._systemview.file)
         return True
