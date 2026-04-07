@@ -143,38 +143,29 @@ class RTTChanFileWorker(RTTChanWorker):
     _f_out_path: Optional[str]
     _f_in_path: Optional[str]
 
-    def __init__(self, channel: int, file_out: str, file_in: Optional[str] = None):
+    def __init__(self, channel: int, file_out: Optional[str] = None, file_in: Optional[str] = None):
         """
         @param file_out The file to write RTT channel data to.
         @param file_in The file to read data from into the RTT channel. If None, no data will be read.
         """
-        self._f_out = None
-        self._f_in = None
-        self._f_out_path = None
-        self._f_in_path = None
+        self._f_out = file_out
+        self._f_in = file_in
 
-        # Check if the folder exists for output file
-        dir_out = os.path.dirname(file_out)
-        if dir_out and not os.path.exists(dir_out):
-            f_name_out = os.path.basename(file_out)
-            raise FileNotFoundError(
-                f"Output directory '{dir_out}' for RTT channel {channel} (file '{f_name_out}') does not exist."
-            )
-        try:
-            self._f_out = open(file_out, 'wb')
-            self._f_out_path = file_out
-        except OSError as e:
-            raise OSError(f"Failed to open RTT output file {file_out}: {e}")
+        if file_out is not None:
+            try:
+                self._f_out = open(file_out, 'wb')
+            except OSError as e:
+                raise OSError(f"Failed to open RTT output file {file_out}: {e}")
 
         if file_in is not None:
-            if os.path.exists(file_in):
+            try:
                 self._f_in = open(file_in, 'rb')
-                self._f_in_path = file_in
-            else:
-                LOG.debug("Input file '%s' for RTT channel %d does not exist",  os.path.basename(file_in), channel)
+            except OSError as e:
+                raise OSError(f"Failed to open RTT input file {file_in}: {e}")
+
 
     def write_up_data(self, data: bytes):
-        if self._f_out is None:
+        if self._f_out is None or not data:
             return 0
         return self._f_out.write(data)
 
@@ -196,9 +187,9 @@ class RTTChanSysViewFileWorker(RTTChanWorker):
     _STOP_CMD  = b"\x02"
     _START_SEQ = b"\x00" * 10
 
-    def __init__(self, rtt_server: RTTServer, rtt_channel: int, file_out: str, auto_start: bool = True, auto_stop: bool = True):
+    def __init__(self, rtt_server: RTTServer, channel: int, file_out: str, auto_start: bool = True, auto_stop: bool = True):
         self._rtt_server = rtt_server
-        self._rtt_channel = rtt_channel
+        self._rtt_channel = channel
         self._auto_start = auto_start
         self._auto_stop = auto_stop
 

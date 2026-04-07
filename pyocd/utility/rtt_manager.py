@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 import os
 import logging
 from pathlib import Path
@@ -24,7 +24,7 @@ from ..core import exceptions
 from ..core.session import Session
 from ..debug.elf.elf import ELFBinaryFile
 from .stdio import StdioHandler
-from .rtt_server import RTTServer, RTTChanStdioWorker, RTTChanTCPWorker, RTTChanSysViewFileWorker, RTTChanSysViewTCPWorker
+from .rtt_server import RTTServer, RTTChanStdioWorker, RTTChanTCPWorker, RTTChanSysViewFileWorker, RTTChanSysViewTCPWorker, RTTChanFileWorker
 from .systemview import SystemViewConfig
 
 LOG = logging.getLogger(__name__)
@@ -34,8 +34,8 @@ class RTTConfig:
     """@brief Data class representing RTT configuration for a specific core."""
 
     # type aliases scoped to the class
-    RTTControlBlock = Optional[Tuple[Optional[int], Optional[int], bool]]  # (address, size, auto-detect)
-    RTTChannel      = Optional[Tuple[int, str, Optional[int]]]             # (number, mode, port)
+    RTTControlBlock = Optional[Tuple[Optional[int], Optional[int], bool]]                 # (address, size, auto-detect)
+    RTTChannel      = Optional[Tuple[int, str, Optional[Union[int, str]], Optional[str]]] # (number, mode, port/file-out, file--in)
     RTTChannelList  = Optional[Tuple[RTTChannel, ...]]
 
     _session: Session
@@ -50,8 +50,14 @@ class RTTConfig:
         self._rtt_configuration()
 
     # Helper methods
-    def _add_channel(self, ch_list: List["RTTConfig.RTTChannel"], number: int, mode: str, port: Optional[int] = None) -> None:
-        SUPPORTED_MODES = {'stdio', 'server', 'systemview', 'systemview-server'}
+    def _add_channel(self, ch_list: List["RTTConfig.RTTChannel"],
+                     number: int,
+                     mode: str,
+                     port: Optional[int] = None,
+                     file_out: Optional[str] = None,
+                     file_in: Optional[str] = None) -> None:
+
+        SUPPORTED_MODES = {'stdio', 'server', 'systemview', 'systemview-server', 'file'}
 
         if number is None:
             # Warn about missing channel number
@@ -85,8 +91,32 @@ class RTTConfig:
             # Count the number of SystemView channels
             self.num_systemview_channels += 1
 
-        port_str = f", port={port}" if port is not None else ""
-        ch_list.append((number, mode, port))
+        if mode == 'file':
+            if file_out is None or file_in is None:
+                # If file not provided, set default: <target>_core<X>_ch<Y>
+                file_root = f"{self._session.board.target_type}"
+                if len(self._session.board.target.cores) > 1:
+                    file_root += f"_core{self._core}"
+                file_root += f"_ch{number}"
+                file_out = file_out or f"{file_root}.out"
+                file_in = file_in or f"{file_root}.in"
+
+            # Check if the folder exists for output file
+            if file_out is not None:
+                dir_out = os.path.dirname(file_out)
+                if dir_out and not os.path.exists(dir_out):
+                    LOG.warning("RTT channel %d configuration for core %d: directory for file-out '%s' for %s mode does not exist; channel out disabled", number, self._core, dir_out, mode)
+                    file_out = None
+
+            if file_in and not os.path.exists(file_in):
+                LOG.warning("RTT channel %d configuration for core %d: file-in '%s' for %s mode does not exist; channel in disabled", number, self._core, file_in, mode)
+                file_in = None
+
+        else:
+            file_out = None
+            file_in = None
+
+        ch_list.append((number, mode, port or file_out or None, file_in))
 
     def _rtt_configuration(self) -> None:
         rtt_config_list = self._session.options.get('rtt') or []
@@ -127,7 +157,7 @@ class RTTConfig:
         rtt_ch: List["RTTConfig.RTTChannel"] = []
         if ch_l is not None:
             for ch in ch_l:
-                self._add_channel(rtt_ch, ch.get('number'), ch.get('mode'), ch.get('port'))
+                self._add_channel(rtt_ch, ch.get('number'), ch.get('mode'), ch.get('port') or ch.get('file-out'), ch.get('file-in'))
         if ch_g is not None:
             for ch in ch_g:
                 if ch_l is not None and any(ch.get('number') == local_ch.get('number') for local_ch in ch_l):
@@ -135,7 +165,7 @@ class RTTConfig:
                     LOG.debug("RTT channel %d configuration for core %d: pname specific configuration used; skipping global channel configuration",
                               ch.get('number'), self._core)
                 else:
-                    self._add_channel(rtt_ch, ch.get('number'), ch.get('mode'), ch.get('port'))
+                    self._add_channel(rtt_ch, ch.get('number'), ch.get('mode'), ch.get('port') or ch.get('file-out'), ch.get('file-in'))
 
         # Sort channels by channel number if any were added
         if rtt_ch:
@@ -270,7 +300,7 @@ class RTTManager:
 
         stdio_enabled = False
 
-        for number, mode, server_port in self._rtt_config.channels:
+        for number, mode, port_or_file_out, file_in in self._rtt_config.channels:
             if self._rtt_server.is_channel_idx_valid(number) is False:
                 LOG.warning("RTT for core %d: channel index %d is out of range; skipping configuration for channel %d", self._core, number, number)
                 continue
@@ -294,8 +324,8 @@ class RTTManager:
             # Server mode
             elif mode == 'server':
                 try:
-                    self._rtt_server.add_channel_worker(number, lambda: RTTChanTCPWorker(server_port, listen=True))
-                    LOG.info("RTT channel %d configuration for core %d: mode=%s, port=%d", number, self._core, mode, server_port)
+                    self._rtt_server.add_channel_worker(number, lambda: RTTChanTCPWorker(port_or_file_out, listen=True))
+                    LOG.info("RTT channel %d configuration for core %d: mode=%s, port=%d", number, self._core, mode, port_or_file_out)
                 except exceptions.RTTError as e:
                     LOG.error("RTT for core %d: failed to enable server mode for RTT channel %d: %s", self._core, number, e)
             # SystemView mode
@@ -303,16 +333,25 @@ class RTTManager:
                 try:
                     fname_root = self._systemview.file.rsplit('.', 1)[0]
                     fname = f'{fname_root}.core{self._core}.ch{number}.bin'
-                    self._rtt_server.add_channel_worker(number, lambda: RTTChanSysViewFileWorker(rtt_server=self._rtt_server, rtt_channel=number, file_out=fname, auto_start=self._systemview.auto_start, auto_stop=self._systemview.auto_stop))
+                    self._rtt_server.add_channel_worker(number, lambda: RTTChanSysViewFileWorker(rtt_server=self._rtt_server, channel=number, file_out=fname, auto_start=self._systemview.auto_start, auto_stop=self._systemview.auto_stop))
                     LOG.info("RTT channel %d configuration for core %d: mode=%s", number, self._core, mode)
                 except (IOError, exceptions.RTTError) as e:
                     LOG.error("RTT for core %d: failed to enable systemview mode for RTT channel %d: %s", self._core, number, e)
             # SystemView server mode
             elif mode == 'systemview-server':
                 try:
-                    self._rtt_server.add_channel_worker(number, lambda: RTTChanSysViewTCPWorker(server_port, listen=True))
-                    LOG.info("RTT channel %d configuration for core %d: mode=%s, port=%d", number, self._core, mode, server_port)
+                    self._rtt_server.add_channel_worker(number, lambda: RTTChanSysViewTCPWorker(port_or_file_out, listen=True))
+                    LOG.info("RTT channel %d configuration for core %d: mode=%s, port=%d", number, self._core, mode, port_or_file_out)
                 except exceptions.RTTError as e:
                     LOG.error("RTT for core %d: failed to enable systemview server mode for RTT channel %d: %s", self._core, number, e)
+            # File mode
+            elif mode == 'file':
+                try:
+                    self._rtt_server.add_channel_worker(number, lambda: RTTChanFileWorker(channel=number, file_out=port_or_file_out, file_in=file_in))
+                    file_out_str = f", file-out={port_or_file_out}" if port_or_file_out else ""
+                    file_in_str = f", file-in={file_in}" if file_in else ""
+                    LOG.info("RTT channel %d configuration for core %d: mode=%s%s%s", number, self._core, mode, file_out_str, file_in_str)
+                except (IOError, exceptions.RTTError) as e:
+                    LOG.error("RTT for core %d: failed to enable file mode for RTT channel %d: %s", self._core, number, e)
             else:
                 LOG.warning("RTT for core %d: unsupported channel mode '%s' for channel %d; skipping configuration for channel %d", self._core, mode, number, number)
