@@ -21,6 +21,7 @@ from ..core.target import Target
 from ..core.plugin import Plugin
 from ..debug.context import DebugContext
 from ..coresight.cortex_m_core_registers import index_for_reg
+from ..coresight.core_ids import CoreArchitecture
 import logging
 
 FREERTOS_MAX_PRIORITIES	= 63
@@ -153,11 +154,103 @@ class FreeRTOSThreadContext(DebugContext):
             }
     FPU_EXTENDED_REGISTER_OFFSETS.update(COMMON_REGISTER_OFFSETS)
 
+    # ARMv8-M (Cortex-M33) NTZ port stacking.
+    #
+    # The M33 NTZ FreeRTOS port (portable/GCC/ARM_CM33_NTZ) saves registers
+    # differently from M4 in PendSV_Handler:
+    #   stmdb r0!, {r2-r11}  where r2=PSPLIM, r3=LR(EXC_RETURN)
+    # Stack layout: [psplim(0), exc_return(4), r4(8)..r11(36), <s16-s31>, HW frame]
+
+    M33_COMMON_REGISTER_OFFSETS = {
+                 4: 8, # r4
+                 5: 12, # r5
+                 6: 16, # r6
+                 7: 20, # r7
+                 8: 24, # r8
+                 9: 28, # r9
+                 10: 32, # r10
+                 11: 36, # r11
+            }
+
+    M33_NOFPU_REGISTER_OFFSETS = {
+                -1: 4, # exception LR
+                 0: 40, # r0
+                 1: 44, # r1
+                 2: 48, # r2
+                 3: 52, # r3
+                 12: 56, # r12
+                 14: 60, # lr
+                 15: 64, # pc
+                 16: 68, # xpsr
+            }
+    M33_NOFPU_REGISTER_OFFSETS.update(M33_COMMON_REGISTER_OFFSETS)
+
+    M33_FPU_BASIC_REGISTER_OFFSETS = {
+                -1: 4, # exception LR
+                 0: 40, # r0
+                 1: 44, # r1
+                 2: 48, # r2
+                 3: 52, # r3
+                 12: 56, # r12
+                 14: 60, # lr
+                 15: 64, # pc
+                 16: 68, # xpsr
+            }
+    M33_FPU_BASIC_REGISTER_OFFSETS.update(M33_COMMON_REGISTER_OFFSETS)
+
+    M33_FPU_EXTENDED_REGISTER_OFFSETS = {
+                -1: 4, # exception LR
+                 0x50: 40, # s16
+                 0x51: 44, # s17
+                 0x52: 48, # s18
+                 0x53: 52, # s19
+                 0x54: 56, # s20
+                 0x55: 60, # s21
+                 0x56: 64, # s22
+                 0x57: 68, # s23
+                 0x58: 72, # s24
+                 0x59: 76, # s25
+                 0x5a: 80, # s26
+                 0x5b: 84, # s27
+                 0x5c: 88, # s28
+                 0x5d: 92, # s29
+                 0x5e: 96, # s30
+                 0x5f: 100, # s31
+                 0: 104, # r0
+                 1: 108, # r1
+                 2: 112, # r2
+                 3: 116, # r3
+                 12: 120, # r12
+                 14: 124, # lr
+                 15: 128, # pc
+                 16: 132, # xpsr
+                 0x40: 136, # s0
+                 0x41: 140, # s1
+                 0x42: 144, # s2
+                 0x43: 148, # s3
+                 0x44: 152, # s4
+                 0x45: 156, # s5
+                 0x46: 160, # s6
+                 0x47: 164, # s7
+                 0x48: 168, # s8
+                 0x49: 172, # s9
+                 0x4a: 176, # s10
+                 0x4b: 180, # s11
+                 0x4c: 184, # s12
+                 0x4d: 188, # s13
+                 0x4e: 192, # s14
+                 0x4f: 196, # s15
+                 33: 200, # fpscr
+                 # (reserved word: 204)
+            }
+    M33_FPU_EXTENDED_REGISTER_OFFSETS.update(M33_COMMON_REGISTER_OFFSETS)
+
     def __init__(self, parent, thread):
         super(FreeRTOSThreadContext, self).__init__(parent)
         self._thread = thread
         self._has_fpu = self.core.has_fpu
         self._has_security_extension = Target.SecurityState.SECURE in self.core.supported_security_states
+        self._is_m33 = self.core.architecture in (CoreArchitecture.ARMv8M_MAIN, CoreArchitecture.ARMv8M_BASE)
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [index_for_reg(reg) for reg in reg_list]
@@ -183,14 +276,16 @@ class FreeRTOSThreadContext(DebugContext):
         # Read exception LR (holds EXC_RETURN) to determine stacking info.
         hasExtendedFrame = False
         hasSecureStack = False
-        if self._has_fpu or self._has_security_extension:
+        if self._has_fpu or self._has_security_extension or self._is_m33:
             try:
                 if inException and self.core.is_vector_catch():
                     # Vector catch has just occurred, take live LR
                     exceptionLR = self._parent.read_core_register('lr')
                 else:
                     # Read stacked exception return LR.
-                    offset = self.FPU_BASIC_REGISTER_OFFSETS[-1]
+                    exc_lr_table = self.M33_FPU_BASIC_REGISTER_OFFSETS if self._is_m33 \
+                        else self.FPU_BASIC_REGISTER_OFFSETS
+                    offset = exc_lr_table[-1]
                     exceptionLR = self._parent.read32(sp + offset)
 
                 # Check bit 4 of the exception LR to determine if FPU registers were stacked.
@@ -205,7 +300,23 @@ class FreeRTOSThreadContext(DebugContext):
                 LOG.debug("Transfer error while reading thread's saved LR")
 
         # Determine which register offset table to use and the offsets past the saved state.
-        if self._has_fpu:
+        # M33 NTZ port stacks [psplim, exc_return, r4-r11, <s16-s31>] before the HW frame,
+        # while M4 stacks [r4-r11, <exc_return>, <s16-s31>].
+        if self._is_m33:
+            if self._has_fpu:
+                if hasExtendedFrame:
+                    table = self.M33_FPU_EXTENDED_REGISTER_OFFSETS
+                    hwStacked = 0x68
+                    swStacked = 0x68 # psplim(4) + exc_return(4) + r4-r11(32) + s16-s31(64)
+                else:
+                    table = self.M33_FPU_BASIC_REGISTER_OFFSETS
+                    hwStacked = 0x20
+                    swStacked = 0x28 # psplim(4) + exc_return(4) + r4-r11(32)
+            else:
+                table = self.M33_NOFPU_REGISTER_OFFSETS
+                hwStacked = 0x20
+                swStacked = 0x28 # psplim(4) + exc_return(4) + r4-r11(32)
+        elif self._has_fpu:
             if hasExtendedFrame:
                 table = self.FPU_EXTENDED_REGISTER_OFFSETS
                 hwStacked = 0x68
