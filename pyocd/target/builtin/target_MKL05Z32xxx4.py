@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018 Arm Limited
+# Copyright (c) 2006-2013,2018,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -76,7 +76,7 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'pc_erase_sector' : 0x2000006F,
                'pc_program_page' : 0x2000009F,
                'begin_stack' : 0x20000800,
-               'begin_data' : 0x20000800,       # Analyzer uses a max of 1 KB data (256 pages * 4 bytes / page)
+               'page_buffers' : [0x20000800],   # Analyzer uses a max of 1 KB data (256 pages * 4 bytes / page)
                                                 # Note: 128 pages on KL25 and KL26, 256 pages on KL46
                'static_base' : 0x20000000 + 0x20 + 0x5E8,
                'min_program_length' : 4,
@@ -94,4 +94,3 @@ class KL05Z(Kinetis):
     def __init__(self, session):
         super(KL05Z, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MKL05Z4.svd")
-

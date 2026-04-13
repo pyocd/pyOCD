@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2013,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -40,12 +40,11 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'pc_erase_sector'  : 0x20000073,
                'pc_program_page'  : 0x200000AD,
                'static_base'      : 0x20000200,
-               'begin_data'       : 0x20001000, # Analyzer uses a max of 1 KB data (256 pages * 4 bytes / page)
                'page_buffers'    : [0x20001000, 0x20001800],   # Enable double buffering
                'begin_stack'      : 0x20002800,
                'min_program_length' : 2,
                'analyzer_supported' : True,
-               'analyzer_address' : 0x20003000 # Analyzer 0x20003000..0x20003600
+               'analyzer_address' : 0x20003000                 # Analyzer 0x20003000..0x20003600
               }
 
 
@@ -65,6 +64,3 @@ class STM32F103RC(CoreSightTarget):
 
     def post_connect_hook(self):
         self.write_memory(DBGMCU_CR, DBGMCU_VAL)
-
-
-

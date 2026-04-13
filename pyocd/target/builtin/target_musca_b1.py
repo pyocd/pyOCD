@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2019,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -153,7 +153,6 @@ FLASH_ALGO_QSPI = {
 
     'static_base' : 0x20000000 + 0x00000020 + 0x00000db8,
     'begin_stack' : 0x20001000,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x100,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -234,7 +233,6 @@ FLASH_ALGO_EFLASH = {
 
     'static_base' : 0x20000000 + 0x00000020 + 0x000005e4,
     'begin_stack' : 0x20000900,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x4000,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -307,5 +305,3 @@ class MuscaB1(CoreSightTarget):
         reset_mask = self.read32(RESET_MASK)
         reset_mask |= RESET_MASK_SYSRSTREQ0_EN | RESET_MASK_SYSRSTREQ1_EN
         self.write32(RESET_MASK, reset_mask)
-
-

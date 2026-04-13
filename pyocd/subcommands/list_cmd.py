@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,7 +61,7 @@ class ListSubcommand(SubcommandBase):
             help="Restrict listing to items matching the given name substring. Applies to targets and boards.")
         list_options.add_argument('-r', '--vendor',
             help="Restrict listing to items whose vendor matches the given name substring. Applies only to targets.")
-        list_options.add_argument('-s', '--source', choices=('builtin', 'pack'),
+        list_options.add_argument('-s', '--source', choices=('builtin', 'pack', 'cbuild-run'),
             help="Restrict listing to targets from the specified source. Applies to targets.")
         list_options.add_argument('-H', '--no-header', action='store_true',
             help="Don't print a table header.")
@@ -87,6 +88,7 @@ class ListSubcommand(SubcommandBase):
                             config_file=self._args.config,
                             no_config=self._args.no_config,
                             pack=self._args.pack,
+                            cbuild_run=self._args.cbuild_run,
                             **convert_session_options(self._args.options)
                             )
 
@@ -96,6 +98,9 @@ class ListSubcommand(SubcommandBase):
             # Create targets from provided CMSIS pack.
             if session.options['pack'] is not None:
                 pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
+            # Create target from provided CbuildRun file.
+            if self._args.cbuild_run:
+                session.cbuild_run.populate_target()
 
             obj = ListGenerator.list_targets(name_filter=self._args.name,
                                             vendor_filter=self._args.vendor,
@@ -135,4 +140,3 @@ class ListSubcommand(SubcommandBase):
             print(pt)
 
         return 0
-

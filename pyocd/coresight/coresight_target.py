@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -81,6 +81,9 @@ class CoreSightTarget(SoCTarget):
                 DeviceRegion(name="Device2",    start=0xC0000000, length=0x20000000, access='rw'),
                 DeviceRegion(name="PPB",        start=0xE0000000, length=0x20000000, access='rw'),
                 )
+
+    def flush(self) -> None:
+        self.dp.flush()
 
     def load_svd(self) -> None:
         def svd_load_completed_cb(svdDevice):
@@ -178,6 +181,7 @@ class CoreSightTarget(SoCTarget):
             else:
                 if self.has_debug_sequence(sequence, pname=pcore_pname):
                     self.debug_sequence_delegate.run_sequence(sequence, pname=pcore_pname)
+                    self.debug_sequence_delegate.get_sequence_functions().restore_temp_ap_csw()
                     return True
 
         # Sequence wasn't run.
@@ -221,7 +225,8 @@ class CoreSightTarget(SoCTarget):
                 self.session.context_state.is_performing_pre_reset = False
         elif mode == 'under-reset':
             LOG.info("Asserting reset prior to connect")
-            self.dp.assert_reset(True)
+            if not self.call_pre_discovery_debug_sequence('ResetHardwareAssert'):
+                self.dp.assert_reset(True)
 
     def perform_halt_on_connect(self) -> None:
         """@brief Halt cores.
@@ -237,7 +242,7 @@ class CoreSightTarget(SoCTarget):
             for core in self.cores.values():
                 try:
                     if mode == 'under-reset':
-                        core.set_reset_catch(Target.ResetType.HW)
+                        core.set_reset_catch(Target.ResetType.HARDWARE)
                     else:
                         core.halt()
                 except exceptions.Error as err:
@@ -252,13 +257,14 @@ class CoreSightTarget(SoCTarget):
         mode = self.session.options.get('connect_mode')
         if mode == 'under-reset':
             LOG.info("Deasserting reset post connect")
-            self.dp.assert_reset(False)
+            if not self.call_pre_discovery_debug_sequence('ResetHardwareDeassert'):
+                self.dp.assert_reset(False)
 
             LOG.debug("Clearing reset catch")
             # Apply to all cores.
             for core in self.cores.values():
                 try:
-                    core.clear_reset_catch(Target.ResetType.HW)
+                    core.clear_reset_catch(Target.ResetType.HARDWARE)
                 except exceptions.Error as err:
                     LOG.warning("Could not halt core #%d: %s", core.core_number, err,
                         exc_info=self.session.log_tracebacks)
@@ -301,7 +307,13 @@ class CoreSightTarget(SoCTarget):
 
         # Update the memory map in each core.
         for core in self.cores.values():
-            core.memory_map = self.memory_map
+            pname_memory = []
+            for memory in self.memory_map:
+                pname = memory.attributes.get('pname')
+                if (pname is not None) and (pname != core.node_name):
+                    continue
+                pname_memory.append(memory)
+            core.memory_map = MemoryMap(pname_memory)
 
     def check_for_cores(self) -> None:
         """@brief Init task: verify that at least one core was discovered."""
@@ -362,4 +374,3 @@ class CoreSightTarget(SoCTarget):
                     pname=self.selected_core_or_raise.node_name)
             result = True
         return result
-

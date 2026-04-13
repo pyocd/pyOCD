@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -94,6 +94,7 @@ def commander_test(board_id):
     args.script = None
     args.no_config = False
     args.pack = None
+    args.cbuild_run = None
     args.unique_id = board_id
     args.target_override = None
     args.elf = GDB_TEST_ELF

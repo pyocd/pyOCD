@@ -1,6 +1,7 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
+# Copyright (c) 2025 Norbert Hipfl
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -240,7 +241,11 @@ class CMSISDAPProbe(DebugProbe):
                         assert target_device_name
                         board = "Generic " + (part_number or target_device_name)
 
-                    info = BoardInfo(name=board, target=target_device_name, vendor=vendor)
+                    # If we also have the ID based info, then use the test binary from that.
+                    binary_name = info.binary if (info is not None) else None
+
+                    # Create a new board info object with the data from the probe.
+                    info = BoardInfo(name=board, target=target_device_name, vendor=vendor, binary=binary_name)
 
         return info
 
@@ -367,7 +372,7 @@ class CMSISDAPProbe(DebugProbe):
         TRACE.debug("trace: jtag_sequence(cycles=%i, tms=%x, read_tdo=%s, tdi=%x)", cycles, tms, read_tdo, tdi)
 
         try:
-            self._link.jtag_sequence(cycles, tms, read_tdo, tdi)
+            return self._link.jtag_sequence(cycles, tms, read_tdo, tdi)
         except DAPAccess.Error as exc:
             raise self._convert_exception(exc) from exc
 
@@ -714,6 +719,8 @@ class CMSISDAPProbe(DebugProbe):
             return exceptions.TransferFaultError(*exc.args)
         elif isinstance(exc, DAPAccess.TransferTimeoutError):
             return exceptions.TransferTimeoutError(*exc.args)
+        elif isinstance(exc, DAPAccess.TransferProtocolError):
+            return exceptions.TransferProtocolError(*exc.args)
         elif isinstance(exc, DAPAccess.TransferError):
             return exceptions.TransferError(*exc.args)
         elif isinstance(exc, (DAPAccess.DeviceError, DAPAccess.CommandError)):

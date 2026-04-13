@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -17,6 +17,8 @@
 
 import logging
 from typing import (Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast)
+
+import yaml
 
 from ..core.target import Target
 from ..core.options import OPTIONS_INFO
@@ -184,11 +186,27 @@ def convert_one_session_option(name: str, value: Optional[str]) -> Tuple[str, An
     # Default result; unset option value.
     result = None
 
-    # Extract the option's type. If its type is a tuple of types, then take the first type.
+    # Multi-type options: use YAML to auto-detect the value type, then validate
+    # against all accepted types.
     if isinstance(info.type, tuple):
-        option_type = cast(tuple, info.type)[0]
-    else:
-        option_type = info.type
+        if value is None:
+            LOG.warning("non-boolean option '%s' requires a value", name)
+            return name, None
+        try:
+            parsed = yaml.safe_load(value)
+        except yaml.YAMLError as e:
+            LOG.warning("invalid value for option '%s': %s", name, e)
+            return name, None
+        # YAML produces list; normalize to tuple if tuple is an accepted type.
+        if isinstance(parsed, list) and tuple in info.type:
+            parsed = tuple(parsed)
+        # Validate against all accepted types.
+        if isinstance(parsed, info.type):
+            return name, parsed
+        LOG.warning("invalid value for option '%s'", name)
+        return name, None
+
+    option_type = info.type
 
     # Handle bool options without a value specially.
     if value is None:
@@ -216,22 +234,56 @@ def convert_one_session_option(name: str, value: Optional[str]) -> Tuple[str, An
             result = float(value)
         except ValueError:
             LOG.warning("invalid value for option '%s'", name)
+    elif issubclass(option_type, (tuple, list)):
+        # Container-type options (e.g. 'rtt', 'systemview') accept YAML flow sequences.
+        try:
+            parsed = yaml.safe_load(value)
+        except yaml.YAMLError as e:
+            LOG.warning("invalid value for option '%s': %s", name, e)
+        else:
+            if not isinstance(parsed, (list, tuple)):
+                LOG.warning("expected a sequence value for option '%s'", name)
+            else:
+                result = tuple(parsed) if issubclass(option_type, tuple) else list(parsed)
+    elif issubclass(option_type, dict):
+        # Dict-type options accept a YAML flow mapping
+        try:
+            parsed = yaml.safe_load(value)
+        except yaml.YAMLError as e:
+            LOG.warning("invalid value for option '%s': %s", name, e)
+        else:
+            if not isinstance(parsed, dict):
+                LOG.warning("expected a mapping value for option '%s'", name)
+            else:
+                result = parsed
     else:
         result = value
 
     return name, result
 
 def convert_session_options(option_list: Iterable[str]) -> Dict[str, Any]:
-    """@brief Convert a list of session option settings to a dictionary."""
+    """@brief Convert a list of session option settings to a dictionary.
+
+    Each entry in ``option_list`` is a string in one of the following formats:
+
+    - ``KEY=VALUE``      — Standard key/value pair: ``target=stm32f103rc``
+    - ``KEY``            — Boolean flag (value defaults to ``True``): ``persist``
+    - ``no-KEY``         — Boolean flag negation (value defaults to ``False``): ``no-persist``
+
+    For container-typed options (``tuple``, ``list``, ``dict``) the value is parsed
+    as YAML, which accepts both YAML flow style and standard JSON.  This allows
+    hex integers (``0x...``), unquoted strings, and booleans without quoting.
+    """
     options = {}
     if option_list is not None:
         for o in option_list:
+            stripped = o.strip()
             if '=' in o:
                 name, value = o.split('=', 1)
                 name = name.strip().lower()
                 value = value.strip()
             else:
-                name = o.strip().lower()
+                name = stripped.lower()
                 value = None
 
             name, value = convert_one_session_option(name, value)
@@ -239,24 +291,16 @@ def convert_session_options(option_list: Iterable[str]) -> Dict[str, Any]:
                 options[name] = value
     return options
 
-## Map to convert from reset type names to enums.
-RESET_TYPE_MAP: Dict[str, Optional[Target.ResetType]] = {
-        'default': None,
-        'hw': Target.ResetType.HW,
-        'sw': Target.ResetType.SW,
-        'hardware': Target.ResetType.HW,
-        'software': Target.ResetType.SW,
-        'sw_system': Target.ResetType.SW_SYSTEM,
-        'sw_core': Target.ResetType.SW_CORE,
-        'sw_sysresetreq': Target.ResetType.SW_SYSRESETREQ,
-        'sw_vectreset': Target.ResetType.SW_VECTRESET,
-        'sw_emulated': Target.ResetType.SW_EMULATED,
-        'system': Target.ResetType.SW_SYSTEM,
-        'core': Target.ResetType.SW_CORE,
-        'sysresetreq': Target.ResetType.SW_SYSRESETREQ,
-        'vectreset': Target.ResetType.SW_VECTRESET,
-        'emulated': Target.ResetType.SW_EMULATED,
-    }
+RESET_TYPE_MAP: Dict[Tuple[str, ...], Target.ResetType] = {
+    ('default', 'sw', 'software'): Target.ResetType.DEFAULT,            # Legacy alias 'sw' and 'software'  [deprecated]
+    ('system', 'sw_system'): Target.ResetType.SYSTEM,                   # Legacy alias 'sw_system'          [deprecated]
+    ('core', 'sw_core'): Target.ResetType.CORE,                         # Legacy alias 'sw_core'            [deprecated]
+    ('hardware', 'hw'): Target.ResetType.HARDWARE,                      # Legacy alias 'hw'                 [deprecated]
+    ('sysresetreq', 'sw_sysresetreq'): Target.ResetType.SYSRESETREQ,    # Legacy alias 'sw_sysresetreq'     [deprecated]
+    ('vectreset', 'sw_vectreset'): Target.ResetType.VECTRESET,          # Legacy alias 'sw_vectreset'       [deprecated]
+    ('n_srst'): Target.ResetType.NSRST,
+    ('emulated', 'sw_emulated'): Target.ResetType.EMULATED,             # Legacy alias 'sw_emulated'        [deprecated]
+}
 
 def convert_reset_type(value: str) -> Optional[Target.ResetType]:
     """@brief Convert a reset_type session option value to the Target.ResetType enum.
@@ -264,9 +308,10 @@ def convert_reset_type(value: str) -> Optional[Target.ResetType]:
     @exception ValueError Raised if an unknown reset_type value is passed.
     """
     value = value.lower()
-    if value not in RESET_TYPE_MAP:
+    reset_type = next((v for k, v in RESET_TYPE_MAP.items() if value in k), None)
+    if reset_type is None:
         raise ValueError("unexpected value for reset_type option ('%s')" % value)
-    return RESET_TYPE_MAP[value]
+    return reset_type
 
 def convert_frequency(value: str) -> int:
     """@brief Applies scale suffix to frequency value string.
@@ -298,4 +343,3 @@ def int_base_0(x: str) -> int:
 def flatten_args(args: Iterable[Iterable[Any]]) -> List[Any]:
     """@brief Converts a list of lists to a single list."""
     return [item for sublist in args for item in sublist]
-

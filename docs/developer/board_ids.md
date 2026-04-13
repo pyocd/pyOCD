@@ -2,6 +2,11 @@
 title: Board IDs
 ---
 
+<div class="alert alert-warning">
+New CMSIS-DAP firmware releases should use the CMSIS-DAP v2.1 board and target identification features
+rather than board IDs.
+</div>
+
 This page documents the board IDs reported by certain [debug probes]({% link _docs/debug_probes.md %}) with which pyOCD can automatically identify a board and its target type.
 
 ## Introduction
@@ -20,11 +25,12 @@ Board ID definition:
   - There are multiple cases of boards from different vendors being incorrectly allocated in another vendor's namespace, so this cannot solely be relied upon. It's only really useful for grouping of IDs.
 - Reserved values::
   - "C0xx" is reserved for "community" boards, i.e. open source hardware and non-commercial projects.
+  - "D0xx" is reserved for boards that are not also Mbed platforms, mostly DAPLink firmware.
   - "0000" is reserved to mean "no on-board target". That is, the debug probe is standalone must be connected to the target with a cable.
 
 Currently these debug probe firmware support board IDs:
 - [DAPLink](https://daplink.io/), via the first 4 chars of the USB serial number
-- STLinkV2-1 and V3, via an `.htm` file on the associated USB mass storage volume.
+- STLinkV2-1 and V3, via an `.htm` file on the associated USB mass storage volume and an STLink protocol command.
 
 ## Lists
 
@@ -34,10 +40,17 @@ You can see the full list of public Mbed platforms at [https://os.mbed.com/api/v
 
 ## Getting a new ID
 
-To request a new board ID, fill out the form here: [https://os.mbed.com/request-board-id](https://os.mbed.com/request-board-id)
+There are two ways to get new board IDs:
+
+1. Post a request to the #daplink channel on the [pyOCD Slack workspace](https://pyocd.slack.com/) ([Join](https://join.slack.com/t/pyocd/shared_invite/zt-zqjv6zr5-ZfGAXl_mFCGGmFlB_8riHA)). We can allocate you a 0xDxxx board ID.
+
+2. For new Mbed OS platforms, request a new board ID by filling out the form here: [https://os.mbed.com/request-board-id](https://os.mbed.com/request-board-id)
 
 ## Moving forward
 
 Version 2.1 of the [CMSIS-DAP](https://arm-software.github.io/CMSIS_5/DAP/html/index.html) specification adds support for new [DAP_Info](https://arm-software.github.io/CMSIS_5/DAP/html/group__DAP__Info.html) selectors that identify the board and target. The values returned by these selectors are required to match board and target identifiers in CMSIS-Packs.
 
 PyOCD supports the new CMSIS-DAP v2.1 info selectors and will use them in preference to a board ID if available. This works with any debug probe firmware compatible with CMSIS-DAP. Thus, any new CMSIS-DAP firmware projects should support v2.1 and the new DAP_Info selectors rather than implementing board IDs.
+
+The DAPLink open source CMSIS-DAP firmware has support for the v2.1 identifiers. We recommend using these identifiers rather than a board ID for any new DAPLink based firmware.
+

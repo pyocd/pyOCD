@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2013,2025-2026 Arm Limited
 # Copyright (c) 2019 Monadnock Systems Ltd.
 # Copyright (c) 2023 Nordic Semiconductor ASA
 # SPDX-License-Identifier: Apache-2.0
@@ -357,7 +357,6 @@ FLASH_ALGO_UICR = {
     'static_base' : 0x20000000 + 0x00000004 + 0x00000448,
     'begin_stack' : 0x20003460,
     'end_stack' : 0x20002460,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x1000,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -696,7 +695,7 @@ class ModemUpdater(object):
             LOG.warning("UICR.HFXOCNT is not set, setting it to 0x20")
             self._target.write_uicr(addr=0x00FF8020, value=0x00000020)
 
-        self._target.reset_and_halt(reset_type=Target.ResetType.SW)
+        self._target.reset_and_halt(reset_type=Target.ResetType.SYSTEM)
 
         # 1. configure IPC to be in non-secure mode
         self._target.write32(addr=0x500038A8, value=0x00000002)

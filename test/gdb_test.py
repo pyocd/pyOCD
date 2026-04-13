@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025 Arm Limited
 # Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -14,7 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function
 
 # Note
 #  To run this script GNU Tools ARM Embedded must be installed,
@@ -123,6 +122,7 @@ def test_gdb(board_id=None, n=0):
         ignore_hw_bkpt_result = int(fpb.revision == 1 and ram_region.start >= 0x20000000)
 
         # Program with initial test image
+        board.target.reset_and_halt()
         FileProgrammer(session).program(binary_file, base_address=rom_region.start)
 
     # Generate an elf from the binary test file.

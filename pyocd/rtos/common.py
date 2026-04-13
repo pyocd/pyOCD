@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -25,6 +25,11 @@ LOG = logging.getLogger(__name__)
 ## Mask on EXC_RETURN indicating whether space for FP registers is allocated
 # on the frame. The bit is 0 if the frame is extended.
 EXC_RETURN_EXT_FRAME_MASK = (1 << 4)
+
+## Mask on EXC_RETURN indicating whether a Secure or Non-secure stack is used
+# to restore stack frame on exception return. The bit is 0 if the Non-secure
+# stack is used or 1 if the Secure stack is used.
+EXC_RETURN_SECURE_STACK_MASK = (1 << 6)
 
 def read_c_string(context, ptr):
     """@brief Reads a null-terminated C string from the target."""
@@ -88,7 +93,7 @@ class HandlerModeThread(TargetThread):
 
     @property
     def description(self):
-        ipsr = self._target_context.read_core_register('ipsr');
+        ipsr = self._target_context.read_core_register('ipsr')
         return self._target_context.core.exception_number_to_name(ipsr)
 
     @property
@@ -104,6 +109,3 @@ class HandlerModeThread(TargetThread):
 
     def __repr__(self):
         return str(self)
-
-
-

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2019,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -55,16 +55,16 @@ class StreamServer(threading.Thread):
         self._extra_info = extra_info
         self._formatted_name = (name + " ") if (name is not None) else ""
         self._is_read_only = is_read_only
-        self._abstract_socket = None
-        self._abstract_socket = ListenerSocket(port, 4096)
+        self._listen_socket = None
+        self._listen_socket = ListenerSocket(port, 4096)
         if not serve_local_only:
             # We really should be binding to explicit interfaces, not all available.
-            self._abstract_socket.host = ''
-        self._abstract_socket.init()
-        self._port = self._abstract_socket.port
+            self._listen_socket.host = ''
+        self._listen_socket.init()
+        self._port = self._listen_socket.port
         self._buffer = bytearray()
         self._buffer_lock = threading.Lock()
-        self.connected = None
+        self._connected_socket = None
         self._shutdown_event = threading.Event()
         self._is_running: bool = False
         self.daemon = True
@@ -85,15 +85,15 @@ class StreamServer(threading.Thread):
     def run(self):
         LOG.info("%sserver started on port %d%s", self._formatted_name, self._port,
             (" (%s)" % self._extra_info) if self._extra_info else "")
-        self.connected = None
+        self._connected_socket = None
         try:
             self._is_running = True
             while not self._shutdown_event.is_set():
                 # Wait for a client to connect.
                 # TODO support multiple client connections
                 while not self._shutdown_event.is_set():
-                    self.connected = self._abstract_socket.connect()
-                    if self.connected is not None:
+                    self._connected_socket = self._listen_socket.accept()
+                    if self._connected_socket is not None:
                         LOG.debug("%sclient connected", self._formatted_name)
                         break
 
@@ -101,17 +101,17 @@ class StreamServer(threading.Thread):
                     break
 
                 # Set timeout on new connection.
-                self._abstract_socket.set_timeout(0.1)
+                self._connected_socket.set_timeout(0.1)
 
                 # Keep reading from the client until we either get a shutdown event, or
                 # the client disconnects. The incoming data is appended to our read buffer.
                 while not self._shutdown_event.is_set():
                     try:
-                        data = self._abstract_socket.read()
+                        data = self._connected_socket.read()
                         if len(data) == 0:
                             # Client disconnected.
-                            self._abstract_socket.close()
-                            self.connected = None
+                            self._connected_socket.close()
+                            self._connected_socket = None
                             break
 
                         if not self._is_read_only:
@@ -122,19 +122,22 @@ class StreamServer(threading.Thread):
                         pass
         finally:
             self._is_running = False
-            self._abstract_socket.cleanup()
+            if self._connected_socket is not None:
+                self._connected_socket.close()
+                self._connected_socket = None
+            self._listen_socket.close()
         LOG.info("%sserver stopped", self._formatted_name)
 
     def write(self, data):
         """@brief Write bytes into the connection."""
         # If nobody is connected, act like all data was written anyway.
-        if self.connected is None:
+        if self._connected_socket is None:
             return 0
         data = to_bytes_safe(data)
         size = len(data)
         remaining = size
         while remaining:
-            count = self._abstract_socket.write(data)
+            count = self._connected_socket.write(data)
             remaining -= count
             if remaining:
                 data = data[count:]
@@ -159,7 +162,7 @@ class StreamServer(threading.Thread):
 
     def read(self, size=-1):
         """@brief Return bytes read from the connection."""
-        if self.connected is None:
+        if self._connected_socket is None:
             return None
 
         # Extract requested amount of data from the read buffer.
@@ -169,7 +172,7 @@ class StreamServer(threading.Thread):
 
     def readinto(self, b):
         """@brief Read bytes into a mutable buffer."""
-        if self.connected is None:
+        if self._connected_socket is None:
             return None
 
         # Extract requested amount of data from the read buffer.
@@ -179,4 +182,3 @@ class StreamServer(threading.Thread):
             return len(b)
         else:
             return None
-

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2020 Arm Limited
+# Copyright (c) 2017-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -19,11 +19,10 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import (cast, Callable, Dict, IO, Iterable, List, Optional, Set, Tuple, Type, Union, TYPE_CHECKING)
+from typing import (cast, Callable, Dict, IO, Iterable, List, Optional, Set, Type, Union, TYPE_CHECKING)
 
 
 from .cmsis_pack import (CmsisPack, CmsisPackDevice, MalformedCmsisPackError)
-from .reset_sequence_maps import (RESET_SEQUENCE_TO_TYPE_MAP, RESET_TYPE_TO_SEQUENCE_MAP)
 from ..family import FAMILIES
 from .. import (normalise_target_type_name, TARGET)
 from ...core import exceptions
@@ -34,6 +33,7 @@ from ...coresight.cortex_m import CortexM
 from ...debug.sequences.delegates import DebugSequenceDelegate
 from ...debug.sequences.functions import DebugSequenceCommonFunctions
 from ...debug.sequences.sequences import (Block, DebugSequence, DebugSequenceExecutionContext)
+from ...debug.sequences.default_sequences import DefaultDebugSequences
 from ...debug.sequences.scope import Scope
 from ...debug.svd.loader import SVDFile
 from ...core.session import Session
@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from ...core.core_target import CoreTarget
     from ...commands.execution_context import CommandSet
     from ...utility.notification import Notification
+    from ...debug.sequences.sequences import FlashSequenceParams
 
 try:
     import cmsis_pack_manager
@@ -131,14 +132,16 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
     """! @brief Main delegate for debug sequences."""
 
     ## Map from pyocd reset types to the __connection variable reset type field.
-    #
-    # 0=error, 1=hw, 2=SYSRESETREQ, 3=VECTRESET
+    # 0=error, 1=HARDWARE, 2=SYSRESETREQ, 3=VECTRESET
     RESET_TYPE_MAP = {
-        Target.ResetType.HW: 1,
-        Target.ResetType.SW: 2, # TODO pick default sw reset type
-        Target.ResetType.SW_SYSRESETREQ: 2,
-        Target.ResetType.SW_VECTRESET: 3,
-        Target.ResetType.SW_EMULATED: 2, # no direct match
+        Target.ResetType.HARDWARE: 1,
+        Target.ResetType.NSRST: 1,
+        Target.ResetType.DEFAULT: 2,
+        Target.ResetType.SYSTEM: 2,
+        Target.ResetType.SYSRESETREQ: 2,
+        Target.ResetType.CORE: 3,
+        Target.ResetType.VECTRESET: 3,
+        Target.ResetType.EMULATED: 3, # no direct match
     }
 
     def __init__(self, target: CoreSightTarget, device: CmsisPackDevice) -> None:
@@ -149,11 +152,33 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         self._debugvars: Optional[Scope] = None
         self._functions = DebugSequenceCommonFunctions()
 
+        self._all_sequences: Optional[Set[DebugSequence]] = None
+
+        self._generic_map = DefaultDebugSequences.get_sequences(self._session.probe)
+
+        generic_overrides = {seq.name: seq for seq in self._sequences if seq.pname is None}
+        if generic_overrides:
+            self._generic_map.update(generic_overrides)
+
+        specific = {}
+        for seq in self._sequences:
+            if seq.pname is None:
+                continue
+            if seq.pname not in specific:
+                specific[seq.pname] = {}
+            specific[seq.pname][seq.name] = seq
+
+        self._specific_map_by_pname = specific
+
         self._session.options.subscribe(self._debugvars_did_change, 'pack.debug_sequences.debugvars')
 
     @property
     def all_sequences(self) -> Set[DebugSequence]:
-        return self._sequences
+        if self._all_sequences is None:
+            self._all_sequences = set(self._generic_map.values())
+            for pname_dict in self._specific_map_by_pname.values():
+                self._all_sequences.update(pname_dict.values())
+        return self._all_sequences
 
     @property
     def cmsis_pack_device(self) -> CmsisPackDevice:
@@ -224,7 +249,12 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
 
         return False
 
-    def run_sequence(self, name: str, pname: Optional[str] = None) -> Optional[Scope]:
+    def run_sequence(
+            self,
+            name: str,
+            pname: Optional[str] = None,
+            flash_params: Optional["FlashSequenceParams"] = None
+        ) -> Optional[Scope]:
         """@brief Run a top level debug sequence.
 
         @return The scope created while running the sequence is returned. If the sequence wasn't executed
@@ -257,7 +287,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         LOG.debug("Running debug sequence '%s'%s", name, pname_desc)
 
         # Create runtime context and contextified functions instance.
-        context = DebugSequenceExecutionContext(self._session, self, pname)
+        context = DebugSequenceExecutionContext(self._session, self, pname, flash_params=flash_params)
 
         # Map optional pname to AP address. If the pname is not specified, then use the device's
         # first available AP. If no APs are known (eg haven't been discovered yet) then use 0.
@@ -292,17 +322,42 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         # Return *only* sequences with no Pname when passed pname=None. Otherwise we'd have
         # to mangle the dict keys to include pname since there can be multiple sequences with
         # the same name but different
-        return {
-            seq.name: seq
-            for seq in self._sequences
-            if (seq.pname is None) or (seq.pname == pname)
-        }
+        result = self._generic_map.copy()
+
+        # If pname is specified, override with pname-specific sequences
+        if pname is not None and pname in self._specific_map_by_pname:
+            result.update(self._specific_map_by_pname[pname])
+
+        return result
 
     def has_sequence_with_name(self, name: str, pname: Optional[str] = None) -> bool:
-        return name in self.sequences_for_pname(pname)
+        # Check pname-specific sequences first
+        if pname is not None and pname in self._specific_map_by_pname:
+            if name in self._specific_map_by_pname[pname]:
+                return True
+
+        # Check generic sequences
+        return name in self._generic_map
 
     def get_sequence_with_name(self, name: str, pname: Optional[str] = None) -> DebugSequence:
-        return self.sequences_for_pname(pname)[name]
+        # Check pname-specific sequences first (if pname provided)
+        if pname is not None and pname in self._specific_map_by_pname:
+            if name in self._specific_map_by_pname[pname]:
+                return self._specific_map_by_pname[pname][name]
+
+        # Check generic sequences (defaults + cbuild-run generic)
+        if name in self._generic_map:
+            return self._generic_map[name]
+
+        # Sequence not found
+        raise KeyError(
+            f"sequence '{name}' not found"
+            + (f" for pname '{pname}'" if pname else "")
+        )
+
+    def default_reset_sequence(self, pname: str) -> str:
+        proc_map = self.cmsis_pack_device.processors_map
+        return proc_map[pname].default_reset_sequence
 
     def get_protocol(self) -> int:
         """@brief Return the value for the __protocol variable.
@@ -313,10 +368,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         """
         session = self._target.session
         assert session.probe, "must have a valid probe"
-        # Not having a wire protocol set is allowed if performing pre-reset since it will only
-        # execute ResetHardware (or equivalent), which can only access pins and such (theoretically).
-        assert self._session.context_state.is_performing_pre_reset or session.probe.wire_protocol, \
-            "must have valid, connected probe"
+
         if session.probe.wire_protocol == DebugProbe.Protocol.JTAG:
             protocol = 1
         elif session.probe.wire_protocol == DebugProbe.Protocol.SWD:
@@ -337,7 +389,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         - [16] connect under reset?
         - [17] pre-connect reset?
         """
-        ctype = 1
+        ctype = 1 if self._session.command not in ('load', 'erase') else 2
         ctype |= self.RESET_TYPE_MAP.get(self._session.options.get('reset_type'), 0) << 8
 
         connect_mode = self._target.session.options.get('connect_mode')
@@ -381,138 +433,55 @@ class _PackTargetMethods:
         self.part_families = self._pack_device.families
         self.part_number = self._pack_device.part_number
 
-        self._svd_location = SVDFile(filename=self._pack_device.svd)
+        _svd = self._pack_device.svd
+        self._svd_location = SVDFile(filename=_svd) if _svd else None
 
         self.debug_sequence_delegate = PackDebugSequenceDelegate(self, self._pack_device)
 
     @staticmethod
-    def _pack_target_create_init_sequence(self) -> CallSequence: # type:ignore
-        """@brief Creates an init task to set the default reset type."""
-        seq = super(self.__class__, self).create_init_sequence()
+    def _pack_target_create_init_sequence(_self) -> CallSequence:
+        """@brief Creates an initialization call sequence for runtime-configured targets.
 
+        Extends the standard discovery sequence to configure processor names.
+        """
+        seq = super(_self.__class__, _self).create_init_sequence()
         seq.wrap_task('discovery',
             lambda seq: seq.insert_after('create_cores',
-                            ('configure_core_reset', self.configure_core_reset)
+                            ('update_processor_name', _self.update_processor_name)
                             )
             )
         return seq
 
     @staticmethod
-    def _pack_target_configure_core_reset(self) -> None: # type:ignore
-        """@brief Init sequence method to configure resets for all cores.
+    def _pack_target_update_processor_name(_self) -> None:
+        """@brief Updates processor names post-discovery based on Access Port (AP) addresses.
 
-        This init sequence method is designed to run after the cores have been created by standard
-        discovery.
-
-        Sets each core's default reset type to the one specified in the pack, and configures the
-        list of enabled reset types.
+        Maps discovered cores to known processors to ensure consistent naming.
         """
-        for core_num, core in self.cores.items():
-            # Look up the processor info for this core.
-            core_ap_addr = core.ap.address
-            try:
-                proc_info = self._pack_device.processors_ap_map[core_ap_addr]
-            except KeyError:
-                LOG.debug("core #%d not specified in DFP", core_num)
-                continue
+        ap_to_proc = {proc.ap_address: proc for proc in _self._pack_device.processors_map.values()}
 
-            # Get this processor's list of sequences.
-            sequences = self.debug_sequence_delegate.sequences_for_pname(proc_info.name)
+        for core in _self.cores.values():
+            if core.node_name in ('Unknown', None):
+                core.node_name = core.name
 
-            def is_reset_sequence_enabled(name: str) -> bool:
-                return (name not in sequences) or sequences[name].is_enabled
-
-            # Set the supported reset types by filtering existing supported reset types.
-            updated_reset_types: Set[Target.ResetType] = set()
-            for resettype in core._supported_reset_types:
-                # These two types are not in the map, and should always be present.
-                if resettype in (Target.ResetType.SW, Target.ResetType.SW_EMULATED):
-                    updated_reset_types.add(resettype)
-                    continue
-
-                resettype_sequence_name = RESET_TYPE_TO_SEQUENCE_MAP[resettype]
-                if is_reset_sequence_enabled(resettype_sequence_name):
-                    updated_reset_types.add(resettype)
-
-            # Special case to enable processor reset even when the core doesn't support VECTRESET, if
-            # there is a non-default ResetProcessor sequence definition.
-            if ((Target.ResetType.SW_CORE not in updated_reset_types) # type:ignore
-                    and ('ResetProcessor' in sequences)
-                    and sequences['ResetProcessor'].is_enabled):
-                updated_reset_types.add(Target.ResetType.SW_CORE) # type:ignore
-
-            core._supported_reset_types = updated_reset_types
-            LOG.debug(f"updated DFP core #{core_num} reset types: {core._supported_reset_types}")
-
-            default_reset_seq = proc_info.default_reset_sequence
-
-            # Check that the default reset sequence is a standard sequence. The specification allows for
-            # custom reset sequences to be used, but that is not supported by pyocd yet.
-            # TODO support custom default reset sequences (requires a new reset type)
-            if default_reset_seq not in RESET_SEQUENCE_TO_TYPE_MAP:
-                if default_reset_seq in sequences:
-                    # Custom reset sequence, not yet supported by pyocd.
-                    LOG.warning("DFP device definition error: custom reset sequences are not yet supported "
-                                "by pyocd; core #%d (%s) requested default reset sequence %s",
-                                core_num, proc_info.name, default_reset_seq)
-                else:
-                    # Invalid/unknown default reset sequence.
-                    LOG.warning("DFP device definition error: specified default reset sequence %s "
-                                "for core #%d (%s) does not exist",
-                                default_reset_seq, core_num, proc_info.name)
-
-            # Handle multicore debug mode causing secondary cores to default to processor reset.
-            did_force_core_reset = False
-            if (self.session.options.get('enable_multicore_debug')
-                    and (core_num != self.session.options.get('primary_core'))):
-                if not is_reset_sequence_enabled('ResetProcessor'):
-                    LOG.warning("Multicore debug mode cannot select processor reset for secondary core "
-                                "#%d (%s) because it is disabled by the DFP; using emulated processor "
-                                "reset instead", core_num, proc_info.name)
-                    core.default_reset_type = Target.ResetType.SW_EMULATED
-                    continue
-                else:
-                    default_reset_seq = 'ResetProcessor'
-                    did_force_core_reset = True
-
-            # Verify that the specified default reset sequence hasn't been disabled.
-            if not is_reset_sequence_enabled(default_reset_seq):
-                # Only log a warning if we didn't decide to use core reset due to multicore mode.
-                if not did_force_core_reset:
-                    LOG.warning("DFP device definition conflict: specified default reset sequence %s "
-                            "for core #%d (%s) is disabled by the DFP",
-                            default_reset_seq, core_num, proc_info.name)
-
-                # Map from disabled default to primary and secondary fallbacks.
-                RESET_FALLBACKS: Dict[str, Tuple[str, str]] = {
-                    'ResetSystem':      ('ResetProcessor', 'ResetHardware'),
-                    'ResetHardware':    ('ResetSystem', 'ResetProcessor'),
-                    'ResetProcessor':   ('ResetSystem', 'ResetHardware'),
-                }
-
-                # Select another default.
-                fallbacks = RESET_FALLBACKS[default_reset_seq]
-                if is_reset_sequence_enabled(fallbacks[0]):
-                    default_reset_seq = fallbacks[0]
-                elif is_reset_sequence_enabled(fallbacks[1]):
-                    default_reset_seq = fallbacks[1]
-                else:
-                    LOG.warning("DFP device definition conflict: all reset types are disabled for "
-                            "core #%d (%s) by the DFP; using emulated core reset",
-                            default_reset_seq, core_num)
-                    core.default_reset_type = Target.ResetType.SW_EMULATED
-                    continue
-
-            LOG.info("Setting core #%d (%s) default reset sequence to %s",
-                    core_num, proc_info.name, default_reset_seq)
-            core.default_reset_type = RESET_SEQUENCE_TO_TYPE_MAP[default_reset_seq]
+            proc = ap_to_proc.get(core.ap.address)
+            if proc is not None and 'Unknown' in proc.name:
+                # Remove old processor entry with 'Unknown' name
+                _self._pack_device.processors_map.pop(proc.name, None)
+                # Update processor name
+                proc.name = core.name
+                # Insert new processor entry with correct name
+                _self._pack_device.processors_map[core.name] = proc
 
     @staticmethod
     def _pack_target_add_core(_self, core: CoreTarget) -> None:
         """@brief Override to set node name of added core to its pname."""
-        pname = _self._pack_device.processors_ap_map[cast(CortexM, core).ap.address].name
-        core.node_name = pname
-        CoreSightTarget.add_core(_self, core)
+        proc = _self._pack_device.processors_ap_map.get(cast(CortexM, core).ap.address)
+        if proc is not None:
+            core.node_name = proc.name
+            CoreSightTarget.add_core(_self, core)
+        else:
+            LOG.info("Skipping core not described in debug topology")
 
     @staticmethod
     def _pack_target_add_target_command_groups(_self, command_set: CommandSet):
@@ -562,7 +531,7 @@ class PackTargets:
                         "_pack_device": dev,
                         "__init__": _PackTargetMethods._pack_target__init__,
                         "create_init_sequence": _PackTargetMethods._pack_target_create_init_sequence,
-                        "configure_core_reset": _PackTargetMethods._pack_target_configure_core_reset,
+                        "update_processor_name": _PackTargetMethods._pack_target_update_processor_name,
                         "add_core": _PackTargetMethods._pack_target_add_core,
                         "add_target_command_groups": _PackTargetMethods._pack_target_add_target_command_groups,
                     })
@@ -580,7 +549,7 @@ class PackTargets:
         @param dev A CmsisPackDevice object.
         """
         try:
-            # Check if we're even going to populate this target before bothing to build the class.
+            # Check if we're even going to populate this target before booting to build the class.
             part = normalise_target_type_name(dev.part_number)
             if part in TARGET:
                 LOG.debug("did not populate target for DFP part number %s because there is already "
@@ -646,5 +615,3 @@ def is_pack_target_available(target_name: str, session: Session) -> bool:
                 (target_name.lower() == dev.part_number.lower())
                 for dev in ManagedPacks.get_installed_targets()
                 )
-
-

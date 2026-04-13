@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2019,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -93,7 +93,8 @@ class FlashEraser(object):
         # Erase all flash regions. This may be overkill if either each region's algo erases
         # all regions on the chip. But there's no current way to know whether this will happen,
         # so prefer to be certain.
-        for region in self._session.target.memory_map.iter_matching_regions(type=MemoryType.FLASH):
+        pname = self._session.target.selected_core.node_name
+        for region in self._session.target.memory_map.iter_matching_regions(type=MemoryType.FLASH, pname=pname):
             if region.flash is not None:
                 if region.flash.is_erase_all_supported:
                     region.flash.init(region.flash.Operation.ERASE)
@@ -114,7 +115,8 @@ class FlashEraser(object):
 
             while sector_addr < end_addr:
                 # Look up the flash memory region for the current address.
-                region = self._session.target.memory_map.get_region_for_address(sector_addr)
+                pname = self._session.target.selected_core.node_name
+                region = self._session.target.memory_map.get_region_for_address(sector_addr, pname)
                 if region is None:
                     LOG.warning("address 0x%08x is not within a memory region", sector_addr)
                     break
@@ -176,5 +178,3 @@ class FlashEraser(object):
             page_addr = spec
             end_addr = page_addr + 1
         return page_addr, end_addr
-
-

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2023 Marian Muller Rebeyrol
 # SPDX-License-Identifier: Apache-2.0
@@ -16,7 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import six
 import logging
 from time import sleep
 import pylink
@@ -29,7 +28,9 @@ from ..core.memory_interface import MemoryInterface
 from ..core import exceptions
 from ..core.plugin import Plugin
 from ..core.options import OptionInfo
+from ..coresight.ap import APVersion
 from ..utility import conversion
+from ..utility.compatibility import to_str_safe
 
 if TYPE_CHECKING:
     from pylink.structs import JLinkHardwareStatus
@@ -128,7 +129,7 @@ class JLinkProbe(DebugProbe):
         self._protocol = None
         self._default_protocol = None
         self._is_open = False
-        self._product_name = six.ensure_str(info.acProduct)
+        self._product_name = to_str_safe(info.acProduct)
         self._memory_interfaces = {}
 
     @property
@@ -457,10 +458,13 @@ class JLinkProbe(DebugProbe):
 
     def get_memory_interface_for_ap(self, ap_address):
         assert self._is_open
+        # JLink memory access commands only support an 8-bit APSEL
+        if ap_address.ap_version != APVersion.APv1:
+            return None
         # JLink memory access commands only support AP 0
         if ap_address.apsel != 0:
             return None
-        # JLink memory access commands require to be conneected to the target
+        # JLink memory access commands require to be connected to the target
         if not self._link.target_connected():
             return None
         apsel = ap_address.apsel

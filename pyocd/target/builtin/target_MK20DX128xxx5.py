@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2018 Arm Limited
+# Copyright (c) 2006-2018,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -64,12 +64,11 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'pc_erase_sector' : 0x2000007D,
                'pc_program_page' : 0x200000AB,
                'begin_stack' : 0x20000c00,
-               'begin_data' : 0x20001c00,       # Analyzer uses a max of 512 B data (128 pages * 4 bytes / page)
                'page_buffers' : [0x20001800, 0x20001c00],   # Enable double buffering
                'static_base' : 0x20000000 + 0x20 + 0x468,
                'min_program_length' : 8,
                'analyzer_supported' : True,
-               'analyzer_address' : 0x1fffe000  # Analyzer 0x1fffe000..0x1fffe600
+               'analyzer_address' : 0x1fffe000              # Analyzer 0x1fffe000..0x1fffe600
               }
 
 class K20D50M(Kinetis):
@@ -83,4 +82,3 @@ class K20D50M(Kinetis):
     def __init__(self, session):
         super(K20D50M, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MK20D5.svd")
-

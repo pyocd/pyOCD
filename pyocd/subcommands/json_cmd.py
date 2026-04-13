@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -92,6 +93,7 @@ class JsonSubcommand(SubcommandBase):
                                     config_file=self._args.config,
                                     no_config=self._args.no_config,
                                     pack=self._args.pack,
+                                    cbuild_run=self._args.cbuild_run,
                                     **convert_session_options(self._args.options)
                                     )
 
@@ -99,6 +101,9 @@ class JsonSubcommand(SubcommandBase):
                     # Create targets from provided CMSIS pack.
                     if session.options['pack'] is not None:
                         pack_target.PackTargets.populate_targets_from_pack(session.options['pack'])
+                    # Create target from provided CbuildRun file.
+                    if self._args.cbuild_run:
+                        session.cbuild_run.populate_target()
 
                 if self._args.probes:
                     obj = ListGenerator.list_probes()
@@ -122,4 +127,3 @@ class JsonSubcommand(SubcommandBase):
 
         print(json.dumps(obj, indent=4))
         return exit_status
-

@@ -1,6 +1,6 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2020,2025-2026 Arm Limited
+# Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -59,6 +59,14 @@ class DebugSequenceSemanticError(DebugSequenceError):
 class DebugSequenceRuntimeError(exceptions.Error):
     pass
 
+@dataclass(frozen=True)
+class FlashSequenceParams:
+    """@brief Runtime parameters passed to flash programming debug sequences."""
+    op: int
+    addr: int
+    length: int
+    arg: int = 0
+
 def _is_token(tok: Any, typename: str) -> bool:
     """@brief Test whether a node is a specific type of token."""
     return isinstance(tok, LarkToken) and tok.type == typename
@@ -73,7 +81,7 @@ class _ConvertLiterals(lark.visitors.Transformer):
         return int(tok.value.upper().rstrip('U'), base=0)
 
     def STRLIT(self, tok: LarkToken) -> LarkToken:
-        tok.value = tok.value.strip('"')
+        tok.value = tok.value[1:-1]
         return tok
 
 class Parser:
@@ -125,7 +133,13 @@ class DebugSequenceExecutionContext:
         """
         return cls._thread_local_contexts.context
 
-    def __init__(self, session: Session, delegate: DebugSequenceDelegate, pname: Optional[str]) -> None:
+    def __init__(
+            self,
+            session: Session,
+            delegate: DebugSequenceDelegate,
+            pname: Optional[str],
+            flash_params: Optional["FlashSequenceParams"] = None
+        ) -> None:
         """@brief Constructor.
 
         @param self
@@ -138,6 +152,7 @@ class DebugSequenceExecutionContext:
         self._default_ap_address = APv1Address(0)
         self._pname = pname
         self._stack: List[DebugSequenceExecutionContext._NodeScopeStackItem] = []
+        self._flash_params = flash_params
 
     @property
     def session(self) -> Session:
@@ -162,7 +177,7 @@ class DebugSequenceExecutionContext:
 
     @default_ap.setter
     def default_ap(self, address: APAddressBase) -> None:
-        """@brief Set the default AP adddress."""
+        """@brief Set the default AP address."""
         self._default_ap_address = address
 
     @property
@@ -173,6 +188,15 @@ class DebugSequenceExecutionContext:
         Only debug sequences with this Pname or an empty Pname can be run in this context.
         """
         return self._pname
+
+    @property
+    def flash_params(self) -> Optional["FlashSequenceParams"]:
+        """@brief Optional flash parameters for flash programming sequences."""
+        return self._flash_params
+
+    @flash_params.setter
+    def flash_params(self, params: Optional["FlashSequenceParams"]) -> None:
+        self._flash_params = params
 
     @property
     def current_scope(self) -> Scope:
@@ -380,7 +404,7 @@ class DebugSequence(DebugSequenceNode):
             scope.set('__ap', default_ap_address.nominal_address
                                 if isinstance(default_ap_address, APv1Address)
                                 else 0)
-            scope.set('__apid',  default_ap_address.nominal_address
+            scope.set('__apid',  default_ap_address.apid
                                     if isinstance(default_ap_address, APv2Address)
                                     else 0)
 
@@ -397,10 +421,22 @@ class DebugSequence(DebugSequenceNode):
         scope.set('__traceout', traceout, readonly=True)
 
         # Flash algorithm sequence parameters.
-        scope.set('__FlashOp', 0, readonly=True)
-        scope.set('__FlashAddr', 0, readonly=True)
-        scope.set('__FlashLen', 0, readonly=True)
-        scope.set('__FlashArg', 0, readonly=True)
+        flash_params = context.flash_params
+        if flash_params is None:
+            flash_op = 0
+            flash_addr = 0
+            flash_len = 0
+            flash_arg = 0
+        else:
+            flash_op = flash_params.op
+            flash_addr = flash_params.addr
+            flash_len = flash_params.length
+            flash_arg = flash_params.arg
+
+        scope.set('__FlashOp', flash_op, readonly=True)
+        scope.set('__FlashAddr', flash_addr, readonly=True)
+        scope.set('__FlashLen', flash_len, readonly=True)
+        scope.set('__FlashArg', flash_arg, readonly=True)
         return scope
 
     def execute(self, context: DebugSequenceExecutionContext) -> Optional[Scope]:
@@ -670,7 +706,7 @@ class SemanticChecker:
                 raise DebugSequenceSemanticError(
                         f"line {tree.meta.line}: cannot store a string to variable '{name}'")
 
-        def assign_stmt(self, tree: LarkTree) -> None:
+        def assign_expr(self, tree: LarkTree) -> None:
             # Assigned variable must have been previously declared.
             # TODO disabled until declarations are fully tracked in scopes.
             assert _is_token(tree.children[0], 'IDENT')
@@ -827,7 +863,7 @@ class Interpreter:
 
             self._scope.set(name, value)
 
-        def assign_stmt(self, tree: LarkTree) -> None:
+        def assign_expr(self, tree: LarkTree) -> int:
             values = self.visit_children(tree)
 
             name = values[0].value
@@ -843,6 +879,9 @@ class Interpreter:
                 value = _BINARY_OPS[op](left, value)
 
             self._scope.set(name, value)
+
+            # Return the variable's value as the assignment expression's value.
+            return value
 
         def expr_stmt(self, tree: LarkTree) -> int:
             values = self.visit_children(tree)
@@ -988,4 +1027,3 @@ class Interpreter:
         """
         visitor = self._InterpreterVisitor(self._scope, self._context)
         return visitor.visit(self._tree)
-

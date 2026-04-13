@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020,2025-2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -106,11 +106,10 @@ flash_algo = {
 
     'static_base': 0x001007d0,
     'begin_stack': 0x00100a00,
-    'begin_data': 0x00100000 + 0x1000,
     'page_size': 0x400,
     'analyzer_supported': False,
     'analyzer_address': 0x00000000,
-    # 'page_buffers': [0x00101000, 0x00101400],  # Enable double buffering
+    'page_buffers': [0x00101000],
     'min_program_length': 0x400
 
 }
@@ -187,7 +186,7 @@ class S5JS100(CoreSightTarget):
     def create_s5js100_core(self):
         core = CortexM_S5JS100(
             self.session, self.aps[self.AP_NUM], self.memory_map, 0)
-        core.default_reset_type = self.ResetType.SW
+        core.default_reset_type = self.ResetType.SYSTEM
         self.aps[self.AP_NUM].core = core
         core.init()
         self.add_core(core)

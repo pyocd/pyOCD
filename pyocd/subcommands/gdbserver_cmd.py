@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,39 +57,41 @@ class GdbserverSubcommand(SubcommandBase):
 
         gdbserver_options = gdbserver_parser.add_argument_group("gdbserver options")
         gdbserver_options.add_argument("-p", "--port", metavar="PORT", dest="port_number", type=int,
-            default=3333,
             help="Set starting port number for the GDB server (default 3333). Additional cores "
                 "will have a port number of this parameter plus the core number.")
-        gdbserver_options.add_argument("-T", "--telnet-port", metavar="PORT", dest="telnet_port",
-            type=int, default=4444,
+        gdbserver_options.add_argument("-T", "--telnet-port", metavar="PORT", dest="telnet_port", type=int,
             help="Specify starting telnet port for semihosting (default 4444).")
         gdbserver_options.add_argument("-R", "--probe-server-port",
-            dest="probe_server_port", metavar="PORT", type=int, default=5555,
+            dest="probe_server_port", metavar="PORT", type=int,
             help="Specify the port for the probe server (default 5555).")
         gdbserver_options.add_argument("-r", "--probe-server", action="store_true", dest="enable_probe_server",
             help="Enable the probe server in addition to the GDB server.")
-        gdbserver_options.add_argument("--allow-remote", dest="serve_local_only", default=True, action="store_false",
+        gdbserver_options.add_argument("--allow-remote", dest="serve_local_only", default=None, action="store_false",
             help="Allow remote TCP/IP connections (default is no).")
-        gdbserver_options.add_argument("--persist", action="store_true",
+        gdbserver_options.add_argument("--persist", default=None, action="store_true",
             help="Keep GDB server running even after remote has detached.")
         gdbserver_options.add_argument("--core", metavar="CORE_LIST",
             help="Comma-separated list of core numbers for which gdbservers will be created. Default is all cores.")
         gdbserver_options.add_argument("--elf", metavar="PATH",
             help="Optionally specify ELF file being debugged.")
-        gdbserver_options.add_argument("-e", "--erase", choices=cls.ERASE_OPTIONS, default='sector',
+        gdbserver_options.add_argument("-e", "--erase", choices=cls.ERASE_OPTIONS,
             help="Choose flash erase method. Default is sector.")
-        gdbserver_options.add_argument("--trust-crc", action="store_true",
+        gdbserver_options.add_argument("--trust-crc", default=None, action="store_true",
             help="Use only the CRC of each page to determine if it already has the same data.")
-        gdbserver_options.add_argument("-C", "--vector-catch", default='h',
+        gdbserver_options.add_argument("-C", "--vector-catch",
             help="Enable vector catch sources, one letter per enabled source in any order, or 'all' "
                 "or 'none'. (b=bus fault, c=check err, e=secure fault, h=hard fault, i=irq err, m=mem fault, "
                 "p=nocp, r=reset, s=state err, a=all, n=none). Default is hard fault.")
-        gdbserver_options.add_argument("-S", "--semihosting", dest="enable_semihosting", action="store_true",
+        gdbserver_options.add_argument("-S", "--semihosting", dest="enable_semihosting", default=None, action="store_true",
             help="Enable semihosting.")
-        gdbserver_options.add_argument("--step-into-interrupts", dest="step_into_interrupt", default=False, action="store_true",
+        gdbserver_options.add_argument("--step-into-interrupts", dest="step_into_interrupt", default=None, action="store_true",
             help="Allow single stepping to step into interrupts.")
         gdbserver_options.add_argument("-c", "--command", dest="commands", metavar="CMD", action='append', nargs='+',
             help="Run command (OpenOCD compatibility).")
+        gdbserver_options.add_argument("-bh", "--soft-bkpt-as-hard", dest="soft_bkpt_as_hard", default=None, action="store_true",
+            help="Replace software breakpoints with hardware breakpoints.")
+        gdbserver_options.add_argument("--reset-run", action="store_true",
+            help="Reset and run before running GDB server")
 
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, gdbserver_parser]
 
@@ -137,7 +140,7 @@ class GdbserverSubcommand(SubcommandBase):
         try:
             # Build dict of session options.
             sessionOptions = convert_session_options(self._args.options)
-            sessionOptions.update({
+            modifiable_options = {
                 'gdbserver_port' : self._args.port_number,
                 'telnet_port' : self._args.telnet_port,
                 'persist' : self._args.persist,
@@ -147,7 +150,10 @@ class GdbserverSubcommand(SubcommandBase):
                 'enable_semihosting' : self._args.enable_semihosting,
                 'serve_local_only' : self._args.serve_local_only,
                 'vector_catch' : self._args.vector_catch,
-                })
+                'soft_bkpt_as_hard' : self._args.soft_bkpt_as_hard,
+                }
+            modified_options = {k: v for k, v in modifiable_options.items() if v is not None}
+            sessionOptions.update(modified_options)
 
             # Split list of cores to serve.
             if self._args.core is not None:
@@ -179,6 +185,7 @@ class GdbserverSubcommand(SubcommandBase):
                 config_file=self._args.config,
                 no_config=self._args.no_config,
                 pack=self._args.pack,
+                cbuild_run=self._args.cbuild_run,
                 unique_id=self._args.unique_id,
                 target_override=self._args.target_override,
                 frequency=self._args.frequency,
@@ -212,6 +219,10 @@ class GdbserverSubcommand(SubcommandBase):
                     session.probeserver = probe_server
                     probe_server.start()
 
+                # Reset and run the target
+                if self._args.reset_run:
+                    session.board.target.reset()
+
                 # Start up the gdbservers.
                 for core_number, core in session.board.target.cores.items():
                     # Don't create a server for CPU-less memory Access Port.
@@ -241,4 +252,3 @@ class GdbserverSubcommand(SubcommandBase):
             raise
 
         return 0
-

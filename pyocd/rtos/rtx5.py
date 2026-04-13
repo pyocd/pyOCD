@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2016-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .provider import (TargetThread, ThreadProvider)
-from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK)
+from .common import (read_c_string, HandlerModeThread, EXC_RETURN_EXT_FRAME_MASK, EXC_RETURN_SECURE_STACK_MASK)
 from ..core import exceptions
 from ..core.target import Target
 from ..core.plugin import Plugin
@@ -135,6 +135,7 @@ class RTXThreadContext(DebugContext):
         super(RTXThreadContext, self).__init__(parent)
         self._thread = thread
         self._has_fpu = self.core.has_fpu
+        self._has_security_extension = Target.SecurityState.SECURE in self.core.supported_security_states
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [index_for_reg(reg) for reg in reg_list]
@@ -157,11 +158,10 @@ class RTXThreadContext(DebugContext):
         else:
             sp = self._thread.get_stack_pointer()
 
-        # Determine which register offset table to use and the offsets past the saved state.
-        hwStacked = 0x20
-        swStacked = 0x20
-        table = self.NOFPU_REGISTER_OFFSETS
-        if self._has_fpu:
+        # Read exception LR (holds EXC_RETURN) to determine stacking info.
+        hasExtendedFrame = False
+        hasSecureStack = False
+        if self._has_fpu or self._has_security_extension:
             try:
                 if inException and self.core.is_vector_catch():
                     # Vector catch has just occurred, take live LR
@@ -174,16 +174,32 @@ class RTXThreadContext(DebugContext):
 
                 # Check bit 4 of the exception LR to determine if FPU registers were stacked.
                 if (exceptionLR & EXC_RETURN_EXT_FRAME_MASK) == 0:
-                    table = self.FPU_REGISTER_OFFSETS
-                    hwStacked = 0x68
-                    swStacked = 0x60
+                    hasExtendedFrame = True
+
+                # Check bit 6 of the exception LR to determine if Secure stack is used.
+                if (exceptionLR & EXC_RETURN_SECURE_STACK_MASK) != 0:
+                    hasSecureStack = True
+
             except exceptions.TransferError:
                 LOG.debug("Transfer error while reading thread's saved LR")
 
+        # Determine which register offset table to use and the offsets past the saved state.
+        if hasExtendedFrame:
+            table = self.FPU_REGISTER_OFFSETS
+            hwStacked = 0x68
+            swStacked = 0x60
+        else:
+            table = self.NOFPU_REGISTER_OFFSETS
+            hwStacked = 0x20
+            swStacked = 0x20
+
         for reg in reg_list:
 
-            # Must handle stack pointer specially.
-            if reg == 13:
+            # Must handle stack pointer(s) specially.
+            if (reg == index_for_reg('sp') or
+                reg == index_for_reg('psp') or
+                (reg == index_for_reg('psp_s') and hasSecureStack) or
+                (reg == index_for_reg('psp_ns') and not hasSecureStack)):
                 if inException:
                     reg_vals.append(sp + hwStacked)
                 else:
@@ -213,8 +229,9 @@ class RTXTargetThread(TargetThread):
     """@brief Represents an RTX5 thread on the target."""
 
     STATE_OFFSET = 1
+    STATE_RUNNING = 2
     NAME_OFFSET = 4
-    PRIORITY_OFFSET = 33
+    PRIORITY_OFFSET = 32
     STACKFRAME_OFFSET = 34
     SP_OFFSET = 56
 
@@ -243,7 +260,6 @@ class RTXTargetThread(TargetThread):
         self._state = 0
         self._priority = 0
         self._thread_context = RTXThreadContext(self._target_context, self)
-        self._has_fpu = self._thread_context.core.has_fpu
         try:
             name_ptr = self._target_context.read32(self._base + RTXTargetThread.NAME_OFFSET)
             self._name = read_c_string(self._target_context, name_ptr)
@@ -349,7 +365,7 @@ class RTX5ThreadProvider(ThreadProvider):
 
     def event_handler(self, notification):
         # Invalidate threads list if flash is reprogrammed.
-        self.invalidate();
+        self.invalidate()
 
     def _build_thread_list(self):
         newThreads = {}
@@ -387,9 +403,10 @@ class RTX5ThreadProvider(ThreadProvider):
             for thread in theList:
                 create_or_update(thread)
 
-        # Create fake handler mode thread.
-        if self._target_context.read_core_register('ipsr') > 0:
-            newThreads[HandlerModeThread.UNIQUE_ID] = HandlerModeThread(self._target_context, self)
+        if self._target.get_state() == Target.State.HALTED:
+            # Create fake handler mode thread.
+            if self._target_context.read_core_register('ipsr') > 0:
+                newThreads[HandlerModeThread.UNIQUE_ID] = HandlerModeThread(self._target_context, self)
 
         self._threads = newThreads
 
@@ -404,9 +421,14 @@ class RTX5ThreadProvider(ThreadProvider):
         if self._os_rtx_info is None:
             return False
         try:
-            # If we're in Thread mode on the main stack, can't be active, even
-            # if kernel state says we are (eg post reset)
-            return self.get_kernel_state() != 0 and not self._target.in_thread_mode_on_main_stack()
+            # If target is running, we can only check if the kernel state is Running.
+            enabled = self.get_kernel_state() >= RTXTargetThread.STATE_RUNNING
+            if self._target.get_state() == Target.State.HALTED:
+                # When halted, if the CPU is in Thread mode using the main stack,
+                # the RTOS kernel is not actually running, even if the kernel state indicates otherwise.
+                if self._target.in_thread_mode_on_main_stack():
+                    enabled = False
+            return enabled
         except exceptions.TransferError as exc:
             LOG.debug("Transfer error checking if enabled: %s", exc)
             return False
@@ -433,8 +455,9 @@ class RTX5ThreadProvider(ThreadProvider):
     def get_current_thread_id(self):
         if not self.is_enabled:
             return None
-        if self._target_context.read_core_register('ipsr') > 0:
-            return HandlerModeThread.UNIQUE_ID
+        if self._target.get_state() == Target.State.HALTED:
+            if self._target_context.read_core_register('ipsr') > 0:
+                return HandlerModeThread.UNIQUE_ID
         return self.get_actual_current_thread_id()
 
     def get_actual_current_thread_id(self):

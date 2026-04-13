@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2013,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2022 NXP
 # SPDX-License-Identifier: Apache-2.0
@@ -40,9 +40,9 @@ FLASH_ALGO = {
     'pc_erase_sector' : 0x10000089,
     'pc_program_page' : 0x100000C7,
     'pc_eraseAll' : 0x10000049,
-    # Double buffering is not supported since sector size differs from page size
     'static_base' : 0x10000000 + 0x00000020 + 0x00000128,
-    'begin_data' : 0x10000000 + 0x00000800, # Analyzer uses a max of 128 B data (32 pages * 4 bytes / page)
+    # Double buffering is not supported since sector size differs from page size
+    'page_buffers' : [0x10000800],   # Analyzer uses a max of 128 B data (32 pages * 4 bytes / page)
     'begin_stack' : 0x10000800,
     'min_program_length' : 1024,
     'analyzer_supported' : True,

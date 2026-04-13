@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2025-2026 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
 # Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
@@ -44,7 +44,7 @@ BUILTIN_OPTIONS = [
         "target memory."),
     OptionInfo('chip_erase', str, "sector",
         "Whether to perform a chip erase or sector erases when programming flash. The value must be"
-        " one of \"auto\", \"sector\", or \"chip\"."),
+        " one of 'auto', 'sector', or 'chip'."),
     OptionInfo('cmsis_dap.prefer_v1', bool, False,
         "If a device provides both CMSIS-DAP v1 and v2 interfaces, use the v1 interface in preference of v2. "
         "Normal behaviour is to prefer the v2 interface. This option is primarily intended for testing."),
@@ -89,6 +89,12 @@ BUILTIN_OPTIONS = [
     OptionInfo('keep_unwritten', bool, False,
         "Whether to preserve existing flash content for ranges of sectors that will be erased but not "
         "written with new data. Default is False."),
+    OptionInfo('load.pre_reset', str, None,
+        "Specify the type of reset to perform before programming. The value must be one of"
+        " 'off', 'default', 'hardware', 'system', 'core', 'n_srst', 'sysresetreq', 'vectreset' or 'emulated'."),
+    OptionInfo('load.post_reset', str, None,
+        "Specify the type of reset to perform after programming. The value must be one of"
+        " 'off', 'default', 'hardware', 'system', 'core', 'n_srst', 'sysresetreq', 'vectreset' or 'emulated'."),
     OptionInfo('logging', (str, dict), None,
         "Logging configuration dictionary, or path to YAML file containing logging configuration."),
     OptionInfo('no_config', bool, False,
@@ -114,9 +120,8 @@ BUILTIN_OPTIONS = [
         "Path to the session's project directory. Defaults to the working directory when the pyocd "
         "tool was executed."),
     OptionInfo('reset_type', str, 'default',
-        "Which type of reset to use by default ('default', 'hw', 'sw', 'sw_system', 'sw_core', "
-        "'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'system', 'core', 'sysresetreq', 'vectreset', "
-        "'emulated'). The default is 'sw', which itself defaults to 'sw_system'."),
+        "Which type of reset to use ('default', 'hardware', 'system', 'core', "
+        "'n_srst', 'sysresetreq', 'vectreset', 'emulated')."),
     OptionInfo('reset.hold_time', float, 0.1,
         "Number of seconds to hold hardware reset asserted. Default is 0.1 s (100 ms)."),
     OptionInfo('reset.post_delay', float, 0.1,
@@ -160,7 +165,7 @@ BUILTIN_OPTIONS = [
         "Duration in seconds that a failed target status check will be retried before an error is raised. "
         "Only applies while the target is running after a resume operation in the debugger and pyOCD is waiting "
         "for it to halt again."),
-    OptionInfo('gdbserver_port', int, 3333,
+    OptionInfo('gdbserver_port', (int, tuple), 3333,
         "Base TCP port for the gdbserver."),
     OptionInfo('persist', bool, False,
         "If True, the GDB server will not exit after GDB disconnects."),
@@ -172,7 +177,7 @@ BUILTIN_OPTIONS = [
     OptionInfo('rtos.name', str, None,
         "Name of the RTOS plugin to use. If not set, all RTOS plugins are given a chance to load."),
     OptionInfo('semihost_console_type', str, 'telnet',
-        "If set to \"telnet\" then the semihosting telnet server will be started, otherwise "
+        "If set to 'telnet' then the semihosting telnet server will be started, otherwise "
         "semihosting will print to the console."),
     OptionInfo('semihost_use_syscalls', bool, False,
         "Whether to use GDB syscalls for semihosting file access operations."),
@@ -189,13 +194,31 @@ BUILTIN_OPTIONS = [
         "Enable flag for the raw SWV stream server."),
     OptionInfo('swv_raw_port', int, 3443,
         "TCP port number for the raw SWV stream server."),
-    OptionInfo('telnet_port', int, 4444,
+    OptionInfo('telnet_port', (int, tuple), 4444,
         "Base TCP port number for the semihosting telnet server."),
     OptionInfo('vector_catch', str, 'h',
         "Enable vector catch sources."),
-    OptionInfo('xpsr_control_fields', bool, False,
-        "When set to True, XPSR and CONTROL registers will have their respective bitfields defined "
+    OptionInfo('register_fields', bool, True,
+        "When set to True, registers with bitfields will have their respective bitfields defined "
         "for presentation in gdb."),
+    OptionInfo('soft_bkpt_as_hard', bool, False,
+        "Replace software breakpoints with hardware breakpoints."),
+
+    # Internal cbuild-run session options
+    OptionInfo('telnet_mode', (str, tuple), None,
+        "List of telnet modes for each core."),
+    OptionInfo('telnet_file_in', (str, tuple), None,
+        "List of telnet input file paths for each core."),
+    OptionInfo('telnet_file_out', (str, tuple), None,
+        "List of telnet output file paths for each core."),
+    OptionInfo('rtt', tuple, None,
+        "List of RTT configurations for each core."),
+    OptionInfo('systemview_file', str, None,
+        "SystemView output file path."),
+    OptionInfo('systemview_auto_start', bool, None,
+        "Enable automatic start of SystemView."),
+    OptionInfo('systemview_auto_stop', bool, None,
+        "Enable automatic stop of SystemView."),
     ]
 
 ## @brief The runtime dictionary of options.

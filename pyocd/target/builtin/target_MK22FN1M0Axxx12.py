@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2018 Arm Limited
+# Copyright (c) 2006-2018,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -81,10 +81,9 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000020 + 0x00000504,
     'begin_stack' : 0x20000000 + 0x00000800,
-    'begin_data' : 0x20000000 + 0x00000A00,
     'page_size' : 0x00000200,
     'analyzer_supported' : True,
-    'analyzer_address' : 0x1ffff000,  # Analyzer 0x1ffff000..0x1ffff600
+    'analyzer_address' : 0x1ffff000,             # Analyzer 0x1ffff000..0x1ffff600
     'page_buffers' : [0x20003000, 0x20004000],   # Enable double buffering
     'min_program_length' : 8,
 }
@@ -111,4 +110,3 @@ class K22FA12(Kinetis):
             rgn._end = 0x7ffff
         else:
             LOG.debug("%s: device does not have FlexNVM", self.part_number)
-

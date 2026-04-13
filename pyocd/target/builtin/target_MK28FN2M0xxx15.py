@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016,2018 Arm Limited
+# Copyright (c) 2016,2018,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -66,9 +66,8 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
     'pc_eraseAll' : 0x2000004D,
     'static_base' : 0x20000000 + 0x00000020 + 0x0000046c,
     'begin_stack' : 0x20000000 + 0x00000800,
-    'begin_data' : 0x20000000 + 0x00000A00,
     'analyzer_supported' : True,
-    'analyzer_address' : 0x1ffff000,  # Analyzer 0x1ffff000..0x1ffff600
+    'analyzer_address' : 0x1ffff000,             # Analyzer 0x1ffff000..0x1ffff600
     'page_buffers' : [0x20003000, 0x20004000],   # Enable double buffering
     'min_program_length' : 8,
   }
@@ -86,4 +85,3 @@ class K28F15(Kinetis):
     def __init__(self, session):
         super(K28F15, self).__init__(session, self.MEMORY_MAP)
         self._svd_location = SVDFile.from_builtin("MK28FA15.xml")
-

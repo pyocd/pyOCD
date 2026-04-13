@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2020,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -14,8 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function
-
 import argparse
 import os
 import sys
@@ -153,6 +151,7 @@ def debug_context_test(board_id):
 
         # Program the test binary.
         print("Programming test binary to boot memory")
+        target.reset_and_halt()
         FileProgrammer(session).program(binary_file, base_address=boot_region.start)
 
         with mock.patch.object(target.selected_core, 'read_memory_block32') as read_block32_mock:
@@ -202,4 +201,3 @@ if __name__ == "__main__":
     session = ConnectHelper.session_with_chosen_probe(**get_session_options())
     test = DebugContextTest()
     result = [test.run(session.board)]
-

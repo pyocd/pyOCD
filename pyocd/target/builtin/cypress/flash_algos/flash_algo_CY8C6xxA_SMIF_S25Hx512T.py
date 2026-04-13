@@ -1,6 +1,6 @@
 # File Version : 3.0.0.305
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020,2026 Arm Limited
 # Copyright (c) 2020 Cypress Semiconductor Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -511,7 +511,6 @@ flash_algo = {
 
     'static_base' : 0x08000000 + 0x00000020 + 0x00003910,
     'begin_stack' : 0x08005000,
-    'begin_data' : 0x08005000 + 0x40,
     'page_size' : 0x1000,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,

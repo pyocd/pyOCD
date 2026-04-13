@@ -6,6 +6,36 @@ title: Built-in targets
 
 <tr><th>Target Type Name</th><th>Vendor</th><th>Name</th></tr>
 
+    <tr><td><code>air001</code></td>
+    <td>AirM2M</td>
+    <td>Air001</td>
+    </tr>
+
+    <tr><td><code>air32f103xb</code></td>
+    <td>AirM2M</td>
+    <td>Air32F103xB</td>
+    </tr>
+
+    <tr><td><code>air32f103xc</code></td>
+    <td>AirM2M</td>
+    <td>Air32F103xC</td>
+    </tr>
+
+    <tr><td><code>air32f103xe</code></td>
+    <td>AirM2M</td>
+    <td>Air32F103xE</td>
+    </tr>
+
+    <tr><td><code>air32f103xg</code></td>
+    <td>AirM2M</td>
+    <td>Air32F103xG</td>
+    </tr>
+
+    <tr><td><code>air32f103xp</code></td>
+    <td>AirM2M</td>
+    <td>Air32F103xP</td>
+    </tr>
+
     <tr><td><code>cc3220sf</code></td>
     <td>Texas Instruments</td>
     <td>CC3220SF</td>
@@ -126,6 +156,16 @@ title: Built-in targets
     <td>CY8C6xxA</td>
     </tr>
 
+    <tr><td><code>hc32a460xe</code></td>
+    <td>HDSC</td>
+    <td>HC32F460xE</td>
+    </tr>
+
+    <tr><td><code>hc32a4a0xi</code></td>
+    <td>HDSC</td>
+    <td>HC32F4A0xI</td>
+    </tr>
+
     <tr><td><code>hc32f003</code></td>
     <td>HDSC</td>
     <td>HC32F003</td>
@@ -174,6 +214,16 @@ title: Built-in targets
     <tr><td><code>hc32f196</code></td>
     <td>HDSC</td>
     <td>HC32F196</td>
+    </tr>
+
+    <tr><td><code>hc32f448xa</code></td>
+    <td>HDSC</td>
+    <td>HC32F448xA</td>
+    </tr>
+
+    <tr><td><code>hc32f448xc</code></td>
+    <td>HDSC</td>
+    <td>HC32F448xC</td>
     </tr>
 
     <tr><td><code>hc32f451xc</code></td>
@@ -259,6 +309,71 @@ title: Built-in targets
     <tr><td><code>hc32m120x6</code></td>
     <td>HDSC</td>
     <td>HC32M120</td>
+    </tr>
+
+    <tr><td><code>hc32f115x8</code></td>
+    <td>HDSC</td>
+    <td>HC32F115x8</td>
+    </tr>
+
+    <tr><td><code>hc32f115</code></td>
+    <td>HDSC</td>
+    <td>HC32F115x8</td>
+    </tr>
+
+    <tr><td><code>hc32f155xa</code></td>
+    <td>HDSC</td>
+    <td>HC32F155xA</td>
+    </tr>
+
+    <tr><td><code>hc32f155xc</code></td>
+    <td>HDSC</td>
+    <td>HC32F155xC</td>
+    </tr>
+
+    <tr><td><code>hc32f155</code></td>
+    <td>HDSC</td>
+    <td>HC32F155xC</td>
+    </tr>
+
+    <tr><td><code>hc32f334x8</code></td>
+    <td>HDSC</td>
+    <td>HC32F334x8</td>
+    </tr>
+
+    <tr><td><code>hc32f334xa</code></td>
+    <td>HDSC</td>
+    <td>HC32F334xA</td>
+    </tr>
+
+    <tr><td><code>hc32f334</code></td>
+    <td>HDSC</td>
+    <td>HC32F334xA</td>
+    </tr>
+
+    <tr><td><code>hc32f467xg</code></td>
+    <td>HDSC</td>
+    <td>HC32F467xG</td>
+    </tr>
+
+    <tr><td><code>hc32f467</code></td>
+    <td>HDSC</td>
+    <td>HC32F467xG</td>
+    </tr>
+
+    <tr><td><code>hc32f472xc</code></td>
+    <td>HDSC</td>
+    <td>HC32F472xC</td>
+    </tr>
+
+    <tr><td><code>hc32f472xe</code></td>
+    <td>HDSC</td>
+    <td>HC32F472xE</td>
+    </tr>
+
+    <tr><td><code>hc32f472</code></td>
+    <td>HDSC</td>
+    <td>HC32F472xE</td>
     </tr>
 
     <tr><td><code>hc32m423xa</code></td>
@@ -546,6 +661,11 @@ title: Built-in targets
     <td>MAX32660</td>
     </tr>
 
+    <tr><td><code>max32666</code></td>
+    <td>Maxim</td>
+    <td>MAX32666</td>
+    </tr>
+
     <tr><td><code>max32670</code></td>
     <td>Maxim</td>
     <td>MAX32670</td>
@@ -611,6 +731,11 @@ title: Built-in targets
     <td>AN522</td>
     </tr>
 
+    <tr><td><code>mps2_an521</code></td>
+    <td>Arm</td>
+    <td>AN521</td>
+    </tr>
+
     <tr><td><code>mps3_an540</code></td>
     <td>Arm</td>
     <td>AN540</td>
@@ -666,9 +791,19 @@ title: Built-in targets
     <td>NRF52840</td>
     </tr>
 
+    <tr><td><code>nrf54l</code></td>
+    <td>Nordic Semiconductor</td>
+    <td>NRF54L15</td>
+    </tr>
+    
+    <tr><td><code>nrf54lm20a</code></td>
+    <td>Nordic Semiconductor</td>
+    <td>NRF54LM20A</td>
+    </tr>
+
     <tr><td><code>nrf91</code></td>
     <td>Nordic Semiconductor</td>
-    <td>NRF9160</td>
+    <td>NRF91XX</td>
     </tr>
 
     <tr><td><code>rp2040</code></td>
@@ -686,9 +821,24 @@ title: Built-in targets
     <td>RP2040Core1</td>
     </tr>
 
+    <tr><td><code>rp2350</code></td>
+    <td>Raspberry Pi</td>
+    <td>RP2350</td>
+    </tr>
+
     <tr><td><code>rtl8195am</code></td>
     <td>Realtek Semiconductor</td>
     <td>RTL8195AM</td>
+    </tr>
+
+    <tr><td><code>rtl8762c</code></td>
+    <td>Realtek Semiconductor</td>
+    <td>RTL8762C</td>
+    </tr>
+
+    <tr><td><code>s32k344</code></td>
+    <td>NXP</td>
+    <td>S32K344</td>
     </tr>
 
     <tr><td><code>s5js100</code></td>
@@ -741,6 +891,26 @@ title: Built-in targets
     <td>STM32F767xx</td>
     </tr>
 
+    <tr><td><code>stm32h723xx</code></td>
+    <td>STMicroelectronics</td>
+    <td>STM32H723xx</td>
+    </tr>
+
+    <tr><td><code>stm32h743xx</code></td>
+    <td>STMicroelectronics</td>
+    <td>STM32H743xx</td>
+    </tr>
+
+    <tr><td><code>stm32h750xx</code></td>
+    <td>STMicroelectronics</td>
+    <td>STM32H750xx</td>
+    </tr>
+
+    <tr><td><code>stm32h7b0xx</code></td>
+    <td>STMicroelectronics</td>
+    <td>STM32H7B0xx</td>
+    </tr>
+
     <tr><td><code>stm32l031x6</code></td>
     <td>STMicroelectronics</td>
     <td>STM32L031x6</td>
@@ -791,6 +961,9 @@ title: Built-in targets
     <td>YTM32B1ME0</td>
     </tr>
 
+    <tr><td><code>ama3b1kk_kbr</code></td>
+    <td>Ambiq Micro</td>
+    <td>AMA3B1KK_KBR</td>
+    </tr>
 
 </table>
-

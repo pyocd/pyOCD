@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -104,13 +104,12 @@ class CortexM_v8M(CortexM):
         """@brief Read the CPUID register and determine core type and architecture."""
         # Schedule deferred reads.
         cpuid_cb = self.read32(self.CPUID, now=False)
+        clidr_cb = self.read32(self.CLIDR, now=False)
         pfr0_cb = self.read32(self.PFR0, now=False)
         pfr1_cb = self.read32(self.PFR1, now=False)
         dfr0_cb = self.read32(self.DFR0, now=False)
         isar0_cb = self.read32(self.ISAR0, now=False)
         isar3_cb = self.read32(self.ISAR3, now=False)
-        isar5_cb = self.read32(self.ISAR5, now=False)
-        pmu_type_cb = self.read32(self.PMU_TYPE, now=False)
         mpu_type_cb = self.read32(self.MPU_TYPE, now=False)
 
         # Read CPUID register
@@ -120,6 +119,13 @@ class CortexM_v8M(CortexM):
         self.core_type = (cpuid & CortexM.CPUID_PARTNO_MASK) >> CortexM.CPUID_PARTNO_POS
         self.cpu_revision = (cpuid & CortexM.CPUID_VARIANT_MASK) >> CortexM.CPUID_VARIANT_POS
         self.cpu_patch = (cpuid & CortexM.CPUID_REVISION_MASK) >> CortexM.CPUID_REVISION_POS
+
+        # Check cache type and configure AP to use cacheable access if cache is present.
+        clidr = clidr_cb()
+        clidr_ctype1 = (clidr >> CortexM.CLIDR_CTYPE1_SHIFT) & CortexM.CLIDR_CTYPE_MASK
+        if clidr_ctype1 != CortexM.CLIDR_CTYPE_NO_CACHE:
+            self.has_cache = True
+            self.ap.set_cacheable()
 
         # Check for DSP extension
         isar3 = isar3_cb()
@@ -148,18 +154,6 @@ class CortexM_v8M(CortexM):
         if dfr0_ude == self.DFR0_UDE_SUPPORTED:
             self._extensions.append(CortexMExtension.UDE)
 
-        # Check for PACBTI extension.
-        isar5 = isar5_cb()
-        isar5_pacbti = (isar5 & self.ISAR5_PACBTI_MASK) >> self.ISAR5_PACBTI_SHIFT
-        if isar5_pacbti != self.ISAR5_PACBTI__NONE:
-            self._extensions.append(CortexMExtension.PACBTI)
-
-        # Check for PMU extension.
-        pmu_type = pmu_type_cb()
-        pmu_type_n = pmu_type & self.PMU_TYPE_N_MASK
-        if pmu_type_n > 0:
-            self._extensions.append(CortexMExtension.PMU)
-
         # Check for MPU extension
         mpu_type = mpu_type_cb()
         mpu_type_dregions = (mpu_type & self.MPU_TYPE_DREGIONS_MASK) >> self.MPU_TYPE_DREGIONS_SHIFT
@@ -180,6 +174,23 @@ class CortexM_v8M(CortexM):
             self._arch_version = (8, 1)
         else:
             self._arch_version = (8, 0)
+
+        # v8.1-M-only extension indicators are read in a separate deferred batch.
+        if self._arch_version == (8, 1):
+            isar5_cb = self.read32(self.ISAR5, now=False)
+            pmu_type_cb = self.read32(self.PMU_TYPE, now=False)
+
+            # Check for PACBTI extension.
+            isar5 = isar5_cb()
+            isar5_pacbti = (isar5 & self.ISAR5_PACBTI_MASK) >> self.ISAR5_PACBTI_SHIFT
+            if isar5_pacbti != self.ISAR5_PACBTI__NONE:
+                self._extensions.append(CortexMExtension.PACBTI)
+
+            # Check for PMU extension.
+            pmu_type = pmu_type_cb()
+            pmu_type_n = pmu_type & self.PMU_TYPE_N_MASK
+            if pmu_type_n > 0:
+                self._extensions.append(CortexMExtension.PMU)
 
         self._core_name = CORE_TYPE_NAME.get((implementer, self.core_type), f"Unknown (CPUID={cpuid:#010x})")
 

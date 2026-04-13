@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2006-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,8 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function
-
 import argparse
 import os
 import sys
@@ -250,6 +248,7 @@ def basic_test(board_id, file):
         sectors_to_test = min(rom_region.length // sector_size, 3)
         addr_flash = rom_region.start + rom_region.length - sector_size * sectors_to_test
         fill = [0x55] * page_size
+        target.reset_and_halt()
         for i in range(0, sectors_to_test):
             address = addr_flash + sector_size * i
             # Test only supports a location with 3 aligned
@@ -306,6 +305,7 @@ def basic_test(board_id, file):
             print("TEST FAILED")
 
         print("\n\n----- FLASH NEW BINARY -----")
+        target.reset_and_halt()
         FileProgrammer(session).program(binary_file, base_address=addr_bin)
 
         target.reset()

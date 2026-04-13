@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2022 Huada Semiconductor Corporation
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,10 +22,10 @@ from ...debug.svd.loader import SVDFile
 
 class DBGMCU:
     STPCTL = 0xE0042020
-    STPCTL_VALUE = 0x7FFFFF
+    STPCTL_VALUE = 0x0001F0C7
 
     STPCTL1 = 0xE0042028
-    STPCTL1_VALUE = 0xFFF
+    STPCTL1_VALUE = 0x0000001F
 
     TRACECTL = 0xE0042024
     TRACECTL_VALUE = 0x0
@@ -32,9 +33,9 @@ class DBGMCU:
 FLASH_ALGO = {
     'load_address' : 0x20000000,
 
-    # Flash algorithm as a hex string
+    # Flash algorithm as a hex string. HDSC.HC32F448.1.0.1.pack 9215
     'instructions': [
-    0xE00ABE00, 
+    0xE00ABE00,
     0x4770ba40, 0x4770ba40, 0x4770ba40, 0x4770bac0, 0x4770bac0, 0x4770bac0, 0x0030ea4f, 0x00004770,
     0x0030ea4f, 0x00004770, 0x0030ea4f, 0x00004770, 0x49052000, 0x49057008, 0x20016008, 0x39264902,
     0x002af881, 0x00004770, 0x40054026, 0x40010418, 0x6800480d, 0x0001f000, 0x480cb118, 0x6008490c,
@@ -91,7 +92,6 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x00000590,
     'begin_stack' : 0x20000800,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x200,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -110,9 +110,9 @@ FLASH_ALGO = {
 FLASH_ALGO_OTP = {
     'load_address' : 0x20000000,
 
-    # Flash algorithm as a hex string
+    # Flash algorithm as a hex string. HDSC.HC32F448.1.0.1.pack 9215
     'instructions': [
-    0xE00ABE00, 
+    0xE00ABE00,
     0x4770ba40, 0x4770ba40, 0x4770ba40, 0x4770bac0, 0x4770bac0, 0x4770bac0, 0x0030ea4f, 0x00004770,
     0x0030ea4f, 0x00004770, 0x0030ea4f, 0x00004770, 0x49052000, 0x49057008, 0x20016008, 0x39264902,
     0x002af881, 0x00004770, 0x40054026, 0x40010418, 0x6800480d, 0x0001f000, 0x480cb118, 0x6008490c,
@@ -163,7 +163,6 @@ FLASH_ALGO_OTP = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x000004c8,
     'begin_stack' : 0x20000700,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x400,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -229,4 +228,3 @@ class HC32F448xC(CoreSightTarget):
         self.write32(DBGMCU.STPCTL, DBGMCU.STPCTL_VALUE)
         self.write32(DBGMCU.STPCTL1, DBGMCU.STPCTL1_VALUE)
         self.write32(DBGMCU.TRACECTL, DBGMCU.TRACECTL_VALUE)
-

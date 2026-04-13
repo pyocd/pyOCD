@@ -30,6 +30,7 @@ lib
 lib64
 __pycache__
 *.spec
+!pyocd.spec
 
 # Installer logs
 pip-log.txt

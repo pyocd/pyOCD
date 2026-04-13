@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2019 Arm Limited
+# Copyright (c) 2016-2019,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,7 +34,7 @@ def regcache_no_fpu(mockcore_no_fpu):
     return RegisterCache(DebugContext(mockcore_no_fpu), mockcore_no_fpu)
 
 COMPOSITES = [
-    'cfbp',
+    'cfbp', 'cfbp_s', 'cfbp_ns',
     'xpsr',
     'iapsr',
     'eapsr',
@@ -56,6 +56,8 @@ def get_modifier(r):
 
 def get_expected_reg_value(r):
     i = CortexMCoreRegisterInfo.register_name_to_index(r)
+    if CortexMCoreRegisterInfo.get(r).is_cfbp_subregister:
+        return (i >> 8) + (i & 3) + 128
     if CortexMCoreRegisterInfo.get(i).is_psr_subregister:
         return 0x55555555 & CortexMCoreRegisterInfo.get(i).psr_mask
     if i < 0:
@@ -204,8 +206,3 @@ class TestRegisterCache:
     def test_invalid_fpu_reg_w(self, regcache_no_fpu):
         with pytest.raises(KeyError):
             regcache_no_fpu.write_core_registers_raw(['s1'], [1.234])
-
-
-
-
-

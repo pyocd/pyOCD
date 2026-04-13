@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,15 +53,16 @@ class ThreadProvider(object):
         self._last_run_token = -1
         self._read_from_target = False
 
-    def _lookup_symbols(self, symbolList, symbolProvider):
+    def _lookup_symbols(self, symbolList, symbolProvider, allowPartial = False):
         syms = {}
         for name in symbolList:
             addr = symbolProvider.get_symbol_value(name)
             LOG.debug("Value for symbol %s = %s", name, hex(addr) if addr is not None else "<none>")
-            if addr is None:
+            if addr is not None:
+                syms[name] = addr
+            elif not allowPartial:
                 return None
-            syms[name] = addr
-        return syms
+        return syms if syms else None
 
     def init(self, symbolProvider):
         """@retval True The provider was successfully initialzed.

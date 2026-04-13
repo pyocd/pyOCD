@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2017 NXP
-# Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2006-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,7 +37,7 @@ class IMXRT(CoreSightTarget):
     def create_cores(self):
         try:
             core = CortexM7_IMXRT(self.session, self.aps[0], self.memory_map, 0)
-            core.default_reset_type = self.ResetType.SW_VECTRESET
+            core.default_reset_type = self.ResetType.VECTRESET
             self.aps[0].core = core
             core.init()
             self.add_core(core)
@@ -102,7 +102,7 @@ class CortexM7_IMXRT(CortexM):
 
         # boot from flexspi_nor
         if bootmode == 2 and bootdevice == 0 and \
-            reset_type not in (self.ResetType.SW_SYSRESETREQ, self.ResetType.SW_VECTRESET):
+            reset_type not in (self.ResetType.SYSRESETREQ, self.ResetType.VECTRESET):
             # Disable Reset Vector Catch in DEMCR
             value = self.read_memory(CortexM.DEMCR)
             self.write_memory(CortexM.DEMCR, (value & (~0x00000001)))

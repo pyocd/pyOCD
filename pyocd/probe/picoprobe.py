@@ -19,7 +19,10 @@ from array import array
 
 from time import sleep
 from usb import core, util
-import libusb_package
+try:
+    from libusb_package import find as usb_find
+except ImportError:
+    from usb.core import find as usb_find
 
 import platform
 import errno
@@ -108,7 +111,7 @@ class PicoLink(object):
         """@brief Find and return all Picoprobes """
         try:
             # Use a custom matcher to make sure the probe is a Picoprobe and accessible.
-            return [PicoLink(probe) for probe in libusb_package.find(find_all=True, custom_match=FindPicoprobe(uid))]
+            return [PicoLink(probe) for probe in usb_find(find_all=True, custom_match=FindPicoprobe(uid))]
         except core.NoBackendError:
             show_no_libusb_warning()
             return []

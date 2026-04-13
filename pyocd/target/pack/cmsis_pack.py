@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2020,2025-2026 Arm Limited
 # Copyright (c) 2020 Men Shiyun
 # Copyright (c) 2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 # Copyright (c) 2021-2023 Chris Reed
+# Copyright (c) 2025 Morten Engelhardt Olsen
+# Copyright (c) 2026 Microchip Technology Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +27,7 @@ import logging
 import io
 import errno
 from pathlib import Path
+import posixpath
 from typing import (Any, Callable, Dict, List, IO, Optional, Tuple, TypeVar, Set, Union)
 
 from .flash_algo import PackFlashAlgo
@@ -49,6 +52,7 @@ from ...debug.sequences.sequences import (
     IfControl,
     WhileControl,
 )
+from ...flash.flash_dsq import FlashDebugSequence
 
 LOG = logging.getLogger(__name__)
 
@@ -69,6 +73,7 @@ class _DeviceInfo:
     debugvars: List[Element] = field(default_factory=list)
     debugports: List[Element] = field(default_factory=list)
     accessports: List[Element] = field(default_factory=list)
+    flashinfo: List[Element] = field(default_factory=list)
 
 @dataclass
 class ProcessorInfo:
@@ -133,51 +138,51 @@ class CmsisPack:
             from within the pack.
         """
         self._is_dir = False
+        self._pack_path = ''
         if isinstance(file_or_path, zipfile.ZipFile):
             self._pack_file = file_or_path
+            self._pack_path = file_or_path.filename or ''
         else:
-            # Check for an expanded pack as a directory.
             if isinstance(file_or_path, (str, Path)):
                 path = Path(file_or_path).expanduser()
-                file_or_path = str(path) # Update with expanded path.
-
-                self._is_dir = path.is_dir()
-                if self._is_dir:
+                self._pack_path = str(path)
+                if path.is_dir():
+                    self._is_dir = True
                     self._dir_path = path
+                else:
+                    file_or_path = path  # use expanded path for ZipFile
 
             if not self._is_dir:
                 try:
                     self._pack_file = zipfile.ZipFile(file_or_path, 'r')
                 except zipfile.BadZipFile as err:
-                    raise MalformedCmsisPackError(f"Failed to open CMSIS-Pack '{file_or_path}': {err}") from err
+                    raise MalformedCmsisPackError(
+                        f"Failed to open CMSIS-Pack '{self._pack_path or 'stream'}': {err}") from err
 
-        # Find the .pdsc file.
+        # Find and open the .pdsc file.
         if self._is_dir:
             for child_path in self._dir_path.iterdir():
                 if child_path.suffix == '.pdsc':
                     self._pdsc_name = child_path.name
+                    with child_path.open('rb') as pdsc_file:
+                        self._pdsc = CmsisPackDescription(self, pdsc_file)
                     break
             else:
-                raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
+                raise MalformedCmsisPackError(f"CMSIS-Pack '{self._pack_path}' is missing a .pdsc file")
         else:
             for name in self._pack_file.namelist():
                 if name.endswith('.pdsc'):
                     self._pdsc_name = name
+                    with self._pack_file.open(name) as pdsc_file:
+                        self._pdsc = CmsisPackDescription(self, pdsc_file)
                     break
             else:
-                raise MalformedCmsisPackError(f"CMSIS-Pack '{file_or_path}' is missing a .pdsc file")
-
-        if self._is_dir:
-            with (self._dir_path / self._pdsc_name).open('rb') as pdsc_file:
-                self._pdsc = CmsisPackDescription(self, pdsc_file)
-        else:
-            with self._pack_file.open(self._pdsc_name) as pdsc_file:
-                self._pdsc = CmsisPackDescription(self, pdsc_file)
+                raise MalformedCmsisPackError(f"CMSIS-Pack '{self._pack_path}' is missing a .pdsc file")
 
     @property
-    def filename(self) -> Optional[str]:
-        """@brief Accessor for the filename or path of the .pack file."""
-        return self._pack_file.filename
+    def pack_path(self) -> str:
+        """@brief The file path or directory of the pack root (zip file or expanded directory)."""
+        return self._pack_path
 
     @property
     def pdsc(self) -> "CmsisPackDescription":
@@ -193,12 +198,12 @@ class CmsisPack:
         """@brief Return file-like object for a file within the pack.
 
         @param self
-        @param filename Relative path within the pack. May use forward or back slashes.
+        @param filename Relative path within the pack. May use forward or back slashes and '..'.
         @return A BytesIO object is returned that contains all of the data from the file
             in the pack. This is done to isolate the returned file from how the pack was
             opened (due to particularities of the ZipFile implementation).
         """
-        filename = filename.replace('\\', '/')
+        filename = posixpath.normpath(filename.replace('\\', '/'))
 
         # Some vendors place their pdsc in some subdirectories of the pack archive,
         # use relative directory to the pdsc file while reading other files.
@@ -252,6 +257,11 @@ class CmsisPackDescription:
         return self._pack
 
     @property
+    def pack_path(self) -> str:
+        """@brief The file path or directory of the pack that defines this description."""
+        return self._pack.pack_path if self._pack else ''
+
+    @property
     def devices(self) -> List["CmsisPackDevice"]:
         """@brief A list of CmsisPackDevice objects for every part number defined in the pack."""
         return self._devices
@@ -277,6 +287,8 @@ class CmsisPackDescription:
                 newState.debugports.append(elem)
             elif elem.tag in ('accessportV1', 'accessportV2'):
                 newState.accessports.append(elem)
+            elif elem.tag == 'flashinfo':
+                newState.flashinfo.append(elem)
             # Save any elements that we will recurse into.
             elif elem.tag in ('subFamily', 'device', 'variant'):
                 children.append(elem)
@@ -297,6 +309,7 @@ class CmsisPackDescription:
                                         debugvars=self._extract_debugvars(),
                                         debugports=self._extract_debugports(),
                                         accessports=self._extract_accessports(),
+                                        flashinfo=self._extract_flashinfo(),
                                         )
 
             # Support ._pack being None for testing.
@@ -352,7 +365,7 @@ class CmsisPackDescription:
         return list(map.values())
 
     def _inherit_attributes(self, to_elem: Element, from_elem: Optional[Element]) -> Element:
-        """@brief Add attributes missing from an elemnt but present in another.
+        """@brief Add attributes missing from an element but present in another.
 
         Copy to `to_elem` any attributes defined in `from_elem` but not defined, and therefore overridden,
         in `to_elem`.
@@ -456,7 +469,7 @@ class CmsisPackDescription:
                     # different processors to override each other, since we don't yet support maps for each
                     # processor.
                     if (pname == prev_pname) and not self._warned_overlapping_memory_regions:
-                        filename = self.pack.filename if self.pack else "unknown"
+                        filename = self.pack.pack_path if self.pack else "unknown"
                         LOG.warning("Overlapping memory regions in file %s (%s); deleting outer region. "
                                     "Further warnings will be suppressed for this file.",
                                     filename, _get_part_number_from_element(self._state_stack[-1].element))
@@ -594,6 +607,39 @@ class CmsisPackDescription:
                 map['*'] = elem
 
         return self._extract_items('debugvars', filter)
+
+    def _extract_flashinfo(self) -> List[Element]:
+        """@brief Extract flashinfo elements.
+
+        The unique identifier is the flashinfo element's memory address range and optional Pname.
+
+        Attributes (per CMSIS-Pack spec):
+        - `name`: str, name of flash device (required)
+        - `start`: int, base address (required)
+        - `pagesize`: int, programming page size (required)
+        - `blankval`: optional int, default 0xFFFFFFFFFFFFFFFF
+        - `filler`: optional int, default 0xFFFFFFFFFFFFFFFF
+        - `ptime`: optional int in ms, default 100
+        - `etime`: optional int in ms, default 300
+        - `Pname`: optional str, processor identifier
+
+        Children:
+        - `<block>` elements with 'size' and 'count' attributes
+        """
+        def filter(map: Dict, elem: Element) -> None:
+            try:
+                start = int(elem.attrib['start'], base=0)
+            except (KeyError, ValueError):
+                LOG.debug("skipping flashinfo element without valid start attribute")
+                return
+
+            pname = elem.attrib.get('Pname', None)
+            key = (start, pname)
+
+            # An element with the same start address will override the previous.
+            map[key] = elem
+
+        return self._extract_items('flashinfo', filter)
 
     def _extract_debugports(self) -> List[Element]:
         """@brief Extract debugport elements.
@@ -765,6 +811,17 @@ class CmsisPackDevice:
                         attrs['is_boot_memory'] = True
                         self._saw_startup = True
 
+                # If no algo, check for a matching flashinfo (the two should not cover the same area).
+                elif algo_element is None:
+                    fi_match = self._find_matching_flashinfo(attrs['start'], attrs['start'] + attrs['length'])
+                    if fi_match is not None:
+                        fi_elem_found, fi_start, fi_end = fi_match
+                        if not self._saw_startup:
+                            attrs['is_boot_memory'] = True
+                            self._saw_startup = True
+                        self._add_flashinfo_regions(attrs, fi_start, fi_end, fi_elem_found)
+                        continue
+
                 # Create the memory region and add to map.
                 region = MEMORY_TYPE_CLASS_MAP[type](**attrs)
                 self._regions.append(region)
@@ -886,6 +943,94 @@ class CmsisPackDevice:
                     return algo
         raise KeyError("no matching flash algorithm")
 
+    def _find_matching_flashinfo(self, region_start: int, region_end: int) -> Optional[Tuple[Element, int, int]]:
+        """@brief Find a flashinfo element whose address range overlaps the given range."""
+        for fi_elem in self._info.flashinfo:
+            try:
+                fi_start = int(fi_elem.attrib['start'], base=0)
+            except (KeyError, ValueError):
+                continue
+
+            fi_total_size = sum(
+                int(block.attrib['size'], base=0) * int(block.attrib['count'], base=0)
+                for block in fi_elem
+                if block.tag == 'block' and 'size' in block.attrib and 'count' in block.attrib
+            )
+            fi_end = fi_start + fi_total_size
+
+            if fi_start < region_end and fi_end > region_start:
+                return (fi_elem, fi_start, fi_end)
+
+        return None
+
+    def _add_flashinfo_regions(
+                self,
+                flash_attrs: Dict[str, Any],
+                flash_start: int,
+                flash_end: int,
+                fi_elem: Element,
+            ) -> None:
+        """@brief Create flash region(s) from a flashinfo XML element."""
+        try:
+            page_size = self._get_int_attribute(fi_elem, 'pagesize')
+            blank_val_64 = int(fi_elem.attrib.get('blankval', '0xFFFFFFFFFFFFFFFF'), base=0) & 0xFFFFFFFFFFFFFFFF
+            fill_val_64 = int(fi_elem.attrib.get('filler', '0xFFFFFFFFFFFFFFFF'), base=0) & 0xFFFFFFFFFFFFFFFF
+            ptime = int(fi_elem.attrib.get('ptime', '100'), base=0) / 1e3   # Programming timeout in s
+            etime = int(fi_elem.attrib.get('etime', '300'), base=0) / 1e3   # Erase timeout in s
+        except (MalformedCmsisPackError, ValueError) as err:
+            LOG.error("%s DFP (%s): flashinfo has invalid attributes: %s",
+                      self.pack_description.pack_name, self.part_number, err)
+            return
+
+        # Validate blocks and calculate subregion ranges, extracting per-block args
+        block_ranges = []  # List of (start, end, block_size, block_arg)
+        current_addr = flash_start
+        for child in fi_elem:
+            if child.tag != 'block':
+                continue
+            try:
+                block_size = self._get_int_attribute(child, 'size')
+                count = self._get_int_attribute(child, 'count')
+            except MalformedCmsisPackError as err:
+                LOG.error("%s", err)
+                return
+            if block_size <= 0 or count <= 0:
+                LOG.error("%s DFP (%s): flashinfo block 'size' and 'count' must be positive",
+                          self.pack_description.pack_name, self.part_number)
+                return
+            elem_end = current_addr + (block_size * count)
+            block_ranges.append((current_addr, elem_end, block_size, self._get_int_attribute(child, 'arg', 0)))
+            current_addr = elem_end
+
+        if not block_ranges:
+            LOG.error("%s DFP (%s): flashinfo has no valid blocks",
+                      self.pack_description.pack_name, self.part_number)
+            return
+
+        fi_attrs = {
+            'flash_class': FlashDebugSequence,
+            '_flashinfo_blank_val': blank_val_64,
+            '_flashinfo_fill_val': fill_val_64,
+            '_flashinfo_ptime': ptime,
+            '_flashinfo_etime': etime,
+        }
+        blank_val = blank_val_64 & 0xFF
+
+        # Parent region spans the full flash range with the maximum sector size.
+        parent_attrs = {**flash_attrs, 'start': flash_start, 'length': flash_end - flash_start,
+                        'sector_size': max(br[2] for br in block_ranges), 'page_size': page_size, **fi_attrs}
+        parent_region = MEMORY_TYPE_CLASS_MAP[MemoryType.FLASH](**parent_attrs)
+
+        for sub_start, sub_end, block_size, block_arg in block_ranges:
+            sub_attrs = {**flash_attrs, 'start': sub_start, 'length': sub_end - sub_start,
+                         'sector_size': block_size, 'page_size': page_size,
+                         'erased_byte_value': blank_val,
+                         'name': flash_attrs.get('name', 'flash') + f"_{block_size:#x}",
+                         **fi_attrs, '_flashinfo_block_arg': block_arg}
+            parent_region.submap.add_region(MEMORY_TYPE_CLASS_MAP[MemoryType.FLASH](**sub_attrs))
+
+        self._regions.append(parent_region)
+
     def _load_flash_algo(self, filename: str) -> Optional[PackFlashAlgo]:
         """@brief Return the PackFlashAlgo instance for the given flash algo filename."""
         try:
@@ -959,6 +1104,13 @@ class CmsisPackDevice:
             # The attribute name determines the control node's function.
             if 'if' in elem.attrib:
                 node = IfControl(elem.attrib['if'], info)
+                if 'while' in elem.attrib:
+                    # Add if node to the parent
+                    parent.add_child(node)
+                    # Update parent to the if node
+                    parent = node
+                    # Create while node as child of if node
+                    node = WhileControl(elem.attrib['while'], info, int(elem.attrib.get('timeout', "0")))
             elif 'while' in elem.attrib:
                 node = WhileControl(elem.attrib['while'], info, int(elem.attrib.get('timeout', "0")))
             else:
@@ -982,6 +1134,11 @@ class CmsisPackDevice:
     def pack_description(self) -> CmsisPackDescription:
         """@brief The CmsisPackDescription object that defines this device."""
         return self._pdsc
+
+    @property
+    def pack_path(self) -> str:
+        """@brief The file path of the pack that defines this device."""
+        return self._pdsc.pack_path
 
     @property
     def part_number(self) -> str:
@@ -1025,8 +1182,11 @@ class CmsisPackDevice:
         try:
             svdPath = self._info.debugs[0].attrib['svd']
             return self.get_file(svdPath)
+        except FileNotFoundError as err:
+            LOG.error("SVD file error: %s", err)
         except (KeyError, IndexError):
-            return None
+            LOG.error("Could not locate SVD in CMSIS-Pack.")
+        return None
 
     @property
     def sequences(self) -> Set[DebugSequence]:
@@ -1157,20 +1317,22 @@ class CmsisPackDevice:
                             f"{self.pack_description.pack_name} DFP ({self.part_number}): <{accessport.tag}> "
                             f"'__dp' attribute is invalid ({ap_dp})")
 
+                # Get the __apid attribute.
+                apid = self._get_int_attribute(accessport, '__apid')
+
                 # APv1
                 if accessport.tag == 'accessportV1':
                     index = self._get_int_attribute(accessport, 'index')
-                    ap_address = APv1Address(index, ap_dp)
+                    ap_address = APv1Address(index, ap_dp, apid)
                 # APv2
                 elif accessport.tag == 'accessportV2':
                     address = self._get_int_attribute(accessport, 'address')
-                    ap_address = APv2Address(address, ap_dp)
+                    ap_address = APv2Address(address, ap_dp, apid)
                 else:
                     raise exceptions.InternalError(
                             f"unexpected element <{accessport.tag}> in access ports list")
 
-                # Save this AP address and the specified __apid.
-                apid = self._get_int_attribute(accessport, '__apid')
+                # Save this AP address.
                 self._apids[apid] = ap_address
             except MalformedCmsisPackError as err:
                 LOG.warning("%s", err)
@@ -1285,4 +1447,3 @@ class CmsisPackDevice:
 
     def __repr__(self):
         return "<%s@%x %s>" % (self.__class__.__name__, id(self), self.part_number)
-

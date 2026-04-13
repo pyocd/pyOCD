@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import pytest
-import six
 
 from pyocd.core.options_manager import OptionsManager
 from pyocd.core.options import OPTIONS_INFO

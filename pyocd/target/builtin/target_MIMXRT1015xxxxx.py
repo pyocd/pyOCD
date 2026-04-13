@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2017 NXP
-# Copyright (c) 2018,2020 Arm Limited
+# Copyright (c) 2018,2020,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -714,7 +714,6 @@ FLASH_ALGO_QUADSPI = {
 
     'static_base' : 0x20200000 + 0x00000020 + 0x000052ac,
     'begin_stack' : 0x20205700,
-    'begin_data' : 0x20206000 + 0x1000,
     'page_size' : 0x100,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,

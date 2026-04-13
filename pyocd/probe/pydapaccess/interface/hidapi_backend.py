@@ -1,6 +1,6 @@
 # pyOCD debugger
-# Copyright (c) 2006-2020 Arm Limited
-# Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2006-2020,2025 Arm Limited
+# Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2022 Harper Weigle
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -16,11 +16,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import logging
 import platform
-import six
 import threading
+import queue
+from typing import Optional, Tuple
 
 from .interface import Interface
 from .common import (
@@ -62,13 +62,18 @@ class HidApiUSB(Interface):
         self.vendor_name = info['manufacturer_string'] or f"{self.vid:#06x}"
         self.product_name = info['product_string'] or f"{self.pid:#06x}"
         self.serial_number = info['serial_number'] \
-                or generate_device_unique_id(self.vid, self.pid, six.ensure_str(info['path']))
+                or generate_device_unique_id(self.vid, self.pid, to_str_safe(info['path']))
         self.device_info = info
         self.device = dev
+        self.closed = True
         self.thread = None
         self.read_sem = threading.Semaphore(0)
         self.closed_event = threading.Event()
-        self.received_data = collections.deque()
+        self.received_data: queue.SimpleQueue[bytes] = queue.SimpleQueue()
+        self._read_thread_did_exit: bool = False
+        self._read_thread_exception: Optional[Exception] = None
+        self.report_in_size = 64
+        self.report_out_size = 64
 
     def set_packet_count(self, count):
         # hidapi for macos has an arbitrary limit on the number of packets it will queue for reading.
@@ -78,11 +83,153 @@ class HidApiUSB(Interface):
             count = min(count, self.HIDAPI_MAX_PACKET_COUNT)
         self.packet_count = count
 
+    def _update_report_sizes(self) -> bool:
+        # CMSIS-DAP v1 uses a single IN/OUT report pair with no Report ID.
+        # This parser and HID `read`/`write` assume no leading report-ID byte.
+
+        # Constants for types.
+        TYPE_MAIN   = 0
+        TYPE_GLOBAL = 1
+        #TYPE_LOCAL  = 2  # Not needed
+
+        # Global item tags (bTag values) needed.
+        GLOBAL_REPORT_SIZE  = 0x07
+        GLOBAL_REPORT_ID    = 0x08
+        GLOBAL_REPORT_COUNT = 0x09
+        GLOBAL_PUSH         = 0x0A
+        GLOBAL_POP          = 0x0B
+
+        # Main item tags (bTag values) of interest.
+        MAIN_INPUT   = 0x08 # 1000b
+        MAIN_OUTPUT  = 0x09 # 1001b
+        # MAIN_FEATURE = 0x0B # 1011b
+
+        try:
+            raw = self.device.get_report_descriptor()
+            descriptor = bytes(raw or b"")
+        except Exception as e:
+            LOG.debug("Failed to read HID report descriptor: %s", e)
+            return False
+
+        report_size = 0
+        report_count = 0
+        stack = []
+
+        # Accumulate total repost sizes (in bits)
+        in_report_bits = 0
+        out_report_bits = 0
+
+        parse_error = False
+
+        try:
+            i = 0
+            while i < len(descriptor):
+                prefix = descriptor[i]
+                i += 1
+
+                # Handle long item (0xFE)
+                if prefix == 0xFE:
+                    if i + 2 > len(descriptor):
+                        parse_error = True
+                        break
+                    size = descriptor[i]              # <size:1>
+                    # long_tag = descriptor[i + 1]    # <tag:1> (unused)
+                    i += 2
+                    if i + size > len(descriptor):
+                        parse_error = True
+                        break
+                    i += size
+                    continue
+
+                # Extract fields from short item prefix.
+                bTag  = (prefix >> 4) & 0x0F     # 4-bit tag
+                bType = (prefix >> 2) & 0x03     # 2-bit type (MAIN=0, GLOBAL=1, LOCAL=2)
+                bSize = prefix & 0x03            # 0,1,2,3 (3 => 4 bytes)
+                data_len = 4 if bSize == 3 else bSize
+
+                if i + data_len > len(descriptor):
+                    parse_error = True
+                    break
+
+                # Read data payload for the item
+                data = 0
+                if data_len > 0:
+                    data_bytes = descriptor[i : i + data_len]
+                    data = int.from_bytes(bytes(data_bytes), 'little')
+                i += data_len
+
+                # Process Global Items
+                if bType == TYPE_GLOBAL:
+                    if bTag == GLOBAL_REPORT_ID:
+                        if data != 0:
+                            # We don't support Report IDs in this implementation.
+                            LOG.debug("HID Report IDs are not supported")
+                            return False
+                    elif bTag == GLOBAL_REPORT_SIZE:
+                        report_size = data
+                    elif bTag == GLOBAL_REPORT_COUNT:
+                        report_count = data
+                    elif bTag == GLOBAL_PUSH:
+                        # Save current global state
+                        stack.append((report_size, report_count))
+                    elif bTag == GLOBAL_POP:
+                        # Restore previous global state
+                        if stack:
+                            report_size, report_count = stack.pop()
+
+                # Process Main Items
+                elif bType == TYPE_MAIN and bTag in (MAIN_INPUT, MAIN_OUTPUT):
+                    if report_size == 0 or report_count == 0:
+                        parse_error = True
+                        break
+
+                    if bTag == MAIN_INPUT:
+                        in_report_bits += report_size * report_count
+                    elif bTag == MAIN_OUTPUT:
+                        out_report_bits += report_size * report_count
+
+            if parse_error:
+                LOG.debug("Error parsing HID report descriptor")
+                return False
+
+            # Report sizes (in bytes)
+            in_report_size = (in_report_bits + 7) // 8
+            out_report_size = (out_report_bits + 7) // 8
+
+            # Sanity check - expected report size is 32 to 32k bytes
+            if not (32 <= in_report_size <= 32*1024) or not (32 <= out_report_size <= 32*1024):
+                LOG.debug("Unreasonable HID report sizes: IN=%s, OUT=%s",
+                          in_report_size, out_report_size)
+                return False
+
+            # Update report sizes
+            self.report_in_size = in_report_size
+            self.report_out_size = out_report_size
+            LOG.debug("Updated HID report sizes: IN=%s, OUT=%s",
+                      self.report_in_size, self.report_out_size)
+            return True
+
+        except Exception as e:
+            LOG.debug("Failed to parse HID report descriptor: %s", e)
+            return False
+
+
     def open(self):
         try:
             self.device.open_path(self.device_info['path'])
         except IOError as exc:
             raise DAPAccessIntf.DeviceError("Unable to open device: " + str(exc)) from exc
+
+        # On macOS hidapi requires reads and writes to use the device's exact HID report length.
+        # Retrieve the HID report descriptor via hidapi and parse report sizes directly from that descriptor.
+        # Use actual report sizes for writes and reads. Apply padding/trimming manually, as hidapi does not
+        # do it on macOS.
+        #
+        # On Windows use DAP packet_size for writes and reads. Rely on hidapi to handle padding/trimming.
+        if not _IS_WINDOWS:
+           if self._update_report_sizes() == False:
+               LOG.debug("Fallback to default HID report sizes: IN=%s, OUT=%s",
+                          self.report_in_size, self.report_out_size)
 
         # Windows does not use the receive thread because it causes packet corruption for some reason.
         if not _IS_WINDOWS:
@@ -94,21 +241,29 @@ class HidApiUSB(Interface):
             self.thread.daemon = True
             self.thread.start()
 
+        self.closed = False
+
     def rx_task(self):
         try:
             while not self.closed_event.is_set():
                 self.read_sem.acquire()
                 if not self.closed_event.is_set():
-                    read_data = self.device.read(self.packet_size)
+                    read_data = bytes(self.device.read(self.report_in_size))
+                    read_data = read_data[:self.packet_size]
 
-                    if TRACE.isEnabledFor(logging.DEBUG):
-                        # Strip off trailing zero bytes to reduce clutter.
-                        TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in bytes(read_data).rstrip(b'\x00')]))
+                    # This trace log is commented out to reduce clutter, but left in to leave available
+                    # when debugging rx_task issues.
+                    # if TRACE.isEnabledFor(logging.DEBUG):
+                    #     # Strip off trailing zero bytes to reduce clutter.
+                    #     TRACE.debug("  USB RD < (%d) %s", len(read_data),
+                    #                 ' '.join([f'{i:02x}' for i in read_data.rstrip(b'\x00')]))
 
-                    self.received_data.append(read_data)
+                    self.received_data.put(read_data)
+        except Exception as err:
+            TRACE.debug("rx_task exception: %s", err)
+            self._read_thread_exception = err
         finally:
-            # Set last element of rcv_data to None on exit
-            self.received_data.append(None)
+            self._read_thread_did_exit = True
 
     @staticmethod
     def get_all_connected_interfaces():
@@ -155,8 +310,10 @@ class HidApiUSB(Interface):
         """@brief Write data on the OUT endpoint associated to the HID interface"""
         if TRACE.isEnabledFor(logging.DEBUG):
             TRACE.debug("  USB OUT> (%d) %s", len(data), ' '.join([f'{i:02x}' for i in data]))
-        data.extend([0] * (self.packet_size - len(data)))
         if not _IS_WINDOWS:
+            # Pad data to report size - only for MacOS, hidapi for Windows handles this internally.
+            if len(data) < self.report_out_size:
+                data.extend([0] * (self.report_out_size - len(data)))
             self.read_sem.release()
         self.device.write([0] + data)
 
@@ -164,48 +321,60 @@ class HidApiUSB(Interface):
         """@brief Read data on the IN endpoint associated to the HID interface"""
         # Windows doesn't use the read thread, so read directly.
         if _IS_WINDOWS:
-            read_data = self.device.read(self.packet_size)
+            read_data = bytes(self.device.read(self.packet_size))
 
             if TRACE.isEnabledFor(logging.DEBUG):
                 # Strip off trailing zero bytes to reduce clutter.
-                TRACE.debug("  USB IN < (%d) %s", len(read_data), ' '.join([f'{i:02x}' for i in bytes(read_data).rstrip(b'\x00')]))
+                TRACE.debug("  USB IN < (%d) %s", len(read_data),
+                            ' '.join([f'{i:02x}' for i in read_data.rstrip(b'\x00')]))
 
             return read_data
 
-        # Other OSes use the read thread, so we check for and pull data from the queue.
-        # Spin for a while if there's not data available yet. 100 µs sleep between checks.
-        with Timeout(self.DEFAULT_USB_TIMEOUT_S, sleeptime=0.0001) as t_o:
-            while t_o.check():
-                if len(self.received_data) != 0:
-                    break
-            else:
-                raise DAPAccessIntf.DeviceError(f"Timeout reading from device {self.serial_number}")
+        # Check for terminated read thread.
+        if self.closed:
+            return b''
+        elif self._read_thread_did_exit:
+            raise DAPAccessIntf.DeviceError("Probe %s read thread exited unexpectedly" % self.serial_number) from self._read_thread_exception
 
-        if self.received_data[0] is None:
-            raise DAPAccessIntf.DeviceError(f"Device {self.serial_number} read thread exited")
+        try:
+            read_data = self.received_data.get(True, self.DEFAULT_USB_TIMEOUT_S)
+        except queue.Empty:
+            raise DAPAccessIntf.DeviceError(f"Timeout reading from probe {self.serial_number}") from None
 
         # Trace when the higher layer actually gets a packet previously read.
         if TRACE.isEnabledFor(logging.DEBUG):
             # Strip off trailing zero bytes to reduce clutter.
-            TRACE.debug("  USB RD < (%d) %s", len(self.received_data[0]),
-                    ' '.join([f'{i:02x}' for i in bytes(self.received_data[0]).rstrip(b'\x00')]))
+            TRACE.debug("  USB RD < (%d) %s", len(read_data),
+                    ' '.join([f'{i:02x}' for i in read_data.rstrip(b'\x00')]))
 
-        return self.received_data.popleft()
+        return read_data
 
     def close(self):
         """@brief Close the interface"""
         assert not self.closed_event.is_set()
 
         LOG.debug("closing interface")
+        self.closed = True
         if not _IS_WINDOWS:
             self.closed_event.set()
             self.read_sem.release()
+            assert self.thread
             self.thread.join()
             self.thread = None
 
-            # Clear closed event, recreate read sem and receiveed data deque so they
+            # Clear closed event, recreate read sem and received data deque so they
             # are cleared and ready if we're re-opened.
             self.closed_event.clear()
             self.read_sem = threading.Semaphore(0)
-            self.received_data = collections.deque()
+            self.received_data = queue.SimpleQueue()
+            self._read_thread_did_exit = False
+            self._read_thread_exception = None
         self.device.close()
+
+    def set_packet_size(self, size):
+        super().set_packet_size(size)
+        if not _IS_WINDOWS:
+            if size > min(self.report_in_size, self.report_out_size):
+                raise DAPAccessIntf.DeviceError(
+                    f"DAP_Info Packet Size {size} exceeds endpoint wMaxPacketSize {min(self.report_in_size, self.report_out_size)}"
+                )

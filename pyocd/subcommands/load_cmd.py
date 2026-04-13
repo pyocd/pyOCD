@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +22,10 @@ from pathlib import Path
 
 from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
+from ..core.target import Target
 from ..flash.file_programmer import FileProgrammer
 from ..utility.cmdline import (
+    convert_reset_type,
     convert_session_options,
     int_base_0,
 )
@@ -65,9 +68,9 @@ class LoadSubcommand(SubcommandBase):
         parser_options.add_argument("--no-reset", action="store_true",
             help="Specify to prevent resetting device after programming has finished.")
 
-        parser.add_argument("file", metavar="<file-path>", nargs="+",
+        parser.add_argument("file", metavar="<file-path>", nargs="*",
             help="File to write to memory. Binary files can have an optional base address appended to the file "
-                 "name as '@<address>', for instance 'app.bin@0x20000'.")
+                 "name as '@<address>', for instance 'app.bin@0x20000'. Optional if '--cbuild-run' is used.")
 
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, parser]
 
@@ -76,6 +79,9 @@ class LoadSubcommand(SubcommandBase):
         self._increase_logging(["pyocd.flash.loader", __name__])
 
         # Validate arguments.
+        if (self._args.cbuild_run is None) and not self._args.file:
+            raise ValueError("Positional argument <file-path> is required when '--cbuild-run' is not used.")
+
         if (self._args.base_address is not None) and (len(self._args.file) > 1):
             raise ValueError("--base-address cannot be set when loading more than one file; "
                     "use a base address suffix instead")
@@ -86,11 +92,13 @@ class LoadSubcommand(SubcommandBase):
                             user_script=self._args.script,
                             no_config=self._args.no_config,
                             pack=self._args.pack,
+                            cbuild_run=self._args.cbuild_run,
                             unique_id=self._args.unique_id,
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
                             blocking=(not self._args.no_wait),
                             connect_mode=self._args.connect_mode,
+                            command=self._args.cmd,
                             options=convert_session_options(self._args.options),
                             option_defaults=self._modified_option_defaults(),
                             )
@@ -101,10 +109,43 @@ class LoadSubcommand(SubcommandBase):
             programmer = FileProgrammer(session,
                             chip_erase=self._args.erase,
                             trust_crc=self._args.trust_crc,
-                            no_reset=self._args.no_reset)
+                            no_reset=True)  # We handle this reset below
+
+            # Get a list of all secondary cores.
+            secondary_cores = [c for c in session.target.cores.values() if c != session.target.primary_core]
+            pre_reset = session.options.get('load.pre_reset')
+            if pre_reset != "off":
+                try:
+                    reset_type = convert_reset_type(pre_reset) if pre_reset else None
+                except ValueError:
+                    LOG.error("Invalid pre-reset option: %s", pre_reset)
+                    return 1
+
+                try:
+                    # Set reset catch for all secondary cores.
+                    for core in secondary_cores:
+                        core.set_reset_catch(reset_type)
+                    # Reset and halt the primary core.
+                    session.target.reset_and_halt(reset_type)
+                finally:
+                    # Clear reset catch for all secondary cores.
+                    for core in secondary_cores:
+                        core.clear_reset_catch(reset_type)
+
+            cbuild_files = {}
+            if self._args.cbuild_run:
+                cbuild_files = session.target.get_output()
+                # Populate file list from cbuild-run output if not provided explicitly
+                if not self._args.file:
+                    self._args.file = cbuild_files.keys()
             for filename in self._args.file:
                 # Get an initial path with the argument as-is.
                 file_path = Path(filename).expanduser()
+
+                # Get the file format from the command line argument or from the cbuild-run output.
+                file_format = self._args.format
+                if file_format is None and cbuild_files:
+                    file_format = cbuild_files[filename][0]
 
                 # Look for a base address suffix. If the supplied argument including an address suffix
                 # references an existing file, then the address suffix is not extracted.
@@ -117,6 +158,8 @@ class LoadSubcommand(SubcommandBase):
                         return 1
                 else:
                     base_address = self._args.base_address
+                    if base_address is None and cbuild_files:
+                        base_address = cbuild_files[filename][1]
 
                 # Resolve our path.
                 file_path = Path(filename).expanduser().resolve()
@@ -127,11 +170,21 @@ class LoadSubcommand(SubcommandBase):
                 else:
                     LOG.info("Loading %s at %#010x", filename, base_address)
 
-                programmer.program(filename,
-                                base_address=base_address,
-                                skip=self._args.skip,
-                                file_format=self._args.format)
+                # Add file to programmer's buffer.
+                programmer.add_file(filename, file_format=file_format, base_address=base_address, skip=self._args.skip)
+
+            # Program the added files to the device memory.
+            programmer.commit()
+
+            # Reset the target after programming unless --no-reset was specified.
+            post_reset = session.options.get('load.post_reset')
+            if not self._args.no_reset and post_reset != 'off':
+                try:
+                    reset_type = convert_reset_type(post_reset) if post_reset else None
+                except ValueError:
+                    LOG.error("Invalid post-reset option: %s", post_reset)
+                    return 1
+
+                session.target.reset(reset_type)
 
         return 0
-
-

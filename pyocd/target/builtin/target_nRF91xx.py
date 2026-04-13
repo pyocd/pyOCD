@@ -1,4 +1,5 @@
 # Copyright (c) 2010 - 2023, Nordic Semiconductor ASA All rights reserved.
+# Copyright (c) 2026 Arm Limited
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -92,7 +93,6 @@ FLASH_ALGO = {
     'static_base' : 0x20000000 + 0x00000004 + 0x00000524,
     'begin_stack' : 0x20003540,
     'end_stack' : 0x20002540,
-    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x1000,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,

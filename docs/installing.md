@@ -2,7 +2,7 @@
 title: Installing
 ---
 
-PyOCD requires [Python](https://python.org/) 3.7 or later. It runs on macOS,
+PyOCD requires [Python](https://python.org/) 3.8 or later. It runs on macOS,
 Linux, FreeBSD, and Windows platforms.
 
 The latest pyOCD package is available [on PyPI](https://pypi.python.org/pypi/pyOCD/). The

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013 Arm Limited
+# Copyright (c) 2006-2013,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,11 +30,11 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
                'pc_erase_sector'  : 0x20000045,
                'pc_program_page'  : 0x20000057,
                'static_base'      : 0x2000006C,
-               'begin_data'       : 0x20002000, # Analyzer uses a max of 256 B data (64 pages * 4 bytes / page)
+               'page_buffers'     : [0x20002000], # Analyzer uses a max of 256 B data (64 pages * 4 bytes / page)
                'begin_stack'      : 0x20004000,
                'page_size'        : 256,
                'analyzer_supported' : True,
-               'analyzer_address' : 0x20001000 # Analyzer 0x20001000..0x20001600
+               'analyzer_address' : 0x20001000    # Analyzer 0x20001000..0x20001600
               }
 
 
@@ -50,4 +50,3 @@ class W7500(CoreSightTarget):
 
     def __init__(self, session):
         super(W7500, self).__init__(session, self.MEMORY_MAP)
-

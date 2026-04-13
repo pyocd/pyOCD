@@ -96,18 +96,25 @@ A wider range of reset options is provided by these `Target` methods:
 
 The `reset_type` parameter on the `Target` reset methods can be set to one of the `Target.ResetType`
 enums:
-- `ResetType.HW`: Hardware reset using the nRESET signal.
-- `ResetType.SW`: Uses the core's default software reset method.
-- `ResetType.SW_SYSRESETREQ`: Software reset using SYSRESETREQ, which usually resets the entire system
+- `ResetType.DEFAULT`: Uses the core's default reset method. For pack targets `defaultResetSequence` is used.
+For internal targets, the default is mapped to `ResetType.SYSTEM`, unless `default_reset_type`
+property is explicitly set.
+- `ResetType.HARDWARE`: Execute `ResetHardware` debug sequence for pack targets, if the sequence doesn't exist,
+hardware reset using the nSRST signal is used. The same mapping applies for internal targets.
+- `ResetType.SYSTEM`: Execute `ResetSystem` debug sequence for pack targets, if the sequence doesn't exist,
+software reset using SYSRESETREQ is used. The same mapping applies for internal targets.
+- `ResetType.CORE`: Execute `ResetProcessor` debug sequence for pack targets, if the sequence doesn't exist,
+software reset using VECTRESET is used. The same mapping applies for internal targets.
+- `ResetType.NSRST`: Hardware reset using the nSRST signal.
+- `ResetType.SYSRESETREQ`: Software reset using SYSRESETREQ, which usually resets the entire system
 on most MCUs.
-- `ResetType.SW_VECTRESET`: Software reset using VECTRESET, only available on v7-M targets. This
-resets only the core itself. If requested on non-v7-M targets, it will fall back to `SW_EMULATED`.
-- `ResetType.SW_EMULATED`: Restores the core to reset conditions by writing registers. However, this
+- `ResetType.VECTRESET`: Software reset using VECTRESET, only available on v7-M targets. This
+resets only the core itself. If requested on non-v7-M targets, it will fall back to `ResetType.EMULATED`.
+- `ResetType.EMULATED`: Restores the core to reset conditions by writing registers. However, this
 will not trigger a reset vector catch.
 
-The `CortexM` objects have `default_reset_type` and `default_software_reset_type` properties that
-let you control the overall default reset type (any one of the `ResetType` enums), as well as the
-default if `ResetType.SW` is selected, respectively.
+The `CortexM` objects have a `default_reset_type` property that lets you control the overall default reset type.
+Property value can be any one of the `ResetType` enums.
 
 Another option for performing a halting reset is by setting vector catch with the target's `set_vector_catch()`
 method, then using a normal reset. This has the benefit of always halting at reset, if you leave the
@@ -144,5 +151,3 @@ most interesting places to look at are:
     associated with it, accessible from the `flash` property on the region. To get the boot flash
     memory region, call `target.memory_map.get_boot_memory()`. The `flash` attribute of this region
     then returns the boot flash memory's @ref pyocd.flash.flash.Flash "Flash" instance.
-
-

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2019 Arm Limited
+# Copyright (c) 2017-2019,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,6 @@ from pyocd.core import memory_map
 from pyocd.utility import conversion
 from pyocd.utility import mask
 
-CFBP_INDEX = index_for_reg('cfbp')
 XPSR_INDEX = index_for_reg('xpsr')
 
 class MockCore(CoreSightCoreComponent, MemoryInterface):
@@ -62,7 +61,6 @@ class MockCore(CoreSightCoreComponent, MemoryInterface):
 
     def clear_all_regs(self):
         self.regs = {i:0 for i in self.core_registers.by_index.keys()} # r0-15, xpsr, msp, psp
-        self.regs[CFBP_INDEX] = 0
 
     def is_running(self):
         return False
@@ -72,8 +70,8 @@ class MockCore(CoreSightCoreComponent, MemoryInterface):
         results = []
         for r in reg_list:
             if CortexMCoreRegisterInfo.get(r).is_cfbp_subregister:
-                v = self.regs[CFBP_INDEX]
-                v = (v >> ((-r - 1) * 8)) & 0xff
+                v = self.regs[r >> 8]
+                v = (v >> ((r & 3) * 8)) & 0xff
             elif CortexMCoreRegisterInfo.get(r).is_psr_subregister:
                 v = self.regs[XPSR_INDEX]
                 v &= CortexMCoreRegisterInfo.get(r).psr_mask
@@ -90,10 +88,10 @@ class MockCore(CoreSightCoreComponent, MemoryInterface):
 #         logging.info("mockcore[%x]:write(%s, %s)", id(self), reg, data)
         for r, v in zip(reg, data):
             if CortexMCoreRegisterInfo.get(r).is_cfbp_subregister:
-                shift = (-r - 1) * 8
+                shift = (r & 3) * 8
                 mask = 0xffffffff ^ (0xff << shift)
-                data = (self.regs[CFBP_INDEX] & mask) | ((v & 0xff) << shift)
-                self.regs[CFBP_INDEX] = data
+                data = (self.regs[r >> 8] & mask) | ((v & 0xff) << shift)
+                self.regs[r >> 8] = data
             elif CortexMCoreRegisterInfo.get(r).is_psr_subregister:
                 mask = CortexMCoreRegisterInfo.get(r).psr_mask
                 data = (self.regs[XPSR_INDEX] & (0xffffffff ^ mask)) | (v & mask)
@@ -142,5 +140,3 @@ class MockCore(CoreSightCoreComponent, MemoryInterface):
 
     def write_memory_block32(self, addr, data):
         return self.write_memory_block8(addr, conversion.u32le_list_to_byte_list(data))
-
-

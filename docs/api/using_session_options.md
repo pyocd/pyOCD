@@ -30,10 +30,11 @@ The priorities of the different sources, from front to back:
 
 1. Keyword arguments to the `Session` constructor. Applies to most dedicated command-line arguments.
 2. _options_ parameter to `Session` constructor. Applies to `-O` command-line arguments.
-3. Probe-specific options from a config file.
-4. Global options from a config file.
-5. _option_defaults_ parameter to `Session` constructor. Used only in rare cases by subcommands to change the default value of options.
-6. Default values from option definitions.
+3. Options set by CMSIS-Toolbox Run and Debug Management (`cbuild-run`)
+4. Probe-specific options from a config file.
+5. Global options from a config file.
+6. _option_defaults_ parameter to `Session` constructor. Used only in rare cases by subcommands to change the default value of options.
+7. Default values from option definitions.
 
 The `.set()` method simply modifies the value of the highest priority (aka front) copy of the option. Additional layers can be added to the front or back using the `.add_front()` and `.add_back()` methods. These methods take a dict of new option values.
 
@@ -72,5 +73,3 @@ There are several places to define a new option.
 - Python scripts, including [user scripts]({% link _docs/user_scripts.md %}), can add new option definitions by calling `add_option_set()` (from `pyocd.core.options`) and passing a list of `OptionInfo` objects.
 
 Supported types for options are *bool*, *int*, *float*, and *str*. An option that allows multiple types is specified with a tuple of those types. The `convert_session_options()` function from `pyocd.utility.cmdline` will convert the *bool*, *int*, and *float* options from a string value. However, there is not automatic type conversion when setting options directly on the `OptionsManager`.
-
-

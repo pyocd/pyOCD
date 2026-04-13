@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020 Arm Limited
+# Copyright (c) 2015-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -513,8 +513,8 @@ class HprotValue(ValueBase):
             'extra_help':
 """This integer value controls attributes of memory transfers. It is a direct mapping of the AHB
 or AXI attribute settings, depending on the type of MEM-AP. For AHB-APs, the value is HPROT[4:0].
-For AXI-APs, the value is {AxPROT[2:0}, AxCACHE[3:0]}, e.g. AxPROT in bits 6-4 and AxCACHE in
-its 3-0. Not all MEM-AP implementations support all attributes. See the Arm Technical Reference
+For AXI-APs, the value is {AxPROT[2:0], AxCACHE[3:0]}, e.g. AxPROT in bits 6-4 and AxCACHE in
+bits 3-0. Not all MEM-AP implementations support all attributes. See the Arm Technical Reference
 Manual for your device's MEM-AP for details."""
             }
 
@@ -760,11 +760,21 @@ class DebugSequencesValue(ValueBase):
         "DebugDeviceUnlock",
         "DebugCoreStart",
         "DebugCoreStop",
+        "DebugCodeMemRemap",
         "ResetSystem",
         "ResetProcessor",
         "ResetHardware",
+        "ResetHardwareAssert",
+        "ResetHardwareDeassert",
         "ResetCatchSet",
         "ResetCatchClear",
+        "FlashInit",
+        "FlashUninit",
+        "FlashEraseSector",
+        "FlashEraseChip",
+        "FlashEraseDone",
+        "FlashProgramPage",
+        "FlashProgramDone",
         "TraceStart",
         "TraceStop",
     ]
@@ -824,7 +834,6 @@ class ResetTypeValue(ValueBase):
             self.context.write(f"\nCore {cm_core.core_number} ({cm_core.node_name}):")
             self.context.write(f"  Effective:  {actual_reset_type.name}")
             self.context.write(f"  Default:    {cm_core.default_reset_type.name}")
-            self.context.write(f"  Default SW: {cm_core.default_software_reset_type.name}")
             self.context.write("  Available:  " + ", ".join(r.name for r in cm_core.supported_reset_types))
 
     def modify(self, args):

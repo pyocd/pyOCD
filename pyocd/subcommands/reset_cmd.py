@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,7 +53,7 @@ class ResetSubcommand(SubcommandBase):
                  "from the core chosen with --core will be used (usually 'sw' but can be differ based "
                  "on the target type).")
         reset_options.add_argument("-c", "--core", default=0, type=int_base_0,
-            help="Core number used to perform software reset. Only applies to software reset methods."
+            help="Core number used to perform software reset. Only applies to software reset methods. "
                  "Default is core 0.")
         reset_options.add_argument("-l", "--halt", action="store_true",
             help="Halt the core on the first instruction after reset. Defaults to disabled.")
@@ -77,6 +78,7 @@ class ResetSubcommand(SubcommandBase):
                             user_script=self._args.script,
                             no_config=self._args.no_config,
                             pack=self._args.pack,
+                            cbuild_run=self._args.cbuild_run,
                             unique_id=self._args.unique_id,
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
@@ -84,6 +86,7 @@ class ResetSubcommand(SubcommandBase):
                             connect_mode=self._args.connect_mode,
                             resume_on_disconnect=not self._args.halt,
                             reset_type=self._args.reset_type,
+                            command=self._args.cmd,
                             options=convert_session_options(self._args.options),
                             option_defaults=self._modified_option_defaults(),
                             )
@@ -101,7 +104,7 @@ class ResetSubcommand(SubcommandBase):
             # Handle hw reset more efficiently using the probe directly, so we don't need can skip
             # discovery. However, if halting was requested we need full init even if performing a
             # hardware reset.
-            is_hw_reset = (the_reset_type == Target.ResetType.HW) and not self._args.halt
+            is_hw_reset = (the_reset_type == Target.ResetType.HARDWARE) and not self._args.halt
 
             # Only init the board if performing a sw reset.
             session.open(init_board=(not is_hw_reset))
@@ -130,4 +133,3 @@ class ResetSubcommand(SubcommandBase):
             LOG.info("Done.")
         finally:
             session.close()
-

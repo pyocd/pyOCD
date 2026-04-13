@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2016 Arm Limited
+# Copyright (c) 2006-2016,2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,8 +53,7 @@ FLASH_ALGO = {
     'static_base' : 0x10000000 + 0x00000020 + 0x00000200,
     'begin_stack' : 0x10000000 + 0x00000800,
     'page_buffers': [0x10000A00, 0x10000C00],
-    'begin_data' : 0x10000000 + 0x00000A00, # Analyzer uses a max of 120 B data (30 pages * 4 bytes / page)
-    'page_size' : 0x00001000,
+    'page_size' : 0x00000200,
     'min_program_length' : 512,
     'analyzer_supported' : True,
     'analyzer_address' : 0x10002000  # Analyzer 0x10002000..0x10002600
@@ -87,7 +86,7 @@ class LPC4088(CoreSightTarget):
 
     def reset(self, reset_type=None):
         # Use hardware reset since software reset cause a debug logic reset
-        super(LPC4088, self).reset(self.ResetType.HW)
+        super(LPC4088, self).reset(self.ResetType.NSRST)
 
     def reset_and_halt(self, reset_type=None, map_to_user=True):
         super(LPC4088, self).reset_and_halt(reset_type)

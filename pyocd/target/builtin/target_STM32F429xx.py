@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018 Arm Limited
+# Copyright (c) 2018,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -57,7 +57,6 @@ FLASH_ALGO = { 'load_address' : 0x20000000,
 
     'static_base' : 0x20000171,
     'begin_stack' : 0x20000000 + 0x00000800,
-    'begin_data' : 0x20001000,
     'page_buffers' : [0x20001000, 0x20002000],
     'min_program_length' : 1,
     'analyzer_supported' : True,
@@ -135,4 +134,3 @@ class STM32F429xI(CoreSightTarget):
         self.write32(DBGMCU.CR, DBGMCU.CR_VALUE)
         self.write32(DBGMCU.APB1_FZ, DBGMCU.APB1_FZ_VALUE)
         self.write32(DBGMCU.APB2_FZ, DBGMCU.APB2_FZ_VALUE)
-

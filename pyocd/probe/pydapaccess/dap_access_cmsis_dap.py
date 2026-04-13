@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018-2021 Arm Limited
+# Copyright (c) 2006-2013,2018-2021,2025 Arm Limited
 # Copyright (c) 2020 Koji Kitayama
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
@@ -365,15 +365,17 @@ class _Command(object):
         ack = response & DAPTransferResponse.ACK_MASK
         if ack != DAPTransferResponse.ACK_OK:
             if ack == DAPTransferResponse.ACK_FAULT:
-                raise DAPAccessIntf.TransferFaultError()
+                raise DAPAccessIntf.TransferFaultError("SWD/JTAG communication failure (FAULT ACK)")
             elif ack == DAPTransferResponse.ACK_WAIT:
-                raise DAPAccessIntf.TransferTimeoutError()
+                raise DAPAccessIntf.TransferTimeoutError("SWD/JTAG communication failure (WAIT ACK)")
             elif ack == DAPTransferResponse.ACK_NO_ACK:
-                raise DAPAccessIntf.TransferError("No ACK received")
+                raise DAPAccessIntf.TransferError("SWD/JTAG communication failure (No ACK); " \
+                                                  "check USB cable, reduce debugger clock")
             else:
-                raise DAPAccessIntf.TransferError("Unexpected ACK value (%d) returned by probe" % ack)
+                raise DAPAccessIntf.TransferError("SWD/JTAG communication failure (Unexpected ACK '%d'); " \
+                                                  "check USB cable, reduce debugger clock" % ack)
         elif (response & DAPTransferResponse.PROTOCOL_ERROR_MASK) != 0:
-            raise DAPAccessIntf.TransferError("SWD protocol error")
+            raise DAPAccessIntf.TransferProtocolError("SWD protocol error")
 
     def _decode_transfer_data(self, data):
         """@brief Take a byte array and extract the data from it

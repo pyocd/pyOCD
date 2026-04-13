@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2022-2023 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -77,10 +78,8 @@ class FlmFlashRegionBuilder:
                 if self._session.options.get("debug.log_flm_info"):
                     LOG.debug("Flash algo info: %s", pack_algo.flash_info)
 
-                # Get the page size. If it's unreasonably small, then use the smallest sector size.
+                # Get the page size.
                 page_size = pack_algo.page_size
-                if page_size <= 32:
-                    page_size = min(s[1] for s in pack_algo.sector_sizes)
 
                 # Select the RAM to use for the algo.
                 try:
@@ -94,6 +93,8 @@ class FlmFlashRegionBuilder:
                 # If we got a valid algo from the FLM, set it on the region.
                 if algo is not None:
                     region.algo = algo
+                    # Disable reads of erased sectors if Verify function is provided in the algorithm
+                    region.are_erased_sectors_readable = 'Verify' not in pack_algo.symbols
 
                 # Set region page/sector sizes and algorithm range; add sector subregions.
                 self._update_flash_attributes(region, pack_algo, page_size, algo)

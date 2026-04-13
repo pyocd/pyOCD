@@ -368,6 +368,16 @@ ADDR DATA+
 Write 8-bit bytes to memory.
 </td></tr>
 
+<tr><td colspan="3"><b>Nrf91</b></td></tr>
+
+<tr><td>
+<a href="#nrf91-update-modem-fw"><tt>nrf91-update-modem-fw</tt></a>
+</td><td>
+[-f] mfw_nrf91xx_x.x.x.zip
+</td><td>
+Update modem firmware for an nRF91 target.
+</td></tr>
+
 <tr><td colspan="3"><b>Openocd_compatibility</b></td></tr>
 
 <tr><td>
@@ -858,7 +868,7 @@ Write DP register.
 ##### `reset`
 
 **Usage**: reset [halt|-halt|-h] [TYPE] \
-Reset the target, optionally with halt and/or specifying the reset type. The reset type must be one of 'default', 'hw', 'sw', 'hardware', 'software', 'system', 'core', 'emulated', 'sw_system', 'sw_core', 'sw_sysresetreq', 'sw_vectreset', 'sw_emulated', 'sysresetreq', or 'vectreset'.
+Reset the target, optionally with halt and/or specifying the reset type. The reset type must be one of 'default', 'hardware', 'system', 'core', 'n_srst', 'sysresetreq', 'vectreset' or 'emulated'.
 
 
 ##### `unlock`
@@ -990,6 +1000,14 @@ Write 64-bit double-words to memory. The data arguments are 64-bit words in big-
 **Aliases**: `wb` \
 **Usage**: write8 ADDR DATA+ \
 Write 8-bit bytes to memory. The data arguments are 8-bit bytes. Can write to both RAM and flash. Flash writes are subject to minimum write size and alignment, and the flash page must have been previously erased.
+
+
+### Nrf91
+
+##### `nrf91-update-modem-fw`
+
+**Usage**: nrf91-update-modem-fw [-f] mfw_nrf91xx_x.x.x.zip \
+Update modem firmware for an nRF91 target. If -f is specified, modem firmware is written to the device, even if the correct version is already present.
 
 
 ### Openocd compatibility

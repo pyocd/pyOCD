@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2021 Arm Limited
+# Copyright (c) 2019-2021,2025 Arm Limited
 # Copyright (c) 2021 mentha
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2022 Harper Weigle
@@ -93,10 +93,12 @@ KNOWN_DEVICE_STRINGS: List[str] = (
     )
 
 ## List of VID/PID pairs for CMSIS-DAP probes that have multiple HID interfaces that must be
-# filtered by usage page. Currently these are only NXP probes.
+# filtered by usage page. Currently these are only NXP and Cypress probes.
 CMSIS_DAP_IDS_TO_FILTER_BY_USAGE_PAGE: List[VidPidPair] = [
     NXP_LPCLINK2_ID,
     NXP_MCULINK_ID,
+    (CYPRESS_VID, 0xf154),
+    (CYPRESS_VID, 0xf155),
     ]
 
 def is_known_cmsis_dap_vid_pid(vid: int, pid: int) -> bool:

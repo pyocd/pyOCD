@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2023 David van Rijn
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -85,16 +86,12 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x00000214,
     'begin_stack' : 0x20001a20,
-    'end_stack' : 0x20000a20,
-    'begin_data' : 0x20000000 + 0x1000,
+    'end_stack' : 0x20000620,
     'page_size' : 0x400,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
-    # Enable double buffering
-    'page_buffers' : [
-        0x20000220,
-        0x20000620
-    ],
+    # Disable double buffering
+    'page_buffers' : [0x20000220],
     'min_program_length' : 0x400,
 
     # Relative region addresses and sizes
@@ -120,7 +117,7 @@ class STM32H723xx(CoreSightTarget):
     VENDOR = "STMicroelectronics"
 
     MEMORY_MAP = MemoryMap(
-        FlashRegion( start=0x08000000, length=0x100000, sector_size=0x8000,
+        FlashRegion( start=0x08000000, length=0x100000, sector_size=0x20000,
                                                         page_size=0x400,
                                                         is_boot_memory=True,
                                                         algo=FLASH_ALGO),
@@ -232,9 +229,9 @@ class STM32H723xx(CoreSightTarget):
         bank = FlashPeripheral()
         optsr = self.read32(bank.flash_optsr_prg)
         rdp = optsr & 0x0000_ff00
-        if rdp == 0xaa:
+        if rdp == 0xaa00:
             return False;
-        if rdp == 0xcc:
+        if rdp == 0xcc00:
             LOG.warning("MCU permanently locked. No unlock possible")
         return True
 
@@ -265,8 +262,3 @@ class STM32H723xx(CoreSightTarget):
         while self.read32(bank.flash_sr) & 1:
             time.sleep(0.1)
         LOG.info("mass_erase done")
-
-
-
-
-

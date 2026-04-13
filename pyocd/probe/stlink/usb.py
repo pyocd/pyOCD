@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2019 Arm Limited
+# Copyright (c) 2018-2019,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -15,7 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import libusb_package
+try:
+    from libusb_package import find as usb_find
+except ImportError:
+    from usb.core import find as usb_find
 import usb.core
 import usb.util
 import logging
@@ -64,7 +67,7 @@ class STLinkUSBInterface:
         0x3753: STLinkInfo('V3',    0x01,   0x81,   0x82),  # 2VCP, No MSD
         0x3754: STLinkInfo('V3',    0x01,   0x81,   0x82),  # No MSD
         0x3755: STLinkInfo('V3',    0x01,   0x81,   0x82),
-        0x3757: STLinkInfo('V3',    0x01,   0x81,   0x82),
+        0x3757: STLinkInfo('V3',    0x01,   0x81,   0x82),  # Also for V4
         }
 
     ## STLink devices only have one USB interface.
@@ -101,7 +104,7 @@ class STLinkUSBInterface:
     @classmethod
     def get_all_connected_devices(cls):
         try:
-            devices = libusb_package.find(find_all=True, custom_match=cls._usb_match)
+            devices = usb_find(find_all=True, custom_match=cls._usb_match)
         except usb.core.NoBackendError:
             common.show_no_libusb_warning()
             return []

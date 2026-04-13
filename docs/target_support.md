@@ -211,3 +211,19 @@ _Note:_ PyOCD can work with expanded packs just like zipped .pack files. Pass th
 of the pack using the `--pack` argument, as above. This is very useful for cases such as development or
 debugging of a pack, or for working with other CMSIS-Pack managers that store packs in decompressed form.
 
+#### CMSIS-Toolbox Run and Debug Management
+
+Run and Debug Management is a part of the [CMSIS-Toolbox](https://github.com/Open-CMSIS-Pack/cmsis-toolbox) build
+information files when working with CSolution projects. Each `*.cbuild-run.yml` file contains relevant run and
+debug information for a single `target-type` defined in a CSolution project. The tool gathers and filters the
+target information from the BSP and DFP.
+
+To use the `cbuild-run` target information in PyOCD, pass the `--cbuild-run` option followed by the path to
+desired `*.cbuild-run.yml` file. The target information is not cached in PyOCD, which means the command-line
+option should always be passed when launching the debugger.
+
+Because a single `target-type` is described in the YAML file, the `--target`
+command-line argument is not needed, as the target is automatically selected.
+
+More information on CMSIS-Toolbox and the CSolution project format for Run and Debug Management can be found in the
+[CMSIS-Toolbox Documentation](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-CBuild-Format/#run-and-debug-management).

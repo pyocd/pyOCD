@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021-2023 Chris Reed
+# Copyright (c) 2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,6 +69,8 @@ class SubcommandBase:
             help="(Deprecated) Send setting to DAPAccess layer.")
         CONFIG_GROUP.add_argument("--pack", metavar="PATH", action="append",
             help="Path to the .pack file for a CMSIS Device Family Pack.")
+        CONFIG_GROUP.add_argument("--cbuild-run", metavar="PATH",
+            help="Path to the .cbuild-run.yml file for CSolution Run and Debug Management.")
 
         # Define common options for all subcommands, including logging options.
         COMMON = argparse.ArgumentParser(description='common',

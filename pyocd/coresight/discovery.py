@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,7 +54,9 @@ class CoreSightDiscovery(object):
         try:
             LOG.debug("Creating %s component", cmpid.name)
             cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
-            cmp.init()
+            # Call component's init method if it was created successfully
+            if cmp is not None:
+                cmp.init()
         except exceptions.Error as err:
             LOG.error("Error attempting to create component %s: %s", cmpid.name, err,
                     exc_info=self.session.log_tracebacks)
@@ -258,8 +260,9 @@ class ADIv6Discovery(CoreSightDiscovery):
         """
         try:
             # Create a memory interface for this component.
-            ap_address = APv2Address(cmpid.address)
-            memif = APAccessMemoryInterface(self.dp, ap_address)
+            # ap_address = APv2Address(cmpid.address)
+            # memif = APAccessMemoryInterface(self.dp, ap_address)
+            memif = APAccessMemoryInterface(self.dp)
 
             # Instantiate the component and attach to the target.
             component = cmpid.factory(memif, cmpid, cmpid.address)

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2020 Arm Limited
+# Copyright (c) 2006-2020,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -17,12 +17,54 @@
 
 import socket
 import select
+import ipaddress
+
+class ConnectedSocket(object):
+    def __init__(self, sock, packet_size):
+        self._sock = sock
+        self._packet_size = packet_size
+
+    def read(self, packet_size=None):
+        if packet_size is None:
+            packet_size = self._packet_size
+        return self._sock.recv(packet_size)
+
+    def write(self, data):
+        # Return number of bytes written; PacketIO will loop until all sent.
+        return self._sock.send(data)
+
+    def set_blocking(self, blocking):
+        self._sock.setblocking(blocking)
+
+    def set_timeout(self, timeout):
+        self._sock.settimeout(timeout)
+
+    def get_remote_address(self):
+        try:
+            ip, port = self._sock.getpeername()
+            try:
+                if ipaddress.ip_address(ip).is_loopback:
+                    ip = "localhost"
+            except ValueError:
+                pass
+            else:
+                return "%s:%d" % (ip, port)
+        except Exception as e:
+            return None
+
+    def close(self):
+        try:
+            self._sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            # Ignore shutdown errors on already-closed sockets.
+            pass
+        finally:
+            self._sock.close()
 
 class ListenerSocket(object):
     def __init__(self, port, packet_size):
         self.packet_size = packet_size
         self.listener = None
-        self.conn = None
         self.port = port
         self.host = 'localhost'
 
@@ -40,42 +82,22 @@ class ListenerSocket(object):
                 self.port = self.listener.getsockname()[1]
             self.listener.listen(1)
 
-    def connect(self):
-        self.conn = None
-        self.init()
-        rr, _, _ = select.select([self.listener], [], [], 0.5)
-        if rr:
-            self.conn, _ = self.listener.accept()
-
-        return self.conn
-
-    def read(self, packet_size=None):
-        if packet_size is None:
-            packet_size = self.packet_size
-        return self.conn.recv(packet_size)
-
-    def write(self, data):
-        return self.conn.send(data)
+    def accept(self, timeout=0.5):
+        # Accept a new client connection.
+        # Return ConnectedSocket or None if no pending connection within timeout.
+        rlist, _, _ = select.select([self.listener], [], [], timeout)
+        if not rlist:
+            return None
+        sock, _addr = self.listener.accept()
+        return ConnectedSocket(sock, self.packet_size)
 
     def close(self):
-        return_value = None
-        if self.conn is not None:
-            return_value = self.conn.close()
-            self.conn = None
-
-        return return_value
-
-    def cleanup(self):
-        self.close()
+        # Close listening socket only; accepted connections are managed elsewhere.
         if self.listener is not None:
-            self.listener.close()
-            self.listener = None
-
-    def set_blocking(self, blocking):
-        self.conn.setblocking(blocking)
-
-    def set_timeout(self, timeout):
-        self.conn.settimeout(timeout)
+            try:
+                self.listener.close()
+            finally:
+                self.listener = None
 
 class ClientSocket(object):
     """@brief Simple client-side TCP socket.

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -59,6 +59,10 @@ class TransferError(DebugError):
 
 class TransferTimeoutError(TransferError):
     """@brief An SWD or JTAG timeout occurred"""
+    pass
+
+class TransferProtocolError(TransferError):
+    """@brief SWD transfer protocol error occurred"""
     pass
 
 class TransferFaultError(TransferError):

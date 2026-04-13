@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2020 Arm Limited
+# Copyright (c) 2017-2020,2025 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,8 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import print_function
-
 import os
 import sys
 import traceback
@@ -136,6 +134,7 @@ def connect_test(board):
 
     print("\n\n----- TESTING CONNECT/DISCONNECT -----")
     print("Flashing new binary")
+    live_board.target.reset_and_halt()
     FileProgrammer(live_session).program(binary_file, base_address=rom_start)
     live_board.target.reset()
     test_count += 1

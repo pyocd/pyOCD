@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2021 Huada Semiconductor Corporation
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,11 +56,10 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000020 + 0x000001dc,
     'begin_stack' : 0x20000400,
-    'begin_data' : 0x20000000 + 0x800,
     'page_size' : 0x200,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
-    'page_buffers' : [0x20000800],   # Enable double buffering
+    'page_buffers' : [0x20000800, 0x20001000],   # Enable double buffering
     'min_program_length' : 0x200,
   }
 
@@ -88,10 +88,10 @@ class HC32L130(CoreSightTarget):
     VENDOR = "HDSC"
 
     MEMORY_MAP = MemoryMap(
-        FlashRegion( start=0x00000000, length=0x8000, sector_size=0x200,
+        FlashRegion( start=0x00000000, length=0x10000, sector_size=0x200,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
-        RamRegion(   start=0x20000000, length=0x1000)
+        RamRegion(   start=0x20000000, length=0x2000)
         )
 
     def __init__(self, session):
@@ -107,10 +107,10 @@ class HC32F030(CoreSightTarget):
     VENDOR = "HDSC"
 
     MEMORY_MAP = MemoryMap(
-        FlashRegion( start=0x00000000, length=0x8000, sector_size=0x200,
+        FlashRegion( start=0x00000000, length=0x10000, sector_size=0x200,
                         is_boot_memory=True,
                         algo=FLASH_ALGO),
-        RamRegion(   start=0x20000000, length=0x1000)
+        RamRegion(   start=0x20000000, length=0x2000)
         )
 
     def __init__(self, session):
