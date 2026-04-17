@@ -233,7 +233,6 @@ class CbuildRun:
         self._use_default_memory_map: bool = True
         self._system_resources: Optional[Dict[str, list]] = None
         self._system_descriptions: Optional[List[dict]] = None
-        self._required_packs: Dict[str, Optional[Path]] = {}
 
         try:
             # Convert to Path object early and resolve to absolute path
@@ -286,43 +285,29 @@ class CbuildRun:
         os.environ['CMSIS_PACK_ROOT'] = str(cmsis_pack_root)
         LOG.debug("CMSIS_PACK_ROOT set to: '%s'", os.environ['CMSIS_PACK_ROOT'])
 
-    def _get_required_packs(self) -> None:
-        """@brief Determines required CMSIS packs from the .cbuild-run.yml file."""
-        if not self._required_packs:
-            cmsis_pack_root = Path(os.environ['CMSIS_PACK_ROOT']).expanduser().resolve()
-
-            def _pack_path(cmsis_pack: str) -> Optional[Path]:
-                try:
-                    vendor, pack = cmsis_pack.split('::', 1)
-                    name, version = pack.split('@', 1)
-                except ValueError:
-                    LOG.error("Invalid pack format '%s'. Expected 'Vendor::Pack@Version'", cmsis_pack)
-                    return None
-
-                return cmsis_pack_root / vendor / name / version
-
-            for pack_type in ('device-pack', 'board-pack'):
-                pack = self._data.get(pack_type)
-                if pack is not None:
-                    self._required_packs[pack] = _pack_path(pack)
-
     def _check_path(self, file_path: Path, required: bool = False) -> Path:
         """@brief Checks if the required files are accessible and verifies pack installation if needed."""
-        # Expand environment variables first, then check if absolute
-        file_path = Path(os.path.expandvars(str(file_path))).expanduser()
-        if not file_path.is_absolute():
-            file_path = self._base_path / file_path
-        file_path = file_path.resolve()
-        # If the file exists, we don't need to do any further checks
-        if file_path.is_file():
-            return file_path
+
+        def _normalize_path(path: str) -> Path:
+            # Expand environment variables first, then check if absolute
+            path = Path(os.path.expandvars(path)).expanduser()
+            if not path.is_absolute():
+                path = self._base_path / path
+            path = path.resolve()
+            return path
 
         def _is_under(parent: Path, child: Path) -> bool:
+            # Can be replaced with child.is_relative_to(parent) in Python 3.9+
             try:
                 child.relative_to(parent)
                 return True
             except ValueError:
                 return False
+
+        file_path = _normalize_path(str(file_path))
+        # If the file exists, we don't need to do any further checks
+        if file_path.is_file():
+            return file_path
 
         # Select appropriate logging level and error message based on whether the file is required
         if required:
@@ -332,16 +317,22 @@ class CbuildRun:
             log = LOG.warning
             err = f"File '{file_path}' not found"
 
-        self._get_required_packs()
+        required_packs = (
+            (self._data.get('device-pack'), self._data.get('device-pack-path')),
+            (self._data.get('board-pack'), self._data.get('board-pack-path'))
+        )
         # Verify pack installation only if the file is located within a required pack.
-        for pack, pack_path in self._required_packs.items():
-            if pack_path is not None and _is_under(pack_path, file_path):
+        for pack, pack_path in required_packs:
+            if pack is None or pack_path is None:
+                continue
+            pack_path = _normalize_path(str(pack_path))
+            if _is_under(pack_path, file_path):
                 if not pack_path.exists():
                     log("Pack '%s' is required but not installed. "
-                              "Install with: cpackget add %s", pack, pack)
+                        "Install with: cpackget add %s", pack, pack)
                 else:
                     log("Installed pack '%s' is corrupted or incomplete. "
-                          "Reinstall with: cpackget add -F %s", pack, pack)
+                        "Reinstall with: cpackget add -F %s", pack, pack)
                 # We've found the relevant pack, no need to check further
                 break
 
@@ -416,10 +407,8 @@ class CbuildRun:
 
     @property
     def pack_path(self) -> str:
-        #TODO: handle local pack installations (no CMSIS_PACK_ROOT)
-        if not self._required_packs:
-            self._get_required_packs()
-        return str(self._required_packs.get(self._data.get('device-pack', ''), ''))
+        # Returns device-pack-path if specified, otherwise an empty string.
+        return self._data.get('device-pack-path', '')
 
     @property
     def svd(self) -> Optional[str]:
@@ -1000,6 +989,7 @@ class CbuildRun:
                 'access': memory['access'],
                 'pname': memory.get('pname'),
                 'alias': memory.get('alias'),
+                'is_default': memory.get('default')
             }
 
             if memory.get('defined', False):
