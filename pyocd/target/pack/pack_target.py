@@ -153,12 +153,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         self._functions = DebugSequenceCommonFunctions()
 
         self._all_sequences: Optional[Set[DebugSequence]] = None
-
-        self._generic_map = DefaultDebugSequences.get_sequences(self._session.probe)
-
-        generic_overrides = {seq.name: seq for seq in self._sequences if seq.pname is None}
-        if generic_overrides:
-            self._generic_map.update(generic_overrides)
+        self._generic_map: Optional[Dict[str, DebugSequence]] = None
 
         specific = {}
         for seq in self._sequences:
@@ -175,7 +170,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
     @property
     def all_sequences(self) -> Set[DebugSequence]:
         if self._all_sequences is None:
-            self._all_sequences = set(self._generic_map.values())
+            self._all_sequences = set(self._get_generic_map().values())
             for pname_dict in self._specific_map_by_pname.values():
                 self._all_sequences.update(pname_dict.values())
         return self._all_sequences
@@ -184,6 +179,15 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
     def cmsis_pack_device(self) -> CmsisPackDevice:
         """@brief Accessor for the pack device that contains the sequences."""
         return self._pack_device
+
+    def _get_generic_map(self) -> Dict[str, DebugSequence]:
+        """@brief Lazily load generic debug sequences with correct probe capabilities."""
+        if self._generic_map is None:
+            self._generic_map = DefaultDebugSequences.get_sequences(self._session.probe)
+            generic_overrides = {seq.name: seq for seq in self._sequences if seq.pname is None}
+            if generic_overrides:
+                self._generic_map.update(generic_overrides)
+        return self._generic_map
 
     def get_root_scope(self, context: DebugSequenceExecutionContext) -> Scope:
         """@brief Return a scope that will be used as the parent of sequences."""
@@ -322,7 +326,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         # Return *only* sequences with no Pname when passed pname=None. Otherwise we'd have
         # to mangle the dict keys to include pname since there can be multiple sequences with
         # the same name but different
-        result = self._generic_map.copy()
+        result = self._get_generic_map().copy()
 
         # If pname is specified, override with pname-specific sequences
         if pname is not None and pname in self._specific_map_by_pname:
@@ -337,17 +341,18 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
                 return True
 
         # Check generic sequences
-        return name in self._generic_map
+        return name in self._get_generic_map()
 
     def get_sequence_with_name(self, name: str, pname: Optional[str] = None) -> DebugSequence:
+        generic_map = self._get_generic_map()
         # Check pname-specific sequences first (if pname provided)
         if pname is not None and pname in self._specific_map_by_pname:
             if name in self._specific_map_by_pname[pname]:
                 return self._specific_map_by_pname[pname][name]
 
         # Check generic sequences (defaults + cbuild-run generic)
-        if name in self._generic_map:
-            return self._generic_map[name]
+        if name in generic_map:
+            return generic_map[name]
 
         # Sequence not found
         raise KeyError(
