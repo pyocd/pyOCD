@@ -614,15 +614,11 @@ class Session(Notifier):
                 self._board.init()
                 self._inited = True
 
-    def close(self) -> None:
-        """@brief Close the session.
+    def disconnect(self) -> None:
+        """@brief Disconnect the session without closing the probe.
 
-        Uninits the board and disconnects then closes the probe.
+        Uninits the board and disconnects the probe, while keeping the probe open.
         """
-        if self._closed:
-            return
-        self._closed = True
-
         # Should not have been able to open the session with either _probe or _board being None.
         assert (self._probe is not None) and (self._board is not None)
 
@@ -634,11 +630,24 @@ class Session(Notifier):
             except exceptions.Error:
                 LOG.error("Error during board uninit:", exc_info=self.log_tracebacks)
 
-        if self._probe.is_open:
+        if self._probe.is_open and (self._probe.wire_protocol is not None):
             try:
                 self._probe.disconnect()
             except exceptions.Error:
                 LOG.error("Probe error during disconnect:", exc_info=self.log_tracebacks)
+
+    def close(self) -> None:
+        """@brief Close the session.
+
+        Uninits the board and disconnects then closes the probe.
+        """
+        if self._closed:
+            return
+        self._closed = True
+
+        self.disconnect()
+
+        if self._probe.is_open:
             try:
                 self._probe.close()
             except exceptions.Error:

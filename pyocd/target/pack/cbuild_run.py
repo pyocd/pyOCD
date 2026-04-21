@@ -616,6 +616,9 @@ class CbuildRun:
         if reset not in {'off', 'hardware', 'system', 'core'}:
             LOG.warning("Invalid post-reset type '%s' in cbuild-run, defaulting to 'hardware'", reset)
             reset = 'hardware'
+        # Check if ResetHardware is supported for the target, if not default to pin reset
+        if reset == 'hardware' and not any(elem.get('name') == 'ResetHardware' for elem in self.debug_sequences):
+            reset = 'n_srst'
         return reset
 
     @property
