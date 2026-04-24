@@ -1098,11 +1098,12 @@ class CbuildRun:
                     ap_address = APv1Address(0, dpid, apid)
 
                 self._apids[apid] = ap_address
-                pname, reset_sequence = _processors.get(apid, (f'Unknown{apid}', 'ResetSystem'))
-                self._processors_map[pname] = ProcessorInfo(name=pname,
-                                                            ap_address=ap_address,
-                                                            svd_path=get_svd_path(pname),
-                                                            default_reset_sequence=reset_sequence)
+                if apid in _processors:
+                    pname, reset_sequence = _processors[apid]
+                    self._processors_map[pname] = ProcessorInfo(name=pname,
+                                                                ap_address=ap_address,
+                                                                svd_path=get_svd_path(pname),
+                                                                default_reset_sequence=reset_sequence)
         if not self._valid_dps:
             # Use default __dp of 0.
             self._valid_dps.append(0)
