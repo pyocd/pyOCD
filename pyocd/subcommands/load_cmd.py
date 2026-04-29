@@ -109,8 +109,7 @@ class LoadSubcommand(SubcommandBase):
         with session:
             programmer = FileProgrammer(session,
                             chip_erase=self._args.erase,
-                            trust_crc=self._args.trust_crc,
-                            no_reset=True)  # We handle this reset below
+                            trust_crc=self._args.trust_crc)
 
             # Get a list of all secondary cores.
             secondary_cores = [c for c in session.target.cores.values() if c != session.target.primary_core]

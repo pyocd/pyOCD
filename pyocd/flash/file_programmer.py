@@ -84,11 +84,12 @@ class FileProgrammer(object):
             written, there may be ranges of flash that would be erased but not written with new
             data. This parameter sets whether the existing contents of those unwritten ranges will
             be read from memory and restored while programming.
-        @param no_reset Boolean indicating whether if the device should not be reset after the
-            programming process has finished.
+        @param no_reset Deprecated and ignored. Will be removed in a future release.
         """
         self._session = session
-        self._loader = FlashLoader(session, progress, chip_erase, smart_flash, trust_crc, keep_unwritten, no_reset)
+        if no_reset is not None:
+            LOG.warning("FileProgrammer no_reset parameter is deprecated and ignored; this option will be removed in a future release")
+        self._loader = FlashLoader(session, progress, chip_erase, smart_flash, trust_crc, keep_unwritten)
 
         self._format_handlers: Dict[str, Callable[..., None]] = {
             'axf': self._program_elf,
