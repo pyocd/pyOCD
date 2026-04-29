@@ -216,6 +216,8 @@ debug-sequences:
 
           // Execute SYSRESETREQ via AIRCR
           Write32(AIRCR_Addr, 0x05FA0004);
+          // Delay for 100ms
+          DAP_Delay(100000);
       - while: (Read32(DHCSR_Addr) & 0x02000000)
         timeout: 500000
   - name: ResetProcessor
