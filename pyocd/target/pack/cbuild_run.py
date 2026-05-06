@@ -1288,10 +1288,10 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
             try:
                 executed_scope = seq.execute(context)
             except exceptions.Error as err:
+                prefix = f"Error while running debug sequence '{name}'"
                 if pname:
-                    LOG.error("Error while running debug sequence '%s' (core %s): %s", name, pname, err)
-                else:
-                    LOG.error("Error while running debug sequence '%s': %s", name, err)
+                    prefix += f" (core {pname})"
+                err.args = (f"{prefix}: {err}",)
                 raise
 
         return executed_scope
