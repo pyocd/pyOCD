@@ -67,7 +67,8 @@ class RamBuilder(MemoryBuilder):
 
     def erase(self, progress_cb: Optional[ProgressCallback] = None, **kwargs: Any) -> None:
         # Nothing to erase in RAM.
-        pass
+        if progress_cb is not None:
+            progress_cb(1.0)
 
     def program(self, progress_cb: Optional[ProgressCallback] = None, **kwargs: Any) -> ProgrammingInfo:
         target = self._session.target
