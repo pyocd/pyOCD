@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2020,2025 Arm Limited
+# Copyright (c) 2006-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -1029,32 +1029,6 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
             self._perform_reset(reset_type)
 
-    def _inner_reset(self, reset_type: Optional[Target.ResetType], is_halting: bool) -> None:
-        """@brief Internal routine for resetting the core.
-
-        Shared by both normal and halting reset.
-        """
-        reset_type = self._get_actual_reset_type(reset_type)
-
-        LOG.debug("reset, core %d, type=%s", self.core_number, reset_type.name)
-
-        self.session.notify(Target.Event.PRE_RESET, self)
-
-        self._run_token += 1
-
-        self.reset_hook(reset_type)
-
-        # Unless this is a halting reset, make sure the core is not halted. Some DFP debug sequences
-        # (or user scripts) can leave the core halted after a reset.
-        if not is_halting:
-            if self.get_state() == Target.State.HALTED:
-                LOG.debug("reset: core was halted after non-halting reset; now resuming")
-                self.resume()
-
-        self.call_delegate('did_reset', core=self, reset_type=reset_type)
-
-        self.session.notify(Target.Event.POST_RESET, self)
-
     def reset(self, reset_type: Optional[Target.ResetType] = None) -> None:
         """@brief Reset the core.
 
@@ -1070,7 +1044,19 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
         After a call to this function, the core is running.
         """
-        self._inner_reset(reset_type, is_halting=False)
+        reset_type = self._get_actual_reset_type(reset_type)
+
+        LOG.debug("reset, core %d, type=%s", self.core_number, reset_type.name)
+
+        self.session.notify(Target.Event.PRE_RESET, self)
+
+        self._run_token += 1
+
+        self.reset_hook(reset_type)
+
+        self.call_delegate('did_reset', core=self, reset_type=reset_type)
+
+        self.session.notify(Target.Event.POST_RESET, self)
 
     def set_reset_catch(self, reset_type: Optional[Target.ResetType] = None) -> None:
         """@brief Prepare to halt core on reset.
@@ -1138,7 +1124,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.set_reset_catch(reset_type)
 
         # Perform the reset.
-        self._inner_reset(reset_type, is_halting=True)
+        self.reset(reset_type)
 
         # Wait until the unit resets. If emulated reset is used then it will have already halted
         # for us.
