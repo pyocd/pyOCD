@@ -146,6 +146,21 @@ from . import target_STM32H7B0xx
 from . import target_Air001
 from . import target_Air32F103xx
 from . import target_AMA3B1KK
+from . import target_APM32F103xB
+from . import target_APM32F103xE
+from . import target_APM32F10xCL
+from . import target_APM32F4xx
+from . import target_APM32F402_403xx
+from . import target_APM32F411xx
+from . import target_APM32F035xx
+from . import target_APM32F003
+from . import target_APM32F0xx
+from . import target_APM32M35xx
+from . import target_BMP561
+from . import target_G32A14xx
+from . import target_G32M3101xx
+from . import target_G32R430xx
+from . import target_G32R501xx
 
 ## @brief Dictionary of all builtin targets.
 #
@@ -359,4 +374,34 @@ BUILTIN_TARGETS = {
           'air32f103xe': target_Air32F103xx.Air32F103xE,
           'air32f103xg': target_Air32F103xx.Air32F103xG,
           'ama3b1kk_kbr': target_AMA3B1KK.AMA3B1KK_KBR,
+          'apm32f003x6': target_APM32F003.APM32F003x6,
+          'apm32f030x8': target_APM32F0xx.APM32F030x8,
+          'apm32f030xc': target_APM32F0xx.APM32F030xC,
+          'apm32f035x8': target_APM32F035xx.APM32F035x8,
+          'apm32f051x8': target_APM32F0xx.APM32F051x8,
+          'apm32f072xb': target_APM32F0xx.APM32F072xB,
+          'apm32f091xc': target_APM32F0xx.APM32F091xC,
+          'apm32f103xb': target_APM32F103xB.APM32F103xB,
+          'apm32f103xc': target_APM32F103xE.APM32F103xC,
+          'apm32f103xe': target_APM32F103xE.APM32F103xE,
+          'apm32f105xc': target_APM32F10xCL.APM32F105xC,
+          'apm32f107xc': target_APM32F10xCL.APM32F107xC,
+          'apm32f402xb': target_APM32F402_403xx.APM32F402xB,
+          'apm32f403xb': target_APM32F402_403xx.APM32F403xB,
+          'apm32f405xg': target_APM32F4xx.APM32F405xG,
+          'apm32f407xg': target_APM32F4xx.APM32F407xG,
+          'apm32f411xe': target_APM32F411xx.APM32F411xE,
+          'apm32f415xg': target_APM32F4xx.APM32F415xG,
+          'apm32f417xg': target_APM32F4xx.APM32F417xG,
+          'apm32f427xg': target_APM32F4xx.APM32F427xG,
+          'apm32f465xe': target_APM32F4xx.APM32F465xE,
+          'apm32m35xx': target_APM32M35xx.APM32M35xx,
+          'bmp561': target_BMP561.BMP561,
+          'g32a1445': target_G32A14xx.G32A1445,
+          'g32a1465': target_G32A14xx.G32A1465,
+          'g32m3101x8': target_G32M3101xx.G32M3101x8,
+          'g32r430xb': target_G32R430xx.G32R430xB,
+          'g32r501dxx': target_G32R501xx.G32R501Dxx,
+          'g32r501xx': target_G32R501xx.G32R501xx,
          }
+
