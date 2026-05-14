@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2020,2026 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
@@ -124,9 +124,9 @@ class SWVReader(threading.Thread):
         if not itm:
             LOG.warning("SWV not initalized: Target does not have ITM component")
             return False
-        tpiu = self._target.get_first_child_of_type(TPIU)
+        tpiu = self._target.get_first_child_of_type(TPIU, 'has_swo_uart')
         if not tpiu:
-            LOG.warning("SWV not initalized: Target does not have TPIU component")
+            LOG.warning("SWV not initalized: Target does not have TPIU component with SWO UART mode")
             return False
 
         self._target.trace_start()
