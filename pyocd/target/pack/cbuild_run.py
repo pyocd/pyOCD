@@ -921,6 +921,7 @@ class CbuildRun:
                 flash_start: int,
                 flash_end: int,
                 flash_info: Dict[str, Any],
+                fallback_flm: Optional[PackFlashAlgo] = None,
             ) -> None:
             page_size = flash_info.get('page-size')
             blocks = flash_info.get('blocks')
@@ -967,6 +968,8 @@ class CbuildRun:
 
             parent_attrs = {**flash_attrs, 'start': flash_start, 'length': flash_end - flash_start,
                             'sector_size': max(br[2] for br in block_ranges), 'page_size': page_size, **fi_attrs}
+            if fallback_flm is not None:
+                parent_attrs['_fallback_flm'] = fallback_flm
             parent_region = MEMORY_TYPE_CLASS_MAP[MemoryType.FLASH](**parent_attrs)
 
             for sub_start, sub_end, block_size, block_arg in block_ranges:
@@ -1000,7 +1003,11 @@ class CbuildRun:
             }
 
             if memory.get('defined', False):
+                fallback_algos = []
                 for flash in self.flashinfo + self.programming:
+                    if any(flash is fallback_algo for fallback_algo in fallback_algos):
+                        continue
+
                     if 'pname' in memory and 'pname' in flash:
                         if memory['pname'] != flash['pname']:
                             # Skip this algorithm if 'Pname' exists and does not match
@@ -1046,7 +1053,32 @@ class CbuildRun:
                             # Create appropriate memory region object and store it
                             regions.append(MEMORY_TYPE_CLASS_MAP[memory_type](**flash_attrs))
                         else:
-                            _add_flashinfo_regions(flash_attrs, flash_start, flash_end, flash)
+                            fallback_flm = None
+                            for programming in self.programming:
+                                if 'pname' in memory and 'pname' in programming and memory['pname'] != programming['pname']:
+                                    continue
+
+                                algo_size = programming.get('size')
+                                if algo_size is None:
+                                    continue
+
+                                algo_end = programming['start'] + algo_size
+                                if (flash_start >= algo_end) or (programming['start'] >= flash_end):
+                                    continue
+
+                                fallback_algos.append(programming)
+                                try:
+                                    algorithm_path = self._check_path(Path(programming['algorithm']), required=False)
+                                    fallback_flm = PackFlashAlgo(str(algorithm_path))
+                                except (exceptions.Error, OSError, ValueError) as err:
+                                    LOG.debug("Could not load FLM fallback '%s': %s", programming.get('algorithm'), err)
+                                else:
+                                    if 'ram-start' in programming:
+                                        flash_attrs['_RAMstart'] = programming['ram-start']
+                                    if 'ram-size' in programming:
+                                        flash_attrs['_RAMsize'] = programming['ram-size']
+                                break
+                            _add_flashinfo_regions(flash_attrs, flash_start, flash_end, flash, fallback_flm)
                         # Stop searching for algorithms if one without pname was found
                         if flash_attrs['pname'] is None:
                             break
