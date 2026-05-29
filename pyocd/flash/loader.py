@@ -161,8 +161,9 @@ class MemoryLoader:
         @param progress A progress report handler as a callable that takes a percentage completed.
             If not set or None, a default progress handler will be used unless the session option
             'hide_programming_progress' is set to True, in which case progress will be disabled.
-        @param chip_erase Sets whether to use chip erase or sector erase. The value must be one of
-            "auto", "sector", or "chip". "auto" means the fastest erase method should be used.
+        @param chip_erase Sets whether to use auto, sector, chip, or mass erase. The value must be
+            one of "auto", "sector", "chip", or "mass". "auto" means the fastest erase method
+            should be used.
         @param smart_flash If set to True, the flash loader will attempt to not program pages whose
             contents are not going to change by scanning target flash memory. A value of False will
             force all pages to be erased and programmed.
@@ -289,19 +290,37 @@ class MemoryLoader:
         """
         perfList = []
         sorted_builders = sorted(self._builders.values(), key=lambda v: v.region.start)
+        use_mass_erase = self._chip_erase == "mass"
+        mass_erase_time = 0.0
 
         LOG.info("Erasing...")
         self._progress_offset = 0.0
-        for builder in sorted_builders:
-            self._current_progress_fraction = builder.buffered_data_size / self._total_data_size
+        if use_mass_erase:
+            erase_start = time()
+            LOG.info("Mass erasing device...")
+            if self._session.target.mass_erase() is False:
+                raise exceptions.TargetError("mass erase failed")
+            mass_erase_time = time() - erase_start
+            LOG.info("Mass erase complete")
 
-            # Erase the data.
-            builder.erase(chip_erase=self._chip_erase,
-                          progress_cb=self._progress_cb,
-                          smart_flash=self._smart_flash,
-                          fast_verify=self._trust_crc,
-                          keep_unwritten=self._keep_unwritten)
-            self._progress_offset += self._current_progress_fraction
+            # Some targets reset and/or change debug access state as a side effect of mass erase.
+            # Re-run target init before programming so AP/core/flash state is rediscovered and
+            # security auto-unlock hooks can run if needed.
+            LOG.debug("Reinitializing target after mass erase")
+            self._session.target.init()
+            if self._progress is not None:
+                self._progress(1.0)
+        else:
+            for builder in sorted_builders:
+                self._current_progress_fraction = builder.buffered_data_size / self._total_data_size
+
+                # Erase the data.
+                builder.erase(chip_erase=self._chip_erase,
+                              progress_cb=self._progress_cb,
+                              smart_flash=self._smart_flash,
+                              fast_verify=self._trust_crc,
+                              keep_unwritten=self._keep_unwritten)
+                self._progress_offset += self._current_progress_fraction
 
         # Call FlashEraseDone after all erase operations are finished.
         if self._delegate is not None and self._delegate.has_sequence_with_name('FlashEraseDone'):
@@ -314,9 +333,12 @@ class MemoryLoader:
 
             # Program the data.
             perf = builder.program(progress_cb=self._progress_cb,
-                                   smart_flash=self._smart_flash,
+                                   smart_flash=(False if use_mass_erase else self._smart_flash),
                                    fast_verify=self._trust_crc,
-                                   keep_unwritten=self._keep_unwritten)
+                                   keep_unwritten=(False if use_mass_erase else self._keep_unwritten))
+            if use_mass_erase and not perfList:
+                perf.erase_time = mass_erase_time
+                perf.program_type = FlashBuilder.FLASH_MASS_ERASE
             perfList.append(perf)
             self._progress_offset += self._current_progress_fraction
 
@@ -350,7 +372,12 @@ class MemoryLoader:
         else:
             kbps = (program_byte_count/1024) / totalTime
 
-        if any(perf.program_type == FlashBuilder.FLASH_CHIP_ERASE for perf in perf_list):
+        if any(perf.program_type == FlashBuilder.FLASH_MASS_ERASE for perf in perf_list):
+            LOG.info("Mass erased, programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
+                actual_program_byte_count, get_page_count(actual_program_page_count),
+                skipped_byte_count, get_page_count(skipped_page_count),
+                kbps)
+        elif any(perf.program_type == FlashBuilder.FLASH_CHIP_ERASE for perf in perf_list):
             LOG.info("Erased chip, programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
                 actual_program_byte_count, get_page_count(actual_program_page_count),
                 skipped_byte_count, get_page_count(skipped_page_count),

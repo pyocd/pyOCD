@@ -45,6 +45,7 @@ class LoadSubcommand(SubcommandBase):
     ERASE_OPTIONS = [
         'auto',
         'chip',
+        'mass',
         'sector',
         ]
 
