@@ -799,6 +799,25 @@ class CmsisPackDevice:
                     algo_element = None
 
                 # Convert the region to flash if we found a matching algorithm element.
+                # Check for flashinfo first — debug sequences take precedence over FLM when available.
+                fi_match = self._find_matching_flashinfo(attrs['start'], attrs['start'] + attrs['length'])
+                if fi_match is not None:
+                    fi_elem_found, fi_start, fi_end = fi_match
+                    if not self._saw_startup:
+                        attrs['is_boot_memory'] = True
+                        self._saw_startup = True
+                    # If an FLM also covers this region, load it as fallback in case the
+                    # required debug sequences are not available.
+                    fallback_flm = None
+                    if algo_element is not None:
+                        fallback_flm = self._load_flash_algo(algo_element.attrib['name'])
+                        if fallback_flm is not None:
+                            attrs.update(self._get_flash_ram_attributes(algo_element))
+                        self._processed_algos.add(algo_element)
+                    self._add_flashinfo_regions(attrs, fi_start, fi_end, fi_elem_found, fallback_flm)
+                    continue
+
+                # No flashinfo; use FLM if available.
                 if (algo_element is not None) and self._set_flash_attributes(algo_element, attrs):
                     # Mark this algo as processed.
                     self._processed_algos.add(algo_element)
@@ -811,16 +830,7 @@ class CmsisPackDevice:
                         attrs['is_boot_memory'] = True
                         self._saw_startup = True
 
-                # If no algo, check for a matching flashinfo (the two should not cover the same area).
-                elif algo_element is None:
-                    fi_match = self._find_matching_flashinfo(attrs['start'], attrs['start'] + attrs['length'])
-                    if fi_match is not None:
-                        fi_elem_found, fi_start, fi_end = fi_match
-                        if not self._saw_startup:
-                            attrs['is_boot_memory'] = True
-                            self._saw_startup = True
-                        self._add_flashinfo_regions(attrs, fi_start, fi_end, fi_elem_found)
-                        continue
+                # No flashinfo and no algo — fall through to create a non-flash region.
 
                 # Create the memory region and add to map.
                 region = MEMORY_TYPE_CLASS_MAP[type](**attrs)
@@ -969,6 +979,7 @@ class CmsisPackDevice:
                 flash_start: int,
                 flash_end: int,
                 fi_elem: Element,
+                fallback_flm: Optional[PackFlashAlgo] = None,
             ) -> None:
         """@brief Create flash region(s) from a flashinfo XML element."""
         try:
@@ -1019,6 +1030,8 @@ class CmsisPackDevice:
         # Parent region spans the full flash range with the maximum sector size.
         parent_attrs = {**flash_attrs, 'start': flash_start, 'length': flash_end - flash_start,
                         'sector_size': max(br[2] for br in block_ranges), 'page_size': page_size, **fi_attrs}
+        if fallback_flm is not None:
+            parent_attrs['_fallback_flm'] = fallback_flm
         parent_region = MEMORY_TYPE_CLASS_MAP[MemoryType.FLASH](**parent_attrs)
 
         for sub_start, sub_end, block_size, block_arg in block_ranges:
