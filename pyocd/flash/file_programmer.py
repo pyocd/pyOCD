@@ -72,8 +72,9 @@ class FileProgrammer(object):
         @param progress A progress report handler as a callable that takes a percentage completed.
             If not set or None, a default progress handler will be used unless the session option
             'hide_programming_progress' is set to True, in which case progress will be disabled.
-        @param chip_erase Sets whether to use chip erase or sector erase. The value must be one of
-            "auto", "sector", or "chip". "auto" means the fastest erase method should be used.
+        @param chip_erase Sets whether to use auto, sector, chip, or mass erase. The value must be
+            one of "auto", "sector", "chip", or "mass". "auto" means the fastest erase method
+            should be used.
         @param smart_flash If set to True, the programmer will attempt to not program pages whose
             contents are not going to change by scanning target flash memory. A value of False will
             force all pages to be erased and programmed.

@@ -50,7 +50,7 @@ def get_sector_count(count: int) -> str:
 
 @dataclass
 class ProgrammingInfo:
-    program_type: Any = None                # Type of programming performed - FLASH_SECTOR_ERASE or FLASH_CHIP_ERASE
+    program_type: Any = None                # Type of programming performed.
     program_time: float = 0.0               # Time to program flash
     erase_time: float = 0.0                 # Time to erase flash contents
     analyze_type: Any = None                # Type of flash analysis performed - FLASH_ANALYSIS_CRC32 or FLASH_ANALYSIS_PARTIAL_PAGE_READ
@@ -194,6 +194,7 @@ class FlashBuilder(MemoryBuilder):
     # Type of flash operation
     FLASH_SECTOR_ERASE = 1
     FLASH_CHIP_ERASE = 2
+    FLASH_MASS_ERASE = 3
 
     # Type of flash analysis
     FLASH_ANALYSIS_CRC32 = "CRC32"
