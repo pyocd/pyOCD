@@ -993,7 +993,8 @@ class CbuildRun:
                 'access': memory['access'],
                 'pname': memory.get('pname'),
                 'alias': memory.get('alias'),
-                'is_default': memory.get('default')
+                'is_default': memory.get('default'),
+                'defined': memory.get('defined', False)
             }
 
             if memory.get('defined', False):

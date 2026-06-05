@@ -146,6 +146,8 @@ Sequence name           | Delegate function   | Description
 `ResetHardwareDeassert` | -                   | De-assert a system-wide reset via the dedicated debugger reset line, e.g. nRST.
 `ResetCatchSet`         | `set_reset_catch`   | Configure the vector catch to stop code execution after the reset.
 `ResetCatchClear`       | `clear_reset_catch` | Free hardware resources allocated by `ResetCatchSet`.
+`FlashEraseSetup`       | -                   | Optional setup before flash erase for flashinfo-based regions. May call `FlashLoadAlgorithm()` to use an FLM algorithm for erase.
+`FlashProgramSetup`     | -                   | Optional setup before flash program for flashinfo-based regions. May call `FlashLoadAlgorithm()` to use an FLM algorithm for programming.
 `FlashInit`             | -                   | Executed before starting a flash operation.
 `FlashUninit`           | -                   | Executed after a flash operation finished.
 `FlashEraseSector`      | -                   | Executed to erase a flash memory sector.

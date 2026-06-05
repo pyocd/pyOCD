@@ -24,10 +24,11 @@ import shlex
 import shutil
 import subprocess
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from time import sleep, monotonic
-from typing import (cast, Dict, TYPE_CHECKING, Optional, Tuple, Union)
+from typing import (cast, Callable, Dict, Iterator, TYPE_CHECKING, Optional, Tuple, Union)
 
 from ...core import exceptions
 from ...coresight.coresight_target import CoreSightTarget
@@ -95,6 +96,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
         self._ap_cache: Dict[APAddressBase, MEM_AP] = {}
         self._flash_buffer: Optional[bytearray] = None
         self._flash_filler: int = self._FILLER
+        self._flash_algorithm_loader: Optional[Callable] = None
         self._placeholders_cache: Optional[Dict[str, str]] = None
         self._buffer_manager = _SequenceBufferManager(self._get_sequence_scope)
 
@@ -112,6 +114,16 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
         self._flash_buffer = bytearray(data)
         self._flash_filler = self._FILLER if filler is None else (filler & self._FILLER)
+
+    @contextmanager
+    def flash_algorithm_loader(self, loader: Optional[Callable]) -> Iterator[None]:
+        """@brief Temporarily set the handler for FlashLoadAlgorithm() calls."""
+        previous_loader = self._flash_algorithm_loader
+        self._flash_algorithm_loader = loader
+        try:
+            yield
+        finally:
+            self._flash_algorithm_loader = previous_loader
 
     def _get_sequence_scope(self):
         """@brief Return the scope associated with the currently running sequence."""
@@ -935,5 +947,19 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
                 return 1
             sleep(0.05)
         return 0
+
+    def flashloadalgorithm(self, algo: str, ram_start: int, ram_size: int) -> int:
+        """@brief Register a flash algorithm selected by a debug sequence.
+
+        The algorithm is not loaded into target RAM here. Instead, this call is forwarded to the
+        active flash programming implementation so it can switch to standard algorithm programming.
+        """
+        if self._flash_algorithm_loader is None:
+            LOG.debug("FlashLoadAlgorithm() failed: no flash algorithm loader is active")
+            return 1
+
+        algo_path = self._expand_path(algo).resolve()
+
+        return self._flash_algorithm_loader(algo_path, ram_start, ram_size)
 
 # pylint: enable=invalid_name
