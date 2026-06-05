@@ -644,12 +644,12 @@ class FlashBuilder(MemoryBuilder):
             total_time = self.perf.erase_time + self.perf.program_time
             kbps = (self.program_byte_count / 1024) / total_time if total_time > 0 else 0
             if self.last_erase_was_chip:
-                LOG.info("Erased chip, programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
+                LOG.info("Erased chip, programmed %d bytes (%s), identical %d bytes (%s) at %.02f kB/s",
                     actual_program_byte_count, get_page_count(actual_program_page_count),
                     skipped_byte_count, get_page_count(skipped_page_count),
                     kbps)
             else:
-                LOG.info("Erased %d bytes (%s), programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
+                LOG.info("Erased %d bytes (%s), programmed %d bytes (%s), identical %d bytes (%s) at %.02f kB/s",
                     erase_byte_count, get_sector_count(erase_sector_count),
                     actual_program_byte_count, get_page_count(actual_program_page_count),
                     skipped_byte_count, get_page_count(skipped_page_count),
