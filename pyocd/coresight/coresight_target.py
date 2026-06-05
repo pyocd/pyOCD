@@ -23,6 +23,7 @@ from ..core.target import Target
 from ..core.memory_map import (FlashRegion, MemoryType, RamRegion, DeviceRegion, MemoryMap)
 from ..core.soc_target import SoCTarget
 from ..core import exceptions
+from ..flash.flash import Flash
 from . import (dap, discovery)
 from ..debug.svd.loader import SVDLoader
 from ..utility.sequencer import CallSequence
@@ -301,6 +302,23 @@ class CoreSightTarget(SoCTarget):
 
             # Set the region in the flash instance.
             obj.region = region
+
+            if not getattr(obj, 'has_required_sequences', True):
+                fallback_flm = region.attributes.get('_fallback_flm')
+                fallback_msg = " Falling back to FLM." if fallback_flm is not None else ""
+                LOG.warning("Flash programming debug sequences are not available for region '%s' (address %#010x);"
+                            " check DFP debug description.%s", region.name, region.start, fallback_msg)
+
+                # Fall back to FLM if required flash programming sequences are not available.
+                if fallback_flm is not None:
+                    for subregion in list(region.submap.regions):
+                        region.submap.remove_region(subregion)
+                    region.flash_class = Flash
+                    region.flm = fallback_flm  # Also clears region.algo.
+                    if not flm_builder.finalise_region(region):
+                        continue
+                    obj = region.flash_class(self, region.algo)
+                    obj.region = region
 
             # Store the flash object back into the memory region.
             region.flash = obj

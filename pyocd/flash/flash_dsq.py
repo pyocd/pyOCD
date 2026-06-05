@@ -49,6 +49,9 @@ class FlashDebugSequence(Flash):
     _SEQ_PROGRAM_PAGE = "FlashProgramPage"
     _SEQ_CODE_MEM_REMAP = "DebugCodeMemRemap"
 
+    ## Sequences required for basic flash programming operations.
+    _REQUIRED_SEQUENCES = (_SEQ_ERASE_SECTOR, _SEQ_PROGRAM_PAGE)
+
     def __init__(self, target) -> None:
         super().__init__(target, flash_algo=None)
         self._delegate: Optional[DebugSequenceDelegate] = target.debug_sequence_delegate
@@ -67,6 +70,11 @@ class FlashDebugSequence(Flash):
     @property
     def is_erase_all_supported(self) -> bool:
         return self._has_sequence(self._SEQ_ERASE_CHIP)
+
+    @property
+    def has_required_sequences(self) -> bool:
+        return all(self._has_sequence(name) for name in self._REQUIRED_SEQUENCES)
+
 
     def init(self, operation, address: Optional[int] = None, clock: int = 0, reset: bool = False) -> None:
         # clock and reset arguments are ignored in this implementation
