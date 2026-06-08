@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2022-2023 Chris Reed
 # Copyright (c) 2025 Arm Limited
+# Copyright (c) 2026 Evgeny Korolev
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -126,6 +127,17 @@ class FlmFlashRegionBuilder:
                     # No size specified, and the RAMstart attribute is outside of a known region,
                     # so just use a mid-range arbitrary size.
                     ram_size = 16 * 1024
+
+            # Clamp the algo RAM to the containing RAM region, in case a DFP declares an
+            # <algorithm> RAMsize larger than the device's actual RAM.
+            containing_ram = self._memory_map.get_region_for_address(ram_start)
+            if (containing_ram is not None) and (containing_ram.type is MemoryType.RAM):
+                available = containing_ram.length - (ram_start - containing_ram.start)
+                if ram_size > available:
+                    LOG.warning("Flash algo for region '%s' requests %#x bytes of RAM at %#010x, "
+                                "but containing region '%s' only provides %#x; clamping to fit.",
+                                region.name, ram_size, ram_start, containing_ram.name, available)
+                    ram_size = available
 
             ram_for_algo = RamRegion(start=ram_start, length=ram_size)
         else:

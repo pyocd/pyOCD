@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2019-2020 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
+# Copyright (c) 2026 Evgeny Korolev
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -353,6 +354,20 @@ class TestFlmRegionBuilder:
         assert flash.algo
         instr_len = len(flash.algo['instructions']) * 4
         assert flash.algo['load_address'] == (0x30014000 - instr_len)
+        assert not flash.has_subregions
+        assert flash.algo
+
+    def test_ram_select_explicit_clamped_to_region(self, builder: FlmFlashRegionBuilder, nrf5340appflm):
+        # _RAMsize (0x18000) exceeds the containing RAM region (0x20000000, length 0x10000), as
+        # happens with e.g. SiliconLabs' GeckoPlatform_EFR32MG21_DFP. The algo RAM must be clamped
+        # to the region so the loader (laid out from the top down) isn't placed past physical RAM.
+        flash = memory_map.FlashRegion(0, length=0x200000, flm=nrf5340appflm,
+                                        _RAMstart=0x20000000, _RAMsize=0x18000)
+        assert builder.finalise_region(flash)
+        assert flash.algo
+        instr_len = len(flash.algo['instructions']) * 4
+        # Clamped to the region end (0x20010000), not the oversized 0x20018000.
+        assert flash.algo['load_address'] == (0x20010000 - instr_len)
         assert not flash.has_subregions
         assert flash.algo
 
