@@ -623,18 +623,21 @@ class Session(Notifier):
         assert (self._probe is not None) and (self._board is not None)
 
         LOG.debug("uninit session %s", self)
+        suppress_error = getattr(self.context_state, 'suppress_disconnect_error', False)
+        log = LOG.debug if suppress_error else LOG.error
         if self._inited:
             try:
                 self._board.uninit()
-                self._inited = False
             except exceptions.Error:
-                LOG.error("Error during board uninit:", exc_info=self.log_tracebacks)
+                log("Error during board uninit:", exc_info=self.log_tracebacks)
+            finally:
+                self._inited = False
 
         if self._probe.is_open and (self._probe.wire_protocol is not None):
             try:
                 self._probe.disconnect()
             except exceptions.Error:
-                LOG.error("Probe error during disconnect:", exc_info=self.log_tracebacks)
+                log("Probe error during disconnect:", exc_info=self.log_tracebacks)
 
     def close(self) -> None:
         """@brief Close the session.
@@ -651,7 +654,9 @@ class Session(Notifier):
             try:
                 self._probe.close()
             except exceptions.Error:
-                LOG.error("Probe error during close:", exc_info=self.log_tracebacks)
+                suppress_error = getattr(self.context_state, 'suppress_disconnect_error', False)
+                log = LOG.debug if suppress_error else LOG.error
+                log("Probe error during close:", exc_info=self.log_tracebacks)
 
 class UserScriptFunctionProxy:
     """@brief Proxy for user script functions.
