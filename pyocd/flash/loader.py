@@ -351,7 +351,7 @@ class MemoryLoader:
             kbps = (program_byte_count/1024) / totalTime
 
         if any(perf.program_type == FlashBuilder.FLASH_CHIP_ERASE for perf in perf_list):
-            LOG.info("Erased chip, programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
+            LOG.info("Erased chip, programmed %d bytes (%s), identical %d bytes (%s) at %.02f kB/s",
                 actual_program_byte_count, get_page_count(actual_program_page_count),
                 skipped_byte_count, get_page_count(skipped_page_count),
                 kbps)
@@ -359,7 +359,7 @@ class MemoryLoader:
             erase_byte_count = sum(perf.erase_byte_count for perf in perf_list)
             erase_sector_count = sum(perf.erase_sector_count for perf in perf_list)
 
-            LOG.info("Erased %d bytes (%s), programmed %d bytes (%s), skipped %d bytes (%s) at %.02f kB/s",
+            LOG.info("Erased %d bytes (%s), programmed %d bytes (%s), identical %d bytes (%s) at %.02f kB/s",
                 erase_byte_count, get_sector_count(erase_sector_count),
                 actual_program_byte_count, get_page_count(actual_program_page_count),
                 skipped_byte_count, get_page_count(skipped_page_count),
