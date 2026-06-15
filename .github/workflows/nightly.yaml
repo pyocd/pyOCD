@@ -74,4 +74,4 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}-${{ env.PYOCD_VERSION }}
           path: dist/pyocd/*
-          retention-days: 1
+          retention-days: 2
