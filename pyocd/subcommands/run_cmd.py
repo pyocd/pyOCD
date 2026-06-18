@@ -17,6 +17,7 @@
 import argparse
 from typing import List, Optional
 import logging
+import sys
 import threading
 from time import sleep, time
 
@@ -121,6 +122,8 @@ class RunSubcommand(SubcommandBase):
                 self._systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list, systemview_config=systemview_config)
             else:
                 self._systemview = None
+
+            swv_reader = None
             try:
                 # Start up the run servers
                 for core_number, core in session.board.target.cores.items():
@@ -135,6 +138,16 @@ class RunSubcommand(SubcommandBase):
                                            enable_eot=self._args.eot,
                                            shutdown_event=self.shared_shutdown)
                     self._run_servers.append(run_server)
+
+                # Initialize SWVReader
+                if session.options.get("enable_swv"):
+                    if "swv_system_clock" not in session.options:
+                        LOG.warning("SWV not enabled; swv_system_clock option missing")
+                    else:
+                        sys_clock = int(session.options.get("swv_system_clock"))
+                        swo_clock = int(session.options.get("swv_clock"))
+                        swv_reader = SWVReader(session)
+                        swv_reader.init(sys_clock, swo_clock, sys.stdout)
 
                 # Reset the target and start RunServers
                 session.target.reset()
@@ -163,6 +176,9 @@ class RunSubcommand(SubcommandBase):
                 LOG.exception("Unhandled exception in 'run' subcommand")
                 self.shutdown()
                 return 1
+            finally:
+                if swv_reader:
+                    swv_reader.stop()
 
             if timelimit_triggered:
                 return 0
@@ -229,21 +245,6 @@ class RunServer(threading.Thread):
                 rtt_manager.configure_channels(stdio_handler=self._stdio_handler)
         except RuntimeError as e:
             LOG.debug("RTT configuration failed for core %d: %s", self.core, e)
-
-        #
-        # If SWV is enabled, create a SWVReader thread. Note that we only do
-        # this if the core is 0: SWV is not a per-core construct, and can't
-        # be meaningfully read by multiple threads concurrently.
-        #
-        self._swv_reader = None
-        if self._stdio_handler and session.options.get("enable_swv") and self.core == 0:
-            if "swv_system_clock" not in session.options:
-                LOG.warning("SWV not enabled; swv_system_clock option missing")
-            else:
-                sys_clock = int(session.options.get("swv_system_clock"))
-                swo_clock = int(session.options.get("swv_clock"))
-                self._swv_reader = SWVReader(session, self.core)
-                self._swv_reader.init(sys_clock, swo_clock, self._stdio_handler)
 
     def run(self):
         stdio_info = self._stdio_handler.info
@@ -330,12 +331,6 @@ class RunServer(threading.Thread):
             LOG.error("Timeout re-establishing target core %d control; exiting Run server for core %d", self.core, self.core)
 
         # Cleanup resources for this RunServer.
-        try:
-            if self._swv_reader is not None:
-                self._swv_reader.stop()
-        except Exception as e:
-            LOG.debug("Error stopping SWV reader for core %d: %s", self.core, e)
-
         try:
             if self._rtt_server is not None:
                 self._rtt_server.stop()

@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
-# Copyright (c) 2025 Arm Limited
+# Copyright (c) 2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,6 +31,7 @@ from ..utility.cmdline import (
     )
 from ..probe.shared_probe_proxy import SharedDebugProbeProxy
 from ..gdbserver import GDBServer
+from ..trace.swv import SWVReader
 from ..probe.tcp_probe_server import DebugProbeServer
 from ..coresight.generic_mem_ap import GenericMemAPTarget
 from ..utility.notification import Notification
@@ -136,6 +137,7 @@ class GdbserverSubcommand(SubcommandBase):
         self._process_commands(self._args.commands)
 
         probe_server = None
+        swv_reader = None
         gdbs = []
         try:
             # Build dict of session options.
@@ -219,6 +221,16 @@ class GdbserverSubcommand(SubcommandBase):
                     session.probeserver = probe_server
                     probe_server.start()
 
+                # Initialize SWV reader before any GDB activity.
+                if session.options.get("enable_swv"):
+                    if "swv_system_clock" not in session.options:
+                        LOG.warning("SWV not enabled; swv_system_clock option missing")
+                    else:
+                        sys_clock = int(session.options.get("swv_system_clock"))
+                        swo_clock = int(session.options.get("swv_clock"))
+                        swv_reader = SWVReader(session)
+                        swv_reader.init(sys_clock, swo_clock, sys.stdout)
+
                 # Reset and run the target
                 if self._args.reset_run:
                     session.board.target.reset()
@@ -244,9 +256,13 @@ class GdbserverSubcommand(SubcommandBase):
                     sleep(0.1)
                 if probe_server:
                     probe_server.stop()
+                if swv_reader:
+                    swv_reader.stop()
         except (KeyboardInterrupt, Exception):
             for server in gdbs:
                 server.stop()
+            if swv_reader:
+                swv_reader.stop()
             if probe_server:
                 probe_server.stop()
             raise
