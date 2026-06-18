@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019,2026 Arm Limited
 # COpyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -275,6 +275,24 @@ class TargetDelegateInterface:
         """
         pass
 
+    def trace_capture(self, target: "SoCTarget", mode: int) -> None:
+        """@brief Hook to capture trace data.
+        @param self
+        @param target A CoreSightTarget object.
+        @param mode The trace mode. Currently always 0 to indicate SWO.
+        @return Ignored.
+        """
+        pass
+
+    def trace_flush(self, target: "SoCTarget", mode: int) -> None:
+        """@brief Hook to flush trace data.
+        @param self
+        @param target A CoreSightTarget object.
+        @param mode The trace mode. Currently always 0 to indicate SWO.
+        @return Ignored.
+        """
+        pass
+
     def add_target_command_groups(self, target: "SoCTarget", command_set: "CommandSet"):
         """@brief Hook for adding target-specific commands to a command set.
         @param self
@@ -282,4 +300,3 @@ class TargetDelegateInterface:
         @param command_set The `CommandSet` object to which commands may be added.
         """
         pass
-
