@@ -726,6 +726,13 @@ Enable flag for the raw SWV stream server.
 TCP port number for the raw SWV stream server.
 </td></tr>
 
+<tr><td>swv_raw_file</td>
+<td>str</td>
+<td>No default</td>
+<td>
+File path for the raw SWV stream output.
+</td></tr>
+
 <tr><td>telnet_port</td>
 <td>int</td>
 <td>4444</td>
