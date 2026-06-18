@@ -39,7 +39,7 @@ from ...probe.debug_probe import DebugProbe
 from ...debug.svd.loader import SVDFile
 from ...utility.cmdline import convert_reset_type
 from ...debug.sequences.scope import Scope
-from ...debug.sequences.delegates import DebugSequenceDelegate
+from ...debug.sequences.delegates import DebugSequenceDelegate, TraceSetup
 from ...debug.sequences.functions import DebugSequenceCommonFunctions
 from ...debug.sequences.sequences import (Block, DebugSequence, DebugSequenceExecutionContext)
 from ...debug.sequences.default_sequences import (DefaultDebugSequences, _YAMLSequenceParser)
@@ -452,6 +452,18 @@ class CbuildRun:
             self._vars = self._data.get('debug-vars', {})
             LOG.debug("Read debug variables")
         return self._vars
+
+    @property
+    def trace_setup(self) -> TraceSetup:
+        """@brief Debug sequence configuration."""
+        conf = self._data.get('debug-sequences-conf') or {}
+        value = conf.get('traceSetup', TraceSetup.LEGACY.value)
+        try:
+            return TraceSetup(value)
+        except ValueError:
+            LOG.warning("Invalid traceSetup value '%s' in debug-sequences-conf; using '%s'",
+                    value, TraceSetup.LEGACY.value)
+            return TraceSetup.LEGACY
 
     @property
     def valid_dps(self) -> List[int]:
@@ -1229,6 +1241,11 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
             for pname_dict in self._specific_map_by_pname.values():
                 self._all_sequences.update(pname_dict.values())
         return self._all_sequences
+
+    @property
+    def trace_setup(self) -> TraceSetup:
+        """@brief Returns the trace setup mode from cbuild-run configuration."""
+        return self._device.trace_setup
 
     @property
     def cmsis_pack_device(self) -> CbuildRun:

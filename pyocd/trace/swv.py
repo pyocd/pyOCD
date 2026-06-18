@@ -30,6 +30,7 @@ from ..coresight.tpiu import TPIU
 from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
 from ..utility.server import StreamServer
+from ..debug.sequences.delegates import TraceSetup
 
 if TYPE_CHECKING:
     from ..core.session import Session
@@ -100,9 +101,17 @@ class SWVReader(threading.Thread):
         assert target
         self._target = target
         self._core = target.cores[core_number]
+        if target.debug_sequence_delegate is not None:
+            self._trace_setup = target.debug_sequence_delegate.trace_setup
+        else:
+            self._trace_setup = TraceSetup.LEGACY
 
     def _init_components(self, sys_clock: int, swo_clock: int) -> bool:
         """@brief Configure the target's standard SWV trace components."""
+        if self._trace_setup == TraceSetup.FULL:
+            # The target's debug sequence delegate is responsible for configuring the trace components
+            return True
+
         itm = self._target.get_first_child_of_type(ITM)
         if not itm:
             LOG.warning("SWV not initalized: Target does not have ITM component")
@@ -180,10 +189,11 @@ class SWVReader(threading.Thread):
         self._shutdown_event.set()
         self.join()
 
-        # init() should never have started the SWV thread unless the target has ITM and TPIU.
-        itm = self._target.get_first_child_of_type(ITM)
-        assert itm
-        itm.disable()
+        if self._trace_setup == TraceSetup.LEGACY:
+            # init() should never have started the SWV thread unless the target has ITM and TPIU.
+            itm = self._target.get_first_child_of_type(ITM)
+            assert itm
+            itm.disable()
 
     def run(self) -> None:
         """@brief SWV reader thread routine.

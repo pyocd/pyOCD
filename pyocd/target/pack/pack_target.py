@@ -30,7 +30,7 @@ from ...core.target import Target
 from ...coresight.ap import APv1Address
 from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.cortex_m import CortexM
-from ...debug.sequences.delegates import DebugSequenceDelegate
+from ...debug.sequences.delegates import DebugSequenceDelegate, TraceSetup
 from ...debug.sequences.functions import DebugSequenceCommonFunctions
 from ...debug.sequences.sequences import (Block, DebugSequence, DebugSequenceExecutionContext)
 from ...debug.sequences.default_sequences import DefaultDebugSequences
@@ -174,6 +174,11 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
             for pname_dict in self._specific_map_by_pname.values():
                 self._all_sequences.update(pname_dict.values())
         return self._all_sequences
+
+    @property
+    def trace_setup(self) -> TraceSetup:
+        """@brief Returns the trace setup mode from pack device."""
+        return self._pack_device.trace_setup
 
     @property
     def cmsis_pack_device(self) -> CmsisPackDevice:

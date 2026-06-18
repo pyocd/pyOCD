@@ -26,6 +26,7 @@ from ..core import exceptions
 from ..flash.flash import Flash
 from . import (dap, discovery)
 from ..debug.svd.loader import SVDLoader
+from ..debug.sequences.delegates import TraceSetup
 from ..utility.sequencer import CallSequence
 from ..target.pack.flm_region_builder import FlmFlashRegionBuilder
 
@@ -394,7 +395,15 @@ class CoreSightTarget(SoCTarget):
         return result
 
     def trace_capture(self) -> None:
-        pass
+        result = self.call_delegate('trace_capture', target=self, mode=0)
+        if not result and self.has_debug_sequence('TraceCapture', pname=self.selected_core_or_raise.node_name):
+            assert self.debug_sequence_delegate
+            if self.debug_sequence_delegate.trace_setup == TraceSetup.FULL:
+                self.debug_sequence_delegate.run_sequence('TraceCapture', pname=self.selected_core_or_raise.node_name)
 
     def trace_flush(self) -> None:
-        pass
+        result = self.call_delegate('trace_flush', target=self, mode=0)
+        if not result and self.has_debug_sequence('TraceFlush', pname=self.selected_core_or_raise.node_name):
+            assert self.debug_sequence_delegate
+            if self.debug_sequence_delegate.trace_setup == TraceSetup.FULL:
+                self.debug_sequence_delegate.run_sequence('TraceFlush', pname=self.selected_core_or_raise.node_name)
