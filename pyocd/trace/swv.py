@@ -41,10 +41,11 @@ LOG = logging.getLogger(__name__)
 class SWVEventSink(TraceEventSink):
     """@brief Trace event sink that converts ITM packets to a text stream."""
 
-    def __init__(self, console: TextIO) -> None:
+    def __init__(self, console: Optional[TextIO]) -> None:
         """@brief Constructor.
         @param self
-        @param console File-like object to which SWV data will be written.
+        @param console File-like object to which SWV data will be written. If None, decoded
+            text output is suppressed (raw data still flows to swv_raw_file/swv_raw_port).
         """
         self._console = console
 
@@ -55,6 +56,9 @@ class SWVEventSink(TraceEventSink):
             for ITM port 0, then it will be ignored. The individual bytes of 16- or 32-bit events
             will be extracted and written to the console.
         """
+        if self._console is None:
+            return
+
         if not isinstance(event, TraceITMEvent):
             return
 
@@ -98,7 +102,7 @@ class SWVReader(threading.Thread):
 
         self._session.subscribe(self._reset_handler, Target.Event.POST_RESET, self._core)
 
-    def init(self, sys_clock: int, swo_clock: int, console: TextIO) -> bool:
+    def init(self, sys_clock: int, swo_clock: int, console: Optional[TextIO]) -> bool:
         """@brief Configures trace graph and starts thread.
 
         This method performs all steps required to start up SWV. It first calls the target's
@@ -112,7 +116,8 @@ class SWVReader(threading.Thread):
         @param self
         @param sys_clock System clock frequency in Hertz, from which the SWO clock is derived.
         @param swo_clock Desired SWO output frequency in Hertz.
-        @param console File-like object to which SWV data will be written.
+        @param console File-like object to which SWV data will be written. If None, decoded
+            text output is suppressed.
 
         @return Boolean indicating whether the SWV reader was successfully started.
         """
