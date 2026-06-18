@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import logging
-from typing import (Callable, Dict, List, Optional, overload, Sequence, Union, TYPE_CHECKING)
+from enum import Enum, auto
+from threading import Lock
+from typing import (Callable, Dict, List, Optional, overload, Sequence, Set, Union, TYPE_CHECKING)
 from typing_extensions import Literal
 
 from .target import (Target, TargetGraphNode)
@@ -39,6 +41,39 @@ if TYPE_CHECKING:
     from ..commands.execution_context import CommandSet
 
 LOG = logging.getLogger(__name__)
+
+class CoreRunStateChange(Enum):
+    """@brief Result from updating a core's run state."""
+    NONE = auto()
+    FIRST_CORE_STARTED = auto()
+    LAST_CORE_STOPPED = auto()
+
+
+class CoreRunStateTracker:
+    """@brief Tracks aggregate run state for the cores in an SoC target."""
+
+    def __init__(self, target: "SoCTarget") -> None:
+        self._target = target
+        self._lock = Lock()
+        self._running_cores: Set[int] = set()
+
+    def set_core_running(self, core_number: int, is_running: bool) -> CoreRunStateChange:
+        with self._lock:
+            if core_number not in self._target.cores:
+                raise ValueError("invalid core number %d" % core_number)
+
+            was_running = core_number in self._running_cores
+            if is_running == was_running:
+                return CoreRunStateChange.NONE
+
+            if is_running:
+                first_core_started = not self._running_cores
+                self._running_cores.add(core_number)
+                return CoreRunStateChange.FIRST_CORE_STARTED if first_core_started else CoreRunStateChange.NONE
+
+            self._running_cores.remove(core_number)
+            return CoreRunStateChange.LAST_CORE_STOPPED if not self._running_cores else CoreRunStateChange.NONE
+
 
 class SoCTarget(TargetGraphNode):
     """@brief Represents a microcontroller system-on-chip.
@@ -68,6 +103,7 @@ class SoCTarget(TargetGraphNode):
         self.part_number: str = getattr(self, 'PART_NUMBER', self.__class__.__name__)
         self._cores: Dict[int, CoreTarget] = {}
         self._selected_core: int = -1
+        self._core_run_state = CoreRunStateTracker(self)
         self._new_core_num = 0
         self._elf = None
 
@@ -77,6 +113,10 @@ class SoCTarget(TargetGraphNode):
     @property
     def cores(self) -> Dict[int, CoreTarget]:
         return self._cores
+
+    @property
+    def core_run_state(self) -> CoreRunStateTracker:
+        return self._core_run_state
 
     @property
     def selected_core(self) -> Optional[CoreTarget]:
