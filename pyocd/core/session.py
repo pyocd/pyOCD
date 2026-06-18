@@ -306,6 +306,16 @@ class Session(Notifier):
         debugger_options['systemview_auto_start'] = self.cbuild_run.systemview_auto_start
         debugger_options['systemview_auto_stop'] = self.cbuild_run.systemview_auto_stop
 
+        if self.cbuild_run.trace_mode and self.cbuild_run.trace_input_clock is not None:
+            debugger_options['enable_swv'] = True
+            debugger_options['swv_system_clock'] = self.cbuild_run.trace_input_clock
+            debugger_options['swv_clock'] = self.cbuild_run.trace_output_clock
+            debugger_options['swv_raw_enable'] = True
+            if self.cbuild_run.trace_file is not None:
+                debugger_options['swv_raw_file'] = self.cbuild_run.trace_file
+            elif self.cbuild_run.trace_port is not None:
+                debugger_options['swv_raw_port'] = self.cbuild_run.trace_port
+
         # Set reset types for load operations.
         debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset
         debugger_options['load.post_reset'] = self.cbuild_run.post_reset
