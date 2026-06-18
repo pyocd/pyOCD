@@ -30,7 +30,6 @@ from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.compatibility import (to_bytes_safe, to_str_safe)
 from ..utility.timeout import Timeout
-from ..trace.swv import SWVReader
 from ..utility.rtt_server import RTTServer
 from ..utility.sockets import ConnectedSocket, ListenerSocket
 from ..utility.stdio import StdioHandler
@@ -373,29 +372,12 @@ class GDBServer(threading.Thread):
 
         # Use stdio handler for semihost console.
         self.stdio_handler = StdioHandler(session=session, core=self.core, eot_enabled=False)
-        console_file = self.stdio_handler
         semihost_console = semihost.ConsoleIOHandler(self.stdio_handler)
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
         self._semihosting_client = None
 
         # Start with RTT disabled
         self.rtt_server: Optional[RTTServer] = None
-
-        #
-        # If SWV is enabled, create a SWVReader thread. Note that we only do
-        # this if the core is 0: SWV is not a per-core construct, and can't
-        # be meaningfully read by multiple threads concurrently.
-        #
-        self._swv_reader = None
-
-        if session.options.get("enable_swv") and core == 0:
-            if "swv_system_clock" not in session.options:
-                LOG.warning("SWV not enabled; swv_system_clock option missing")
-            else:
-                sys_clock = int(session.options.get("swv_system_clock"))
-                swo_clock = int(session.options.get("swv_clock"))
-                self._swv_reader = SWVReader(session, self.core)
-                self._swv_reader.init(sys_clock, swo_clock, console_file)
 
         self._init_remote_commands()
 
@@ -493,9 +475,6 @@ class GDBServer(threading.Thread):
         if self.stdio_handler:
             self.stdio_handler.shutdown()
             self.stdio_handler = None
-        if self._swv_reader:
-            self._swv_reader.stop()
-            self._swv_reader = None
         if self.rtt_server:
             self.rtt_server.stop()
             self.rtt_server = None
