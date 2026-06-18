@@ -17,9 +17,10 @@
 # limitations under the License.
 
 import logging
+from pathlib import Path
 import threading
 from time import sleep
-from typing import (Optional, TextIO, TYPE_CHECKING)
+from typing import (Optional, BinaryIO, TextIO, TYPE_CHECKING)
 
 from .sink import TraceEventSink
 from .events import (TraceEvent, TraceITMEvent)
@@ -181,12 +182,23 @@ class SWVReader(threading.Thread):
         """
         assert self._session.probe
 
-        swv_raw_server = StreamServer(
-                            self._session.options.get('swv_raw_port'),
-                            serve_local_only=self._session.options.get('serve_local_only'),
-                            name="SWV raw",
-                            is_read_only=True) \
-                         if self._session.options.get('swv_raw_enable') else None
+        swv_raw_server = None
+        swv_raw_file: Optional[BinaryIO] = None
+        if self._session.options.get('swv_raw_enable'):
+            raw_file_name = self._session.options.get('swv_raw_file')
+            if raw_file_name:
+                # swv_raw_file takes precedence over swv_raw_port.
+                raw_file_path = Path(raw_file_name).expanduser()
+                try:
+                    swv_raw_file = raw_file_path.open('wb')
+                except OSError as err:
+                    LOG.warning("Failed to open SWV raw output file '%s': %s", raw_file_path, err)
+            else:
+                swv_raw_server = StreamServer(
+                                    self._session.options.get('swv_raw_port'),
+                                    serve_local_only=self._session.options.get('serve_local_only'),
+                                    name="SWV raw",
+                                    is_read_only=True)
 
         # Stop SWO first in case the probe already had it started. Ignore if this fails.
         try:
@@ -198,13 +210,19 @@ class SWVReader(threading.Thread):
         while not self._shutdown_event.is_set():
             data = self._session.probe.swo_read()
             if data:
-                if swv_raw_server:
+                if swv_raw_file:
+                    swv_raw_file.write(data)
+                elif swv_raw_server:
                     swv_raw_server.write(data)
                 self._parser.parse(data)
 
             sleep(0.001)
 
         self._session.probe.swo_stop()
+
+        if swv_raw_file:
+            swv_raw_file.flush()
+            swv_raw_file.close()
 
         if swv_raw_server:
             swv_raw_server.stop()

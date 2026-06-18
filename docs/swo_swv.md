@@ -79,4 +79,4 @@ Several session options are used to control and configure SWV:
 - `swv_system_clock` - Required system clock frequency. Used to compute TPIU baud rate divider.
 - `swv_raw_enable` - Enable flag for the raw SWV stream server.
 - `swv_raw_port` - TCP port number for the raw SWV stream server. The default port is 3443, which is the default port for the Orbuculum client.
-
+- `swv_raw_file` - File path for the raw SWV stream output.
