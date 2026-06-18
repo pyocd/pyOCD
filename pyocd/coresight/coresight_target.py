@@ -375,7 +375,7 @@ class CoreSightTarget(SoCTarget):
             return None
         return sorted(self.aps.values(), key=lambda v: v.address)[0]
 
-    def trace_start(self):
+    def trace_start(self) -> None:
         result = self.call_delegate('trace_start', target=self, mode=0)
         if not result and self.has_debug_sequence('TraceStart', pname=self.selected_core_or_raise.node_name):
             assert self.debug_sequence_delegate
@@ -384,7 +384,7 @@ class CoreSightTarget(SoCTarget):
             result = True
         return result
 
-    def trace_stop(self):
+    def trace_stop(self) -> None:
         result = self.call_delegate('trace_stop', target=self, mode=0)
         if not result and self.has_debug_sequence('TraceStop', pname=self.selected_core_or_raise.node_name):
             assert self.debug_sequence_delegate
@@ -392,3 +392,9 @@ class CoreSightTarget(SoCTarget):
                     pname=self.selected_core_or_raise.node_name)
             result = True
         return result
+
+    def trace_capture(self) -> None:
+        pass
+
+    def trace_flush(self) -> None:
+        pass
