@@ -154,6 +154,8 @@ Sequence name           | Delegate function   | Description
 `FlashProgramPage`      | -                   | Executed to program a single flash page.
 `FlashProgramDone`      | -                   | Executed after all flash programming operations are finished.
 `TraceStart`            | `trace_start`       | Enable target trace capture.
+`TraceCapture`          | `trace_capture`     | Capture trace data.
+`TraceFlush`            | `trace_flush`       | Flush trace data.
 `TraceStop`             | `trace_stop`        | Disable target trace capture.
 
 Standard debug sequences not currently supported:

@@ -165,4 +165,21 @@ def trace_stop(target, mode):
     """
     pass
 
+def trace_capture(target, mode):
+    """@brief Hook to capture trace data.
+    @param self
+    @param target A CoreSightTarget object.
+    @param mode The trace mode. Currently always 0 to indicate SWO.
+    @return Ignored.
+    """
+    pass
+
+def trace_flush(target, mode):
+    """@brief Hook to flush trace data.
+    @param self
+    @param target A CoreSightTarget object.
+    @param mode The trace mode. Currently always 0 to indicate SWO.
+    @return Ignored.
+    """
+    pass
 

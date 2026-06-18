@@ -776,6 +776,8 @@ class DebugSequencesValue(ValueBase):
         "FlashProgramPage",
         "FlashProgramDone",
         "TraceStart",
+        "TraceCapture",
+        "TraceFlush",
         "TraceStop",
     ]
 
