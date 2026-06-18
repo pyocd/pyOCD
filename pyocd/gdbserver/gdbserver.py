@@ -357,7 +357,7 @@ class GDBServer(threading.Thread):
         # Read back bound port in case auto-assigned (port 0)
         self.port = self.listen_socket.port
 
-        # Coarse grain lock to synchronize SWO with other activity
+        # Coarse grain lock to synchronize activity
         self.lock = threading.RLock()
 
         self.session.subscribe(self.event_handler, Target.Event.POST_RESET)
@@ -392,7 +392,7 @@ class GDBServer(threading.Thread):
             else:
                 sys_clock = int(session.options.get("swv_system_clock"))
                 swo_clock = int(session.options.get("swv_clock"))
-                self._swv_reader = SWVReader(session, self.core, self.lock)
+                self._swv_reader = SWVReader(session, self.core)
                 self._swv_reader.init(sys_clock, swo_clock, console_file)
 
         self._init_remote_commands()

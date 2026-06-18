@@ -213,9 +213,6 @@ class RunServer(threading.Thread):
         else:
             self._enable_semihosting = True
 
-        # Lock to synchronize SWO with other activity
-        self._lock = threading.RLock()
-
         # Use internal IO handler.
         semihost_io_handler = semihost.InternalSemihostIOHandler()
 
@@ -245,7 +242,7 @@ class RunServer(threading.Thread):
             else:
                 sys_clock = int(session.options.get("swv_system_clock"))
                 swo_clock = int(session.options.get("swv_clock"))
-                self._swv_reader = SWVReader(session, self.core, self._lock)
+                self._swv_reader = SWVReader(session, self.core)
                 self._swv_reader.init(sys_clock, swo_clock, self._stdio_handler)
 
     def run(self):
@@ -280,8 +277,6 @@ class RunServer(threading.Thread):
                     LOG.debug("Error while waiting for EOT (0x04): %s", e)
 
             state_check_interval_counter += 1
-
-            self._lock.acquire()
 
             try:
                 if self._rtt_server:
@@ -328,7 +323,6 @@ class RunServer(threading.Thread):
                 LOG.error("Error while target core %d running: %s; exiting Run server for core %d", self.core, e, self.core, exc_info=self._session.log_tracebacks)
                 break
             finally:
-                self._lock.release()
                 sleep(0.001)
 
         # Check if we exited the above loop due to a timeout after a fault.
