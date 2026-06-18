@@ -57,6 +57,9 @@ class SWVEventSink(TraceEventSink):
         if not isinstance(event, TraceITMEvent):
             return
 
+        if event.port != 0:
+            return
+
         # Extract bytes.
         if event.width == 1:
             data = chr(event.data)
@@ -214,4 +217,3 @@ class SWVReader(threading.Thread):
         """
         if self.is_alive():
             self._target.trace_start()
-
