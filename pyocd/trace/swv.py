@@ -27,7 +27,6 @@ from .events import (TraceEvent, TraceITMEvent)
 from .swo import SWOParser
 from ..coresight.itm import ITM
 from ..coresight.tpiu import TPIU
-from ..core.target import Target
 from ..core import exceptions
 from ..probe.debug_probe import DebugProbe
 from ..utility.server import StreamServer
@@ -93,22 +92,43 @@ class SWVReader(threading.Thread):
         self._session = session
         self._core_number = core_number
         self._shutdown_event = threading.Event()
+        self._sys_clock = 0
         self._swo_clock = 0
+        self._is_subscribed = False
 
         target = self._session.target
         assert target
         self._target = target
         self._core = target.cores[core_number]
 
-        self._session.subscribe(self._reset_handler, Target.Event.POST_RESET, self._core)
+    def _init_components(self, sys_clock: int, swo_clock: int) -> bool:
+        """@brief Configure the target's standard SWV trace components."""
+        itm = self._target.get_first_child_of_type(ITM)
+        if not itm:
+            LOG.warning("SWV not initalized: Target does not have ITM component")
+            return False
+        tpiu = self._target.get_first_child_of_type(TPIU, 'has_swo_uart')
+        if not tpiu:
+            LOG.warning("SWV not initalized: Target does not have TPIU component with SWO UART mode")
+            return False
+
+        itm.init()
+        itm.enable()
+        tpiu.init()
+
+        if tpiu.set_swo_clock(swo_clock, sys_clock):
+            LOG.info("Set SWO clock to %d", swo_clock)
+            return True
+        else:
+            LOG.warning("SWV not initalized: Failed to set SWO clock rate")
+            return False
 
     def init(self, sys_clock: int, swo_clock: int, console: Optional[TextIO]) -> bool:
         """@brief Configures trace graph and starts thread.
 
-        This method performs all steps required to start up SWV. It first calls the target's
-        trace_start() method, which allows for target-specific trace initialization. Then it
-        configures the TPIU and ITM modules. A simple trace data processing graph is created that
-        connects an SWVEventSink with a SWOParser. Finally, the reader thread is started.
+        This method performs all steps required to start up SWV. It first configures the TPIU and
+        ITM modules. A simple trace data processing graph is created that connects an SWVEventSink
+        with a SWOParser. Finally, the reader thread is started.
 
         If the debug probe or target do not support SWO, a warning is printed and False returns,
         but nothing else is done (no exception raised).
@@ -121,6 +141,7 @@ class SWVReader(threading.Thread):
 
         @return Boolean indicating whether the SWV reader was successfully started.
         """
+        self._sys_clock = sys_clock
         self._swo_clock = swo_clock
 
         assert self._session.probe
@@ -128,30 +149,15 @@ class SWVReader(threading.Thread):
             LOG.warning(f"SWV not initalized: Probe {self._session.probe.unique_id} does not support SWO")
             return False
 
-        itm = self._target.get_first_child_of_type(ITM)
-        if not itm:
-            LOG.warning("SWV not initalized: Target does not have ITM component")
-            return False
-        tpiu = self._target.get_first_child_of_type(TPIU, 'has_swo_uart')
-        if not tpiu:
-            LOG.warning("SWV not initalized: Target does not have TPIU component with SWO UART mode")
-            return False
-
-        self._target.trace_start()
-
-        itm.init()
-        itm.enable()
-        tpiu.init()
-
-        if tpiu.set_swo_clock(swo_clock, sys_clock):
-            LOG.info("Set SWO clock to %d", swo_clock)
-        else:
-            LOG.warning("SWV not initalized: Failed to set SWO clock rate")
+        if not self._init_components(sys_clock, swo_clock):
             return False
 
         self._parser = SWOParser(self._core)
         self._sink = SWVEventSink(console)
         self._parser.connect(self._sink)
+
+        self._session.subscribe(self._reset_handler, self._session.Event.TRACE_RESTART, self._session)
+        self._is_subscribed = True
 
         self.start()
 
@@ -160,11 +166,14 @@ class SWVReader(threading.Thread):
     def stop(self) -> None:
         """@brief Stops processing SWV data.
 
-        The reader thread is terminated first, then the ITM is disabled. The last step is to call
-        the target's trace_stop() method.
+        The reader thread is terminated first, then the ITM is disabled.
 
         Does nothing if the init() method did not complete successfully.
         """
+        if self._is_subscribed:
+            self._session.unsubscribe(self._reset_handler, self._session.Event.TRACE_RESTART)
+            self._is_subscribed = False
+
         if not self.is_alive():
             return
 
@@ -175,8 +184,6 @@ class SWVReader(threading.Thread):
         itm = self._target.get_first_child_of_type(ITM)
         assert itm
         itm.disable()
-
-        self._target.trace_stop()
 
     def run(self) -> None:
         """@brief SWV reader thread routine.
@@ -233,10 +240,11 @@ class SWVReader(threading.Thread):
             swv_raw_server.stop()
 
     def _reset_handler(self, notification: "Notification") -> None:
-        """@brief Reset notification handler.
+        """@brief Reconfigure SWV components after target trace support has restarted."""
+        if not self.is_alive():
+            return
 
-        If the target is reset while the SWV reader is running, then the Target::trace_start()
-        method is called to reinit trace output.
-        """
-        if self.is_alive():
-            self._target.trace_start()
+        try:
+            self._init_components(self._sys_clock, self._swo_clock)
+        except exceptions.Error:
+            LOG.warning("Failed to reinitialize SWV after reset", exc_info=self._session.log_tracebacks)
