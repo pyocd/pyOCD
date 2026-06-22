@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from enum import Enum
 import logging
 import logging.config
 import yaml
@@ -32,6 +33,7 @@ from typing_extensions import Self
 
 from . import exceptions
 from .options_manager import OptionsManager
+from .target import Target
 from ..utility.notification import Notifier
 from ..target.pack.cbuild_run import CbuildRun
 
@@ -40,6 +42,7 @@ if TYPE_CHECKING:
     from .soc_target import SoCTarget
     from ..probe.debug_probe import DebugProbe
     from ..probe.tcp_probe_server import DebugProbeServer
+    from ..utility.notification import Notification
     from ..gdbserver.gdbserver import GDBServer
     from ..board.board import Board
 
@@ -104,6 +107,11 @@ class Session(Notifier):
 
     ## An empty session used for options when there is no other session available.
     _options_session: Optional["Session"] = None
+
+    class Event(Enum):
+        """Session notification events."""
+        ## Sent after target-specific trace support has been reinitialized following a reset.
+        TRACE_RESTART = 1
 
     @classmethod
     def get_current(cls) -> Self:
@@ -179,6 +187,7 @@ class Session(Notifier):
         self._probeserver: Optional[DebugProbeServer] = None
         self._context_state = SimpleNamespace()
         self._cbuild_run: Optional[CbuildRun] = None
+        self._trace_started: bool = False
 
         # Set this session on the probe, if we were given a probe.
         if probe is not None:
@@ -586,6 +595,45 @@ class Session(Notifier):
             except IOError as err:
                 LOG.warning("Error attempting to load user script '%s': %s", script_path, err)
 
+    def _trace_start(self) -> None:
+        """@brief Start target-specific trace support.
+
+        This method calls the target trace_start() hook and subscribes to reset notifications so
+        trace can be reinitialised after reset while trace capture remains active.
+        """
+        if self._trace_started:
+            return
+
+        if self.target is not None:
+            self.target.trace_start()
+            self._trace_started = True
+            self.subscribe(self._reset_handler, Target.Event.POST_RESET)
+
+    def _trace_stop(self) -> None:
+        """@brief Stop target-specific trace support."""
+        if not self._trace_started:
+            return
+
+        try:
+            if self.target is not None:
+                self.target.trace_stop()
+        finally:
+            self._trace_started = False
+            self.unsubscribe(self._reset_handler, Target.Event.POST_RESET)
+
+    def _reset_handler(self, notification: "Notification") -> None:
+        """@brief Reset notification handler.
+
+        If the target is reset while trace is active, call Target::trace_start() to reinit trace
+        output.
+        """
+        if not self._trace_started:
+            return
+
+        if self.target is not None:
+            self.target.trace_start()
+            self.notify(Session.Event.TRACE_RESTART, self)
+
     def open(self, init_board: bool = True) -> None:
         """@brief Open the session.
 
@@ -613,6 +661,8 @@ class Session(Notifier):
             if init_board:
                 self._board.init()
                 self._inited = True
+                if self.options.get('enable_swv'):
+                    self._trace_start()
 
     def disconnect(self) -> None:
         """@brief Disconnect the session without closing the probe.
@@ -626,6 +676,10 @@ class Session(Notifier):
         suppress_error = getattr(self.context_state, 'suppress_disconnect_error', False)
         log = LOG.debug if suppress_error else LOG.error
         if self._inited:
+            try:
+                self._trace_stop()
+            except exceptions.Error:
+                log("Error during trace stop:", exc_info=self.log_tracebacks)
             try:
                 self._board.uninit()
             except exceptions.Error:
