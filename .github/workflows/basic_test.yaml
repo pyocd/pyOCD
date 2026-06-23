@@ -37,12 +37,12 @@ jobs:
 
     steps:
     # Only check out HEAD. We don't need the full history.
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 1
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -50,11 +50,12 @@ jobs:
     # Python versions on all OSes.
     - name: Get pip cache dir
       id: pip-cache
+      shell: bash
       run: |
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
 
     - name: Setup pip cache
-      uses: actions/cache@v3
+      uses: actions/cache@v5
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.cfg') }}
@@ -92,7 +93,7 @@ jobs:
         twine check dist/*
 
     - name: Upload pytest test results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: pytest-results-${{ matrix.python-version }}-${{ matrix.os }}
         path: |
