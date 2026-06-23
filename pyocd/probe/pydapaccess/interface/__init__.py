@@ -55,9 +55,10 @@ if not USB_BACKEND:
     # Default to hidapi for OS X.
     elif system == "Darwin":
         USB_BACKEND = "hidapiusb"
-    # Default to pyUSB for Linux.
+    # Prefer hidapi on Linux — pyusb sends control transfers that crash HID-only probes
+    # (e.g. pico2-debug) which have no string descriptors / langid support.
     elif system == "Linux":
-        USB_BACKEND = "pyusb"
+        USB_BACKEND = "hidapiusb" if HidApiUSB.isAvailable else "pyusb"
     elif "BSD" in system:
         USB_BACKEND = "pyusb"
     else:

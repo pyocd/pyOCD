@@ -751,67 +751,73 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
 
         self._interface.open()
 
-        # If this probe has already been opened and examined previously, we don't need to examine it again.
-        if self._has_opened_once:
-            self._init_deferred_buffers()
-            if self._has_swo_uart:
-                self._swo_disable()
-                self._swo_status = SWOStatus.DISABLED
-            self._is_open = True
-            return
+        # Ensure the interface is closed if any subsequent setup step fails, so that
+        # re-open attempts don't hit "already open" from the HID layer.
+        try:
+            # If this probe has already been opened and examined previously, we don't need to examine it again.
+            if self._has_opened_once:
+                self._init_deferred_buffers()
+                if self._has_swo_uart:
+                    self._swo_disable()
+                    self._swo_status = SWOStatus.DISABLED
+                self._is_open = True
+                return
 
-        if session.Session.get_current().options['cmsis_dap.limit_packets'] or DAPSettings.limit_packets:
-            self._packet_count = 1
-            LOG.debug("Limiting packet count to %d", self._packet_count)
-        else:
-            self._packet_count = self.identify(self.ID.MAX_PACKET_COUNT)
-            assert isinstance(self._packet_count, int)
-
-        # Get the protocol version.
-        self._read_protocol_version()
-
-        # Read the firmware version if the protocol supports it.
-        # THe PRODUCT_FW_VERSION ID was added in versions 1.3.0 (HID) and 2.1.0 (bulk).
-        if (self._cmsis_dap_version >= CMSISDAPVersion.V2_1_0) or (self._cmsis_dap_version >= CMSISDAPVersion.V1_3_0
-                and self._cmsis_dap_version < CMSISDAPVersion.V2_0_0):
-            fw_version_value = self.identify(self.ID.PRODUCT_FW_VERSION)
-            assert isinstance(fw_version_value, (str, NoneType))
-            self._fw_version = fw_version_value
-
-        # Major protocol version based on use of bulk endpoints.
-        proto_major = (2 if self._interface.is_bulk else 1)
-
-        # Log probe's firmware version.
-        if self._fw_version:
-            LOG.debug("CMSIS-DAP v%d probe %s: firmware version %s, protocol version %i.%i.%i",
-                    proto_major, self._unique_id, self._fw_version, *self._cmsis_dap_version)
-        else:
-            LOG.debug("CMSIS-DAP v%d probe %s: protocol version %i.%i.%i",
-                    proto_major, self._unique_id, *self._cmsis_dap_version)
-
-        self._interface.set_packet_count(self._packet_count)
-        self._packet_size = self.identify(self.ID.MAX_PACKET_SIZE)
-        assert isinstance(self._packet_size, int)
-        self._interface.set_packet_size(self._packet_size)
-        self._capabilities = self.identify(self.ID.CAPABILITIES)
-        assert isinstance(self._capabilities, int)
-        self._has_swo_uart = (self._capabilities & Capabilities.SWO_UART) != 0
-        if self._has_swo_uart:
-            swo_buffer_size_value = self.identify(self.ID.SWO_BUFFER_SIZE)
-            if isinstance(swo_buffer_size_value, int) and swo_buffer_size_value > 0:
-                self._swo_buffer_size = swo_buffer_size_value
+            if session.Session.get_current().options['cmsis_dap.limit_packets'] or DAPSettings.limit_packets:
+                self._packet_count = 1
+                LOG.debug("Limiting packet count to %d", self._packet_count)
             else:
-                LOG.debug("CMSIS-DAP probe %s reported invalid SWO_BUFFER_SIZE (%d)",
-                        self._unique_id, swo_buffer_size_value)
-                self._has_swo_uart = False
-        else:
-            self._swo_buffer_size = 0
-        self._swo_status = SWOStatus.DISABLED
+                self._packet_count = self.identify(self.ID.MAX_PACKET_COUNT)
+                assert isinstance(self._packet_count, int)
 
-        self._init_deferred_buffers()
+            # Get the protocol version.
+            self._read_protocol_version()
 
-        self._has_opened_once = True
-        self._is_open = True
+            # Read the firmware version if the protocol supports it.
+            # THe PRODUCT_FW_VERSION ID was added in versions 1.3.0 (HID) and 2.1.0 (bulk).
+            if (self._cmsis_dap_version >= CMSISDAPVersion.V2_1_0) or (self._cmsis_dap_version >= CMSISDAPVersion.V1_3_0
+                    and self._cmsis_dap_version < CMSISDAPVersion.V2_0_0):
+                fw_version_value = self.identify(self.ID.PRODUCT_FW_VERSION)
+                assert isinstance(fw_version_value, (str, NoneType))
+                self._fw_version = fw_version_value
+
+            # Major protocol version based on use of bulk endpoints.
+            proto_major = (2 if self._interface.is_bulk else 1)
+
+            # Log probe's firmware version.
+            if self._fw_version:
+                LOG.debug("CMSIS-DAP v%d probe %s: firmware version %s, protocol version %i.%i.%i",
+                        proto_major, self._unique_id, self._fw_version, *self._cmsis_dap_version)
+            else:
+                LOG.debug("CMSIS-DAP v%d probe %s: protocol version %i.%i.%i",
+                        proto_major, self._unique_id, *self._cmsis_dap_version)
+
+            self._interface.set_packet_count(self._packet_count)
+            self._packet_size = self.identify(self.ID.MAX_PACKET_SIZE)
+            assert isinstance(self._packet_size, int)
+            self._interface.set_packet_size(self._packet_size)
+            self._capabilities = self.identify(self.ID.CAPABILITIES)
+            assert isinstance(self._capabilities, int)
+            self._has_swo_uart = (self._capabilities & Capabilities.SWO_UART) != 0
+            if self._has_swo_uart:
+                swo_buffer_size_value = self.identify(self.ID.SWO_BUFFER_SIZE)
+                if isinstance(swo_buffer_size_value, int) and swo_buffer_size_value > 0:
+                    self._swo_buffer_size = swo_buffer_size_value
+                else:
+                    LOG.debug("CMSIS-DAP probe %s reported invalid SWO_BUFFER_SIZE (%d)",
+                            self._unique_id, swo_buffer_size_value)
+                    self._has_swo_uart = False
+            else:
+                self._swo_buffer_size = 0
+            self._swo_status = SWOStatus.DISABLED
+
+            self._init_deferred_buffers()
+
+            self._has_opened_once = True
+            self._is_open = True
+        except Exception:
+            self._interface.close()
+            raise
 
     @locked
     def close(self):

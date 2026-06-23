@@ -79,6 +79,7 @@ KNOWN_CMSIS_DAP_IDS: List[VidPidPair] = [
     NXP_MCULINK_ID,
     (0x1a86, 0x8011),  # WCH-Link
     (0x2a86, 0x8011),  # WCH-Link clone
+    (0x1209, 0x2488),  # pico2-debug / Dapper Miser CMSIS-DAP (RP2350 software debug probe)
     ]
 
 ## List of substrings to look for in product and interface name strings.

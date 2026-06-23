@@ -64,9 +64,19 @@ class PyUSB(Interface):
         super().__init__()
         self.vid = dev.idVendor
         self.pid = dev.idProduct
-        self.product_name = dev.product or f"{dev.idProduct:#06x}"
-        self.vendor_name = dev.manufacturer or f"{dev.idVendor:#06x}"
-        self.serial_number = dev.serial_number \
+        try:
+            self.product_name = dev.product or f"{dev.idProduct:#06x}"
+        except Exception:
+            self.product_name = f"{dev.idProduct:#06x}"
+        try:
+            self.vendor_name = dev.manufacturer or f"{dev.idVendor:#06x}"
+        except Exception:
+            self.vendor_name = f"{dev.idVendor:#06x}"
+        try:
+            _serial = dev.serial_number
+        except Exception:
+            _serial = None
+        self.serial_number = _serial \
                 or generate_device_unique_id(dev.idProduct, dev.idVendor, dev.bus, dev.address)
         self.ep_out = None
         self.ep_in = None
@@ -358,7 +368,11 @@ class FindDap:
             config = dev.get_active_configuration()
 
             # Now read the product name string.
-            device_string = dev.product
+            # Some devices (e.g. pico2-debug) expose no string descriptors; treat as empty.
+            try:
+                device_string = dev.product
+            except Exception:
+                device_string = None
             if ((device_string is None) or (not is_known_device_string(device_string))) and (not known_cmsis_dap):
                 return False
 
@@ -391,11 +405,15 @@ class FindDap:
         if cmsis_dap_interface is None:
             return False
         if self._serial is not None:
-            if dev.serial_number is None:
+            try:
+                dev_serial = dev.serial_number
+            except Exception:
+                dev_serial = None
+            if dev_serial is None:
                 if self._serial == "":
                     return True
                 if self._serial == generate_device_unique_id(dev.idProduct, dev.idVendor, dev.bus, dev.address):
                     return True
-            if self._serial != dev.serial_number:
+            if self._serial != dev_serial:
                 return False
         return True
