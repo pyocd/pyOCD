@@ -562,7 +562,10 @@ rtt:
                    #   server            - Exposes channel over a TCP server.
                    #   systemview        - Saves channel data to *.SVDat file for SEGGER SystemView.
                    #   systemview-server - Streams live data to SEGGER SystemView.
+                   #   file              - Routes channel data to and from files.
         port:      # [optional] TCP port number (required for 'server' and 'systemview-server').
+        file-out:  # [optional] Output file path (only for 'file' mode; default: &lt;target&gt;_core&lt;X&gt;_ch&lt;Y&gt;.out")
+        file-in:   # [optional] Input file path (only for 'file' mode;  default: &lt;target&gt;_core&lt;X&gt;_ch&lt;Y&gt;.in")
 </pre>
 <p>Example:</p>
 <ul>
