@@ -67,10 +67,6 @@ jobs:
         python -m pip install --upgrade setuptools pip wheel build twine
         pip install -e .[test]
 
-    - name: Setup flake8 annotations
-      # This commit is v1.1. Using exact commit for security.
-      uses: rbialon/flake8-annotations@48819b39d57c621b5a64a1cdce40a5caa6a43b89
-
     # Stop the build if there are Python syntax errors or undefined names.
     - name: Lint with flake8
       run: |
