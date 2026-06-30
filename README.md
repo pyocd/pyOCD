@@ -59,7 +59,7 @@ Configuration and customization is supported through [config files](https://pyoc
 Requirements
 ------------
 
-- Python 3.8.0 or later.†
+- Python 3.9.0 or later.†
 - macOS, Linux, Windows 7 or newer, or FreeBSD
 - A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
 - Microcontroller with an Arm Cortex-M CPU

@@ -1,4 +1,5 @@
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2026 Arm Limited
 
 # pyocd workflow to fill in for the skipped 'basic test' workflow for docs updates. Without this,
 # the required 'basic test' workflow will not have run and therefore docs PRs won't be mergeable.
@@ -24,7 +25,6 @@ jobs:
         - macos-latest
         - windows-latest
         python-version:
-        - "3.8"
         - "3.9"
         - "3.10"
         - "3.11"
