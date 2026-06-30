@@ -4,8 +4,7 @@
 requires = [
     "setuptools>=51",
     "wheel",
-    "setuptools_scm[toml]>=6.0,<7.0; python_version < \"3.7\"",
-    "setuptools_scm[toml]>=7.0; python_version >= \"3.7\"",
+    "setuptools_scm[toml]>=7.0",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -22,7 +21,7 @@ log_level = "DEBUG"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py37
+envlist = py39
 
 # Defaults for all test environments.
 [testenv]
