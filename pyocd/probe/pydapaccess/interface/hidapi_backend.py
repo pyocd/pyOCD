@@ -215,6 +215,11 @@ class HidApiUSB(Interface):
 
 
     def open(self):
+        # Always use a fresh hid.device() object.  The device opened during
+        # enumeration (hid.device(vid, pid, path) auto-opens) or a previously
+        # closed object cannot be safely re-opened via open_path() — the
+        # underlying hid_device* pointer is freed after close().
+        self.device = hid.device()
         try:
             self.device.open_path(self.device_info['path'])
         except IOError as exc:
@@ -294,11 +299,11 @@ class HidApiUSB(Interface):
             if filter_device_by_usage_page(vid, pid, deviceInfo['usage_page']):
                 continue
 
-            try:
-                dev = hid.device(vendor_id=vid, product_id=pid, path=deviceInfo['path'])
-            except IOError as exc:
-                LOG.debug("Failed to open USB device: %s", exc)
-                continue
+            # Create an unopened device object.  open() will call open_path()
+            # when the probe is actually used — don't open here because the
+            # auto-open constructor leaks a file descriptor that open() would
+            # then double-open, breaking the close→reopen lifecycle.
+            dev = hid.device()
 
             # Create the USB interface object for this device.
             new_board = HidApiUSB(dev, deviceInfo)
