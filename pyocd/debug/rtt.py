@@ -203,7 +203,7 @@ class GenericRTTUpChannel(RTTUpChannel):
                 return 0
 
         # Get offsets
-        write_off, read_off = self.target.read_memory_block32(self._offsets_addr, 2)
+        write_off, read_off = self._target.read_memory_block32(self._offsets_addr, 2)
 
         if (write_off >= self.size) or (read_off >= self.size):
             raise exceptions.RTTError("Invalid up buffer")
