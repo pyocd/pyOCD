@@ -196,8 +196,8 @@ BUILTIN_OPTIONS = [
         "TCP port number for the raw SWV stream server."),
     OptionInfo('swv_raw_file', str, None,
         "File path for the raw SWV stream output."),
-    OptionInfo('telnet_port', (int, tuple), 4444,
-        "Base TCP port number for the semihosting telnet server."),
+    OptionInfo('stdio_port', (int, tuple), 4444,
+        "Base TCP port number for the STDIO server."),
     OptionInfo('vector_catch', str, 'h',
         "Enable vector catch sources."),
     OptionInfo('register_fields', bool, True,
@@ -207,12 +207,12 @@ BUILTIN_OPTIONS = [
         "Replace software breakpoints with hardware breakpoints."),
 
     # Internal cbuild-run session options
-    OptionInfo('telnet_mode', (str, tuple), None,
-        "List of telnet modes for each core."),
-    OptionInfo('telnet_file_in', (str, tuple), None,
-        "List of telnet input file paths for each core."),
-    OptionInfo('telnet_file_out', (str, tuple), None,
-        "List of telnet output file paths for each core."),
+    OptionInfo('stdio_mode', (str, tuple), None,
+        "List of STDIO modes for each core."),
+    OptionInfo('stdio_file_in', (str, tuple), None,
+        "List of STDIO input file paths for each core."),
+    OptionInfo('stdio_file_out', (str, tuple), None,
+        "List of STDIO output file paths for each core."),
     OptionInfo('rtt', tuple, None,
         "List of RTT configurations for each core."),
     OptionInfo('systemview_file', str, None,
@@ -222,6 +222,14 @@ BUILTIN_OPTIONS = [
     OptionInfo('systemview_auto_stop', bool, None,
         "Enable automatic stop of SystemView."),
     ]
+
+## @brief Aliases for backwards-compatible option names.
+OPTIONS_ALIASES: Dict[str, str] = {
+    'telnet_port': 'stdio_port',
+    'telnet_mode': 'stdio_mode',
+    'telnet_file_in': 'stdio_file_in',
+    'telnet_file_out': 'stdio_file_out',
+}
 
 ## @brief The runtime dictionary of options.
 OPTIONS_INFO: Dict[str, OptionInfo] = {}

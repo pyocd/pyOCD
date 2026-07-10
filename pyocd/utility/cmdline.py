@@ -21,7 +21,7 @@ from typing import (Any, Callable, Dict, Iterable, List, Optional, Tuple, Union,
 import yaml
 
 from ..core.target import Target
-from ..core.options import OPTIONS_INFO
+from ..core.options import (OPTIONS_ALIASES, OPTIONS_INFO)
 from ..utility.compatibility import to_str_safe
 
 LOG = logging.getLogger(__name__)
@@ -165,6 +165,7 @@ def convert_one_session_option(name: str, value: Optional[str]) -> Tuple[str, An
         had_no_prefix = True
     else:
         had_no_prefix = False
+    name = OPTIONS_ALIASES.get(name, name)
 
     # Look up this option.
     try:

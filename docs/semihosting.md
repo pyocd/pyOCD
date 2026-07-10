@@ -38,7 +38,7 @@ To use semihosting with pyOCD, it first must be enabled. This can be done in sev
 - Set the `enable_semihosting` session option to true.
 - From gdb, issue a `monitor arm semihosting enable` command. This command is supported for compatibility with OpenOCD.
 
-Assuming the default routing options and telnet port number are acceptable, no further configuration is required. When
+Assuming the default routing options and STDIO port number are acceptable, no further configuration is required. When
 
 <div class="alert alert-info">
 Currently semihosting only works when pyOCD's gdbserver is running and the target is resumed, with the gdbserver
@@ -58,7 +58,7 @@ All other requests, which are always for explicitly opened files, are classified
 Console requests have two options for routing, controlled with the `semihost_console_type` session option's value.
 
 - "telnet": I/O is connected to the "telnet" server. (In fact, it's not a true telnet server because it doesn't implement
-    the telnet control requests.) This server runs on the port indicated by the `telnet_port` session option or the
+    the telnet control requests.) This server runs on the port indicated by the `stdio_port` session option or the
     `-T`/`--telnet-port` command line argument of the gdbserver subcommand.
 - "console": pyOCD's standard I/O is used.
 
@@ -125,7 +125,7 @@ These are the session options that control semihosting:
 - `semihost_console_type` - If set to 'telnet' then the semihosting telnet server will be started. If set to 'console' then semihosting will print to pyOCD's console.
 - `semihost.commandline` - Command line string return to the target for the `SYS_GET_CMDLINE` request.
 - `semihost_use_syscalls` - Whether to use GDB syscalls for semihosting file access operations, or to have pyOCD perform the operations.)
-- `telnet_port` - Base TCP port number for the semihosting telnet server. The core number, which will be 0 for the primary core, is added to this value.
+- `stdio_port` - Base TCP port number for the semihosting STDIO server. The core number, which will be 0 for the primary core, is added to this value.
 
 
 ### Supported requests
