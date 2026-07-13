@@ -249,7 +249,7 @@ class CbuildRun:
                 # Ensure CMSIS_PACK_ROOT is set
                 self._cmsis_pack_root()
             else:
-                raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_file_path}'")
+                raise CbuildRunError(f"Invalid header in .cbuild-run.yml file '{yml_file_path}'")
         except OSError as err:
             if yml_path == "":
                 raise CbuildRunError("Cannot access *.cbuild-run.yml file: no path provided")
