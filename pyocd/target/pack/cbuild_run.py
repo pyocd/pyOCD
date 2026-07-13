@@ -907,8 +907,8 @@ class CbuildRun:
 
         def _add_flashinfo_regions(
                 flash_attrs: Dict[str, Any],
-                flash_start: int,
-                flash_end: int,
+                parent_start: int,
+                parent_end: int,
                 flash_info: Dict[str, Any],
                 fallback_flm: Optional[PackFlashAlgo] = None,
             ) -> None:
@@ -926,7 +926,7 @@ class CbuildRun:
 
             # Validate blocks and calculate subregion ranges, extracting per-block args
             block_ranges = []  # List of (start, end, block_size, block_arg)
-            current_addr = flash_start
+            current_addr = flash_info['start']
             for elem in blocks:
                 try:
                     block_size = int(elem['size'])
@@ -939,9 +939,13 @@ class CbuildRun:
                     LOG.error("flash-info block 'size' and 'count' must be positive")
                     return
 
-                elem_end = current_addr + (block_size * block_count)
-                block_ranges.append((current_addr, elem_end, block_size, int(elem.get('arg', 0))))
-                current_addr = elem_end
+                block_start = current_addr
+                block_end = current_addr + (block_size * block_count)
+                sub_start = max(block_start, parent_start)
+                sub_end = min(block_end, parent_end)
+                if sub_start < sub_end:
+                    block_ranges.append((sub_start, sub_end, block_size, int(elem.get('arg', 0))))
+                current_addr = block_end
 
             if not block_ranges:
                 LOG.error("flash-info entry has no valid blocks")
@@ -955,7 +959,7 @@ class CbuildRun:
                 '_flashinfo_etime': etime,
             }
 
-            parent_attrs = {**flash_attrs, 'start': flash_start, 'length': flash_end - flash_start,
+            parent_attrs = {**flash_attrs, 'start': parent_start, 'length': parent_end - parent_start,
                             'sector_size': max(br[2] for br in block_ranges), 'page_size': page_size, **fi_attrs}
             if fallback_flm is not None:
                 parent_attrs['_fallback_flm'] = fallback_flm
