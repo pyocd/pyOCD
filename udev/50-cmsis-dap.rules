@@ -1,3 +1,6 @@
+# 2e3c:f000 Artery Technology CMSIS-DAP
+SUBSYSTEM=="usb", ATTR{idVendor}=="2e3c", ATTR{idProduct}=="f000", MODE:="666"
+
 # 04b4:f138 Cypress KitProg1/KitProg2 CMSIS-DAP mode
 SUBSYSTEM=="usb", ATTR{idVendor}=="04b4", ATTR{idProduct}=="f138", MODE:="666"
 
