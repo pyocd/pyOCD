@@ -202,7 +202,7 @@ class ConnectHelper:
                 except ValueError:
                     pass
                 if not valid:
-                    print(colorama.Fore.YELLOW + "Invalid choice: %s\n" % line)
+                    print(colorama.Fore.YELLOW + "Invalid choice: %s\n" % line + colorama.Style.RESET_ALL)
                     ConnectHelper._print_probe_list(allProbes)
                 else:
                     break
