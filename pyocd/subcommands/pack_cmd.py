@@ -54,7 +54,7 @@ class PackSubcommandBase(SubcommandBase):
         matches = set()
         for pattern in self._args.patterns:
             # Using fnmatch.fnmatch() was failing to match correctly.
-            pat = re.compile(fnmatch.translate(pattern).rsplit('\\Z')[0], re.IGNORECASE)
+            pat = re.compile(fnmatch.translate(pattern).rsplit('\\Z')[0].rsplit('\\z')[0], re.IGNORECASE)
             results = {name for name in cache.index.keys() if pat.search(name)}
             matches.update(results)
 
@@ -367,4 +367,3 @@ class PackSubcommand(PackSubcommandBase):
                 print()
 
         return 0
-
