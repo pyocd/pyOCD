@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 Christophe Dufaza
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -488,7 +489,7 @@ def run_test():
         test_result["fail_count"] = fail_count
         test_result_filename = os.path.join("output", "gdb_test_results%s_%d.txt" % (env_file_name, testn))
         with open(test_result_filename, "wb") as f:
-            f.write(json.dumps(test_result))
+            f.write(json.dumps(test_result).encode())
         # Ignore errors detaching, in case connecting failed.
         try:
             gdb_execute("detach")
