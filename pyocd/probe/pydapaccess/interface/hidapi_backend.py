@@ -2,6 +2,7 @@
 # Copyright (c) 2006-2020,2025 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2022 Harper Weigle
+# Copyright (c) 2025 Schneider-Electric
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -277,6 +278,8 @@ class HidApiUSB(Interface):
         boards = []
 
         for deviceInfo in devices:
+            if deviceInfo['product_string'] is None:
+                continue
             product_name = to_str_safe(deviceInfo['product_string'])
             known_cmsis_dap = is_known_cmsis_dap_vid_pid(deviceInfo['vendor_id'], deviceInfo['product_id'])
             if ("CMSIS-DAP" not in product_name) and (not known_cmsis_dap):
