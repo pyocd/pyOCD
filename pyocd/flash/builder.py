@@ -539,8 +539,6 @@ class FlashBuilder(MemoryBuilder):
 
         erase_finish = time()
 
-        self.flash.cleanup()
-
         self.last_erase_was_chip = chip_erase
         self.perf.erase_time = erase_finish - erase_start
 
