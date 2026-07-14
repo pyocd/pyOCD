@@ -196,8 +196,6 @@ BUILTIN_OPTIONS = [
         "TCP port number for the raw SWV stream server."),
     OptionInfo('swv_raw_file', str, None,
         "File path for the raw SWV stream output."),
-    OptionInfo('telnet_port', (int, tuple), 4444,
-        "Base TCP port number for the semihosting telnet server."),
     OptionInfo('vector_catch', str, 'h',
         "Enable vector catch sources."),
     OptionInfo('register_fields', bool, True,
