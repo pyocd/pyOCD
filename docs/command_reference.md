@@ -1063,7 +1063,7 @@ Enable or disable semihosting. Provided for compatibility with OpenOCD. The same
 ##### `gdbserver`
 
 **Usage**: gdbserver {start,stop,status} \
-Control the gdbserver for the selected core. The action argument should be either 'start', 'stop', or 'status'. Use the 'gdbserver_port' and 'stdio_port' session options to control the ports the gdbserver uses.
+Control the gdbserver for the selected core. The action argument should be either 'start', 'stop', or 'status'. Use the 'gdbserver_port' and 'telnet_port' session options to control the ports the gdbserver uses.
 
 
 ##### `probeserver`

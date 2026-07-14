@@ -54,7 +54,7 @@ class StdioOff(StdioBase):
     def info(self) -> str:
         return "off"
 
-class StdioTelnet(StdioBase):
+class StdioServer(StdioBase):
     """STDIO backend that uses a telnet server for reading from and writing to stdin/stdout."""
 
     def __init__(self, session: Session, core: int = 0) -> None:
@@ -296,8 +296,8 @@ class StdioConsole(StdioBase):
 _BACKEND_CLASSES: Dict[str or bool, Type[StdioBase]] = {
      False:    StdioOff,
     "off":     StdioOff,
-    "server":  StdioTelnet,
-    "telnet":  StdioTelnet,
+    "server":  StdioServer,
+    "telnet":  StdioServer,
     "file":    StdioFile,
     "console": StdioConsole
 }

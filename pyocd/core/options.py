@@ -139,7 +139,7 @@ BUILTIN_OPTIONS = [
     OptionInfo('scan_all_aps', bool, False,
         "Controls whether all 256 ADIv5 AP addresses will be probed. Default is False."),
     OptionInfo('serve_local_only', bool, True,
-        "When this option is True, the GDB server, probe server, and semihosting telnet, and raw SWV "
+        "When this option is True, the GDB server, probe server, stdio server, rtt server, and raw SWV "
         "server are only served on localhost. Set to False to enable remote connections."),
     OptionInfo('smart_flash', bool, True,
         "If set to True, the flash loader will attempt to not program pages whose contents are not "
@@ -196,8 +196,8 @@ BUILTIN_OPTIONS = [
         "TCP port number for the raw SWV stream server."),
     OptionInfo('swv_raw_file', str, None,
         "File path for the raw SWV stream output."),
-    OptionInfo('stdio_port', (int, tuple), 4444,
-        "Base TCP port number for the STDIO server."),
+    OptionInfo('telnet_port', (int, tuple), 4444,
+        "Base TCP port number for the semihosting telnet server."),
     OptionInfo('vector_catch', str, 'h',
         "Enable vector catch sources."),
     OptionInfo('register_fields', bool, True,
@@ -206,9 +206,11 @@ BUILTIN_OPTIONS = [
     OptionInfo('soft_bkpt_as_hard', bool, False,
         "Replace software breakpoints with hardware breakpoints."),
 
-    # Internal cbuild-run session options
+    # Extended options with multicore support
     OptionInfo('stdio_mode', (str, tuple), None,
         "List of STDIO modes for each core."),
+    OptionInfo('stdio_port', (int, tuple), 4444,
+        "Base TCP port number for the STDIO server."),
     OptionInfo('stdio_file_in', (str, tuple), None,
         "List of STDIO input file paths for each core."),
     OptionInfo('stdio_file_out', (str, tuple), None,

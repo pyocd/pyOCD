@@ -400,7 +400,7 @@ Controls whether all 256 ADIv5 AP addresses will be probed.
 <td>bool</td>
 <td>True</td>
 <td>
-When this option is True, the GDB server, probe server, semihosting telnet, and raw SWV server are only served
+When this option is True, the GDB server, probe server, stdio server, rtt server, and raw SWV server are only served
 on localhost, making them inaccessible across the network. Set to False to enable connecting to these ports
 from any machine on the network.
 </td></tr>
