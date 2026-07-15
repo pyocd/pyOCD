@@ -105,6 +105,22 @@ class DebugSequenceDelegate:
         """
         raise NotImplementedError()
 
+    def get_traceclockin(self) -> int:
+        """@brief Return the value for the __traceclockin variable.
+
+        Returns the system (input) clock frequency in Hz that drives the trace unit.
+        Returns 0 if the system clock is not configured.
+        """
+        return 0
+
+    def get_traceclockout(self) -> int:
+        """@brief Return the value for the __traceclockout variable.
+
+        Returns the desired SWO output clock (baud rate) in Hz.
+        Returns 0 if the output clock is not configured.
+        """
+        return 0
+
     def get_sequence_functions(self) -> DebugSequenceFunctionsDelegate:
         """@brief Return an instance of the sequence function implementations delegate.
 

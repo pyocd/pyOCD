@@ -420,6 +420,14 @@ class DebugSequence(DebugSequenceNode):
         traceout = delegate.get_traceout()
         scope.set('__traceout', traceout, readonly=True)
 
+        # Generate __traceclockin value (system/input clock for the trace unit, in Hz).
+        traceclockin = delegate.get_traceclockin()
+        scope.set('__traceclockin', traceclockin, readonly=True)
+
+        # Generate __traceclockout value (SWO output clock / baud rate, in Hz).
+        traceclockout = delegate.get_traceclockout()
+        scope.set('__traceclockout', traceclockout, readonly=True)
+
         # Flash algorithm sequence parameters.
         flash_params = context.flash_params
         if flash_params is None:

@@ -19,13 +19,16 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shlex
+import shutil
 import subprocess
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from time import sleep, monotonic
-from typing import (cast, Dict, TYPE_CHECKING, Optional, Tuple, Union)
+from typing import (cast, Callable, Dict, Iterator, TYPE_CHECKING, Optional, Tuple, Union)
 
 from ...core import exceptions
 from ...coresight.coresight_target import CoreSightTarget
@@ -93,6 +96,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
         self._ap_cache: Dict[APAddressBase, MEM_AP] = {}
         self._flash_buffer: Optional[bytearray] = None
         self._flash_filler: int = self._FILLER
+        self._flash_algorithm_loader: Optional[Callable] = None
         self._placeholders_cache: Optional[Dict[str, str]] = None
         self._buffer_manager = _SequenceBufferManager(self._get_sequence_scope)
 
@@ -110,6 +114,16 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
         self._flash_buffer = bytearray(data)
         self._flash_filler = self._FILLER if filler is None else (filler & self._FILLER)
+
+    @contextmanager
+    def flash_algorithm_loader(self, loader: Optional[Callable]) -> Iterator[None]:
+        """@brief Temporarily set the handler for FlashLoadAlgorithm() calls."""
+        previous_loader = self._flash_algorithm_loader
+        self._flash_algorithm_loader = loader
+        try:
+            yield
+        finally:
+            self._flash_algorithm_loader = previous_loader
 
     def _get_sequence_scope(self):
         """@brief Return the scope associated with the currently running sequence."""
@@ -162,16 +176,14 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
     def _int_to_bytes(value: int, size: int) -> bytes:
         return int(value & ((1 << (size * 8)) - 1)).to_bytes(size, "little")
 
-    def _expand_path(self, raw_path: str) -> Path:
-        """@brief Expand a path string from a debug sequence, replacing custom placeholders and environment variables."""
-        # Lazy-initialize and cache placeholders since they don't change during a session
+    def _expand_placeholders(self, raw_path: str) -> str:
+        """@brief Expand debug-sequence placeholders in a string."""
+        # Lazy-initialize and cache placeholders since they don't change during a session.
         if self._placeholders_cache is None:
             device = self.context.delegate.cmsis_pack_device
             pname = self.context.pname
-            if hasattr(self.target, 'get_output'):
-                output = self.target.get_output()
-            else:
-                output = {}
+            get_output = getattr(self.target, 'get_output', None)
+            output = get_output() if get_output else {}
 
             out_file_path = next((f for f, (_, _, p) in output.items() if (pname is None) or (pname == p)), '')
             out_folder_path = str(Path(out_file_path).parent) if out_file_path else ''
@@ -185,17 +197,30 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
                 '$D': getattr(device, 'part_number', ''),
             }
 
-        # Unescape double characters
-        path_str = raw_path.replace("$$", "$").replace("##", "#").replace("%%", "%")
+        assert self._placeholders_cache is not None
+        placeholders = self._placeholders_cache
 
-        # Replace custom placeholders using cached dictionary
-        for placeholder, value in self._placeholders_cache.items():
-            path_str = path_str.replace(placeholder, str(value))
+        # Expand placeholders and escaped marker characters in a single pass so replacement
+        # values are not recursively re-processed as placeholders.
+        tokens = re.compile(r'(\$\$|##|%%|\$P|#P|\$L|%L|\$S|\$D)')
 
-        # Expand environment variables
-        path_str = path_str.lstrip("\\/")
-        path_str = os.path.expandvars(path_str)
-        return Path(path_str).expanduser()
+        def _replace_token(match: "re.Match[str]") -> str:
+            token = match.group(0)
+            if token == "$$":
+                return "$"
+            if token == "##":
+                return "#"
+            if token == "%%":
+                return "%"
+            return str(placeholders.get(token, token))
+
+        path_str = tokens.sub(_replace_token, raw_path)
+
+        return path_str
+
+    def _expand_path(self, raw_path: str) -> Path:
+        """@brief Expand a path string from a debug sequence, replacing custom placeholders and environment variables."""
+        return Path(os.path.expanduser(os.path.expandvars(self._expand_placeholders(raw_path))))
 
     def _get_ap_addr(self) -> APAddressBase:
         """@brief Return the AP address selected by __ap or __apid variables.
@@ -854,7 +879,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
         timeout_s = None if timeout == 0 else timeout / 1e6
 
         split_args = shlex.split(args.replace('\\"', '"'), posix=True) if args else []
-        split_args = [str(self._expand_path(arg)) for arg in split_args]
+        split_args = [self._expand_placeholders(arg) for arg in split_args]
         cmd = [str(app_path), *split_args]
 
         try:
@@ -865,6 +890,44 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
             raise DebugSequenceRuntimeError(f"failed to run application '{app_path}': {err}") from err
         except subprocess.TimeoutExpired as err:
             raise DebugSequenceRuntimeError(f"application '{app_path}' timed out after {timeout_s}s") from err
+
+    def runpythonscript(self, path: str, args: str, workdir: str, timeout: int) -> int:
+        """@brief Run a Python script with an external Python interpreter.
+
+        @param path: Constant string representing the script path. Refer to character sequences
+            for path/file name place holders.
+        @param args: Constant string with arguments to pass to the script command line.
+            Same placeholder character sequences apply as for path.
+        @param workdir: A constant string with the work directory for running the script.
+            An empty string means that the work directory is the current project folder.
+            Same placeholder character sequences apply as for path.
+        @param timeout: Timeout in microseconds.
+        @return: Script specific exit code.
+        """
+        script_path = self._expand_path(path)
+        cwd = None if workdir == "" else str(self._expand_path(workdir))
+        timeout_s = None if timeout == 0 else timeout / 1e6
+
+        split_args = shlex.split(args.replace('\\"', '"'), posix=True) if args else []
+        split_args = [self._expand_placeholders(arg) for arg in split_args]
+
+        interpreter_path = shutil.which("python3") or shutil.which("python")
+        if interpreter_path is None:
+            raise DebugSequenceRuntimeError("could not locate system Python interpreter;" \
+                                            "ensure 'python3'/'python' is available in PATH")
+
+        cmd = [interpreter_path, str(script_path), *split_args]
+
+        try:
+            result = subprocess.run(cmd, cwd=cwd, timeout=timeout_s, check=False, capture_output=True)
+            LOG.debug("Python script stdout:\n%s", result.stdout.decode(errors='replace'))
+            return int(result.returncode)
+        except FileNotFoundError as err:
+            raise DebugSequenceRuntimeError(
+                f"failed to run python script '{script_path}': {err}") from err
+        except subprocess.TimeoutExpired as err:
+            raise DebugSequenceRuntimeError(
+                f"python script '{script_path}' timed out after {timeout_s}s") from err
 
     def filepathexists(self, path: str, timeout: int) -> int:
         """@brief Check for existence of a file path.
@@ -884,5 +947,19 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
                 return 1
             sleep(0.05)
         return 0
+
+    def flashloadalgorithm(self, algo: str, ram_start: int, ram_size: int) -> int:
+        """@brief Register a flash algorithm selected by a debug sequence.
+
+        The algorithm is not loaded into target RAM here. Instead, this call is forwarded to the
+        active flash programming implementation so it can switch to standard algorithm programming.
+        """
+        if self._flash_algorithm_loader is None:
+            LOG.debug("FlashLoadAlgorithm() failed: no flash algorithm loader is active")
+            return 1
+
+        algo_path = self._expand_path(algo).resolve()
+
+        return self._flash_algorithm_loader(algo_path, ram_start, ram_size)
 
 # pylint: enable=invalid_name

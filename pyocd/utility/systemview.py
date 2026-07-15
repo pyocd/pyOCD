@@ -81,7 +81,7 @@ class SystemViewSVDat():
 
             file_list: List[str] = []
             for ch in rtt.channels:
-                number, mode, _ = ch
+                number, mode, _, _ = ch
                 if mode == 'systemview':
                     fname = f'{fname_root}.core{core_number}.ch{number}.bin'
                     if os.path.exists(fname):

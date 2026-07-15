@@ -400,7 +400,7 @@ Controls whether all 256 ADIv5 AP addresses will be probed.
 <td>bool</td>
 <td>True</td>
 <td>
-When this option is True, the GDB server, probe server, semihosting telnet, and raw SWV server are only served
+When this option is True, the GDB server, probe server, stdio server, rtt server, and raw SWV server are only served
 on localhost, making them inaccessible across the network. Set to False to enable connecting to these ports
 from any machine on the network.
 </td></tr>
@@ -472,7 +472,7 @@ Examples:
 </ul>
 </td></tr>
 
-<tr><td>telnet_mode</td>
+<tr><td>stdio_mode</td>
 <td>str, list of str</td>
 <td>'server'</td>
 <td>Controls connection to standard I/O. Must be one of 'off', 'console', 'server', or 'file'. For multicore devices
@@ -487,10 +487,10 @@ console and the standard I/O for <tt>core1</tt> is routed to the Telnet Server.<
 </ul>
 </td></tr>
 
-<tr><td>telnet_port</td>
+<tr><td>stdio_port</td>
 <td>int, list of int</td>
 <td>4444</td>
-<td>The option applies only when <tt>telnet_mode</tt> is set to 'server'. Base TCP port for the Telnet Server.
+<td>The option applies only when <tt>stdio_mode</tt> is set to 'server'. Base TCP port for the Telnet Server.
 For multicore targets the zero-based core number will be added to the value unless a list is specified.
 
 Examples:
@@ -502,10 +502,10 @@ Examples:
 </ul>
 </td></tr>
 
-<tr><td>telnet_file_in</td>
+<tr><td>stdio_file_in</td>
 <td>str, list of str</td>
 <td><i>&lt;target&gt;.in</i></td>
-<td>The option applies only when <tt>telnet_mode</tt> is set to 'file'. Input filename to use as <i>stdin</i>.
+<td>The option applies only when <tt>stdio_mode</tt> is set to 'file'. Input filename to use as <i>stdin</i>.
 When a single string is used, the core number (_&lt;core&gt;) will be appended to the filename
 in case of multicore targets.
 
@@ -519,10 +519,10 @@ assigned to <tt>core0</tt> and <tt>mytarget_cm0.in</tt> is assigned to <tt>core1
 </ul>
 </td></tr>
 
-<tr><td>telnet_file_out</td>
+<tr><td>stdio_file_out</td>
 <td>str, list of str</td>
 <td><i>&lt;target&gt;.out</i></td>
-<td>The option applies only when <tt>telnet_mode</tt> is set to 'file'. Output filename to use as <i>stdout</i>.
+<td>The option applies only when <tt>stdio_mode</tt> is set to 'file'. Output filename to use as <i>stdout</i>.
 When a single string is used, the core number (_&lt;core&gt;) will be appended to the filename
 in case of multicore targets.
 
@@ -562,7 +562,10 @@ rtt:
                    #   server            - Exposes channel over a TCP server.
                    #   systemview        - Saves channel data to *.SVDat file for SEGGER SystemView.
                    #   systemview-server - Streams live data to SEGGER SystemView.
+                   #   file              - Routes channel data to and from files.
         port:      # [optional] TCP port number (required for 'server' and 'systemview-server').
+        file-out:  # [optional] Output file path (only for 'file' mode; default: &lt;target&gt;_core&lt;X&gt;_ch&lt;Y&gt;.out")
+        file-in:   # [optional] Input file path (only for 'file' mode;  default: &lt;target&gt;_core&lt;X&gt;_ch&lt;Y&gt;.in")
 </pre>
 <p>Example:</p>
 <ul>
@@ -724,6 +727,13 @@ Enable flag for the raw SWV stream server.
 <td>3443</td>
 <td>
 TCP port number for the raw SWV stream server.
+</td></tr>
+
+<tr><td>swv_raw_file</td>
+<td>str</td>
+<td>No default</td>
+<td>
+File path for the raw SWV stream output.
 </td></tr>
 
 <tr><td>telnet_port</td>

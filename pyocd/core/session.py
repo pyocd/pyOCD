@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from enum import Enum
 import logging
 import logging.config
 import yaml
@@ -32,6 +33,7 @@ from typing_extensions import Self
 
 from . import exceptions
 from .options_manager import OptionsManager
+from .target import Target
 from ..utility.notification import Notifier
 from ..target.pack.cbuild_run import CbuildRun
 
@@ -40,6 +42,7 @@ if TYPE_CHECKING:
     from .soc_target import SoCTarget
     from ..probe.debug_probe import DebugProbe
     from ..probe.tcp_probe_server import DebugProbeServer
+    from ..utility.notification import Notification
     from ..gdbserver.gdbserver import GDBServer
     from ..board.board import Board
 
@@ -104,6 +107,11 @@ class Session(Notifier):
 
     ## An empty session used for options when there is no other session available.
     _options_session: Optional["Session"] = None
+
+    class Event(Enum):
+        """Session notification events."""
+        ## Sent after target-specific trace support has been reinitialized following a reset.
+        TRACE_RESTART = 1
 
     @classmethod
     def get_current(cls) -> Self:
@@ -179,6 +187,7 @@ class Session(Notifier):
         self._probeserver: Optional[DebugProbeServer] = None
         self._context_state = SimpleNamespace()
         self._cbuild_run: Optional[CbuildRun] = None
+        self._trace_started: bool = False
 
         # Set this session on the probe, if we were given a probe.
         if probe is not None:
@@ -286,11 +295,11 @@ class Session(Notifier):
         debugger_options['connect_mode'] = connect_mode
 
         debugger_options['gdbserver_port'] = self.cbuild_run.gdbserver_port
-        debugger_options['telnet_port'] = self.cbuild_run.telnet_port
-        debugger_options['telnet_mode'] = self.cbuild_run.telnet_mode
-        telnet_file = self.cbuild_run.telnet_file
-        debugger_options['telnet_file_in'] = telnet_file.get('in')
-        debugger_options['telnet_file_out'] = telnet_file.get('out')
+        debugger_options['stdio_port'] = self.cbuild_run.stdio_port
+        debugger_options['stdio_mode'] = self.cbuild_run.stdio_mode
+        stdio_file = self.cbuild_run.stdio_file
+        debugger_options['stdio_file_in'] = stdio_file.get('in')
+        debugger_options['stdio_file_out'] = stdio_file.get('out')
 
         debugger_options['rtt'] = self.cbuild_run.rtt
         debugger_options['systemview_file'] = self.cbuild_run.systemview_file
@@ -586,6 +595,45 @@ class Session(Notifier):
             except IOError as err:
                 LOG.warning("Error attempting to load user script '%s': %s", script_path, err)
 
+    def _trace_start(self) -> None:
+        """@brief Start target-specific trace support.
+
+        This method calls the target trace_start() hook and subscribes to reset notifications so
+        trace can be reinitialised after reset while trace capture remains active.
+        """
+        if self._trace_started:
+            return
+
+        if self.target is not None:
+            self.target.trace_start()
+            self._trace_started = True
+            self.subscribe(self._reset_handler, Target.Event.POST_RESET)
+
+    def _trace_stop(self) -> None:
+        """@brief Stop target-specific trace support."""
+        if not self._trace_started:
+            return
+
+        try:
+            if self.target is not None:
+                self.target.trace_stop()
+        finally:
+            self._trace_started = False
+            self.unsubscribe(self._reset_handler, Target.Event.POST_RESET)
+
+    def _reset_handler(self, notification: "Notification") -> None:
+        """@brief Reset notification handler.
+
+        If the target is reset while trace is active, call Target::trace_start() to reinit trace
+        output.
+        """
+        if not self._trace_started:
+            return
+
+        if self.target is not None:
+            self.target.trace_start()
+            self.notify(Session.Event.TRACE_RESTART, self)
+
     def open(self, init_board: bool = True) -> None:
         """@brief Open the session.
 
@@ -613,6 +661,8 @@ class Session(Notifier):
             if init_board:
                 self._board.init()
                 self._inited = True
+                if self.options.get('enable_swv'):
+                    self._trace_start()
 
     def disconnect(self) -> None:
         """@brief Disconnect the session without closing the probe.
@@ -623,18 +673,25 @@ class Session(Notifier):
         assert (self._probe is not None) and (self._board is not None)
 
         LOG.debug("uninit session %s", self)
+        suppress_error = getattr(self.context_state, 'suppress_disconnect_error', False)
+        log = LOG.debug if suppress_error else LOG.error
         if self._inited:
             try:
-                self._board.uninit()
-                self._inited = False
+                self._trace_stop()
             except exceptions.Error:
-                LOG.error("Error during board uninit:", exc_info=self.log_tracebacks)
+                log("Error during trace stop:", exc_info=self.log_tracebacks)
+            try:
+                self._board.uninit()
+            except exceptions.Error:
+                log("Error during board uninit:", exc_info=self.log_tracebacks)
+            finally:
+                self._inited = False
 
         if self._probe.is_open and (self._probe.wire_protocol is not None):
             try:
                 self._probe.disconnect()
             except exceptions.Error:
-                LOG.error("Probe error during disconnect:", exc_info=self.log_tracebacks)
+                log("Probe error during disconnect:", exc_info=self.log_tracebacks)
 
     def close(self) -> None:
         """@brief Close the session.
@@ -651,7 +708,9 @@ class Session(Notifier):
             try:
                 self._probe.close()
             except exceptions.Error:
-                LOG.error("Probe error during close:", exc_info=self.log_tracebacks)
+                suppress_error = getattr(self.context_state, 'suppress_disconnect_error', False)
+                log = LOG.debug if suppress_error else LOG.error
+                log("Probe error during close:", exc_info=self.log_tracebacks)
 
 class UserScriptFunctionProxy:
     """@brief Proxy for user script functions.

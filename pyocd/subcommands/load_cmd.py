@@ -198,5 +198,8 @@ class LoadSubcommand(SubcommandBase):
                     # Skip DebugCoreStop and DebugPortStop unless it was explicitly requested by user.
                     if not session.options.is_set('resume_on_disconnect'):
                         session.options.set('resume_on_disconnect', False)
+                finally:
+                    # Set a flag to suppress error logging for disconnect errors during session close.
+                    session.context_state.suppress_disconnect_error = True
 
         return 0

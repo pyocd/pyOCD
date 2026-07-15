@@ -30,7 +30,6 @@ from ..utility.cmdline import convert_vector_catch
 from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8_to_u32le)
 from ..utility.compatibility import (to_bytes_safe, to_str_safe)
 from ..utility.timeout import Timeout
-from ..trace.swv import SWVReader
 from ..utility.rtt_server import RTTServer
 from ..utility.sockets import ConnectedSocket, ListenerSocket
 from ..utility.stdio import StdioHandler
@@ -167,6 +166,7 @@ class GDBClientSession(threading.Thread):
                         if self.non_stop:
                             self._server.target.halt()
                             self._server.is_target_running = False
+                            self._server.trace_flush()
                             self._server.send_stop_notification(self)
                         else:
                             LOG.warning("Unexpected Ctrl-C ignored in all-stop mode")
@@ -177,6 +177,7 @@ class GDBClientSession(threading.Thread):
                             if self._server.target.get_state() == Target.State.HALTED:
                                 LOG.debug("Target halted")
                                 self._server.is_target_running = False
+                                self._server.trace_flush()
                                 self._server.send_stop_notification(self)
                         except Exception as e:
                             LOG.error("Unexpected exception: %s", e, exc_info=self._server.session.log_tracebacks)
@@ -357,7 +358,7 @@ class GDBServer(threading.Thread):
         # Read back bound port in case auto-assigned (port 0)
         self.port = self.listen_socket.port
 
-        # Coarse grain lock to synchronize SWO with other activity
+        # Coarse grain lock to synchronize activity
         self.lock = threading.RLock()
 
         self.session.subscribe(self.event_handler, Target.Event.POST_RESET)
@@ -371,29 +372,12 @@ class GDBServer(threading.Thread):
 
         # Use stdio handler for semihost console.
         self.stdio_handler = StdioHandler(session=session, core=self.core, eot_enabled=False)
-        console_file = self.stdio_handler
         semihost_console = semihost.ConsoleIOHandler(self.stdio_handler)
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
         self._semihosting_client = None
 
         # Start with RTT disabled
         self.rtt_server: Optional[RTTServer] = None
-
-        #
-        # If SWV is enabled, create a SWVReader thread. Note that we only do
-        # this if the core is 0: SWV is not a per-core construct, and can't
-        # be meaningfully read by multiple threads concurrently.
-        #
-        self._swv_reader = None
-
-        if session.options.get("enable_swv") and core == 0:
-            if "swv_system_clock" not in session.options:
-                LOG.warning("SWV not enabled; swv_system_clock option missing")
-            else:
-                sys_clock = int(session.options.get("swv_system_clock"))
-                swo_clock = int(session.options.get("swv_clock"))
-                self._swv_reader = SWVReader(session, self.core, self.lock)
-                self._swv_reader.init(sys_clock, swo_clock, console_file)
 
         self._init_remote_commands()
 
@@ -440,6 +424,14 @@ class GDBServer(threading.Thread):
 
         # pylint: enable=invalid-name
 
+    def trace_flush(self) -> None:
+        # TraceFlush stub
+        pass
+
+    def trace_capture(self) -> None:
+        # TraceCapture stub
+        pass
+
     def _init_remote_commands(self):
         """@brief Initialize the remote command processor infrastructure."""
         # Create command execution context. The output stream will default to stdout
@@ -483,9 +475,6 @@ class GDBServer(threading.Thread):
         if self.stdio_handler:
             self.stdio_handler.shutdown()
             self.stdio_handler = None
-        if self._swv_reader:
-            self._swv_reader.stop()
-            self._swv_reader = None
         if self.rtt_server:
             self.rtt_server.stop()
             self.rtt_server = None
@@ -530,6 +519,8 @@ class GDBServer(threading.Thread):
 
                     # Make sure the target is halted. Otherwise gdb gets easily confused.
                     self.target.halt()
+                    self.is_target_running = False
+                    self.trace_flush()
 
                     # Start the per-client handler thread (server.run_session() will be invoked there).
                     client.start()
@@ -591,6 +582,12 @@ class GDBServer(threading.Thread):
                 try:
                     # First check if it's halted
                     if self.target.get_state() == Target.State.HALTED:
+                        # If the target is halted, flush the trace capture buffer.
+                        if self.is_target_running:
+                            self.is_target_running = False
+                            self.trace_flush()
+                        # Start trace capture before resuming.
+                        self.trace_capture()
                         self.target.resume()
                 except Exception as e:
                     LOG.error("Error resuming target after client detached: %s",
@@ -804,7 +801,9 @@ class GDBServer(threading.Thread):
             else:
                 LOG.debug("Command: Continue")
 
+        self.trace_capture()
         self.target.resume()
+        self.is_target_running = True
         LOG.debug("Target resumed")
 
         if self.first_run_after_reset_or_flash:
@@ -835,6 +834,8 @@ class GDBServer(threading.Thread):
                 # is running) then ignore the error. In all cases we still return SIGINT.
                 try:
                     self.target.halt()
+                    self.is_target_running = False
+                    self.trace_flush()
                     val = self.get_t_response(client, forceSignal=signals.SIGINT)
                 except exceptions.TransferError as e:
                     # Note: if the target is not actually halted, gdb can get confused from this point on.
@@ -873,6 +874,8 @@ class GDBServer(threading.Thread):
                             self.target.resume()
                             continue
 
+                    self.is_target_running = False
+                    self.trace_flush()
                     pc = self.target_context.read_core_register('pc')
                     LOG.debug("Target halted at pc=0x%08x", pc)
                     val = self.get_t_response(client)
@@ -914,7 +917,9 @@ class GDBServer(threading.Thread):
         def step_hook():
             # Note we don't clear the interrupt event here!
             return client.is_interrupted()
+        self.trace_capture()
         self.target.step(not self.step_into_interrupt, start, end, hook_cb=step_hook)
+        self.trace_flush()
 
         # Clear and handle an interrupt.
         if client.is_interrupted():
@@ -999,6 +1004,7 @@ class GDBServer(threading.Thread):
         if thread_actions[currentThread][0:1] in (b'c', b'C'):
             LOG.debug("Command: vCont (threadId=0x%08x, action=continue)", currentThread)
             if client.non_stop:
+                self.trace_capture()
                 self.target.resume()
                 self.is_target_running = True
                 return self.create_rsp_packet(b"OK")
@@ -1014,7 +1020,9 @@ class GDBServer(threading.Thread):
                 LOG.debug("Command: vCont (threadId=0x%08x, action=step)", currentThread)
 
             if client.non_stop:
+                self.trace_capture()
                 self.target.step(not self.step_into_interrupt, start, end)
+                self.trace_flush()
                 client.send(self.create_rsp_packet(b"OK"))
                 self.send_stop_notification(client)
                 return None
@@ -1028,6 +1036,7 @@ class GDBServer(threading.Thread):
             client.send(self.create_rsp_packet(b"OK"))
             self.target.halt()
             self.is_target_running = False
+            self.trace_flush()
             self.send_stop_notification(client, forceSignal=0)
         else:
             LOG.error("Command: vCont (threadId=0x%08x, action='%s'): Unsupported action", currentThread, to_str_safe(thread_actions[currentThread]))

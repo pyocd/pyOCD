@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,7 +55,9 @@ class PackSubcommandBase(SubcommandBase):
         matches = set()
         for pattern in self._args.patterns:
             # Using fnmatch.fnmatch() was failing to match correctly.
-            pat = re.compile(fnmatch.translate(pattern).rsplit('\\Z')[0], re.IGNORECASE)
+            # Strip the end-of-string anchor (\Z or \z depending on Python version) so pat.search()
+            # can do a substring match rather than a full-string match.
+            pat = re.compile(re.sub(r'\\[Zz]$', '', fnmatch.translate(pattern)), re.IGNORECASE)
             results = {name for name in cache.index.keys() if pat.search(name)}
             matches.update(results)
 
