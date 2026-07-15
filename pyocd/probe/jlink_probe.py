@@ -160,7 +160,7 @@ class JLinkProbe(DebugProbe):
 
     @property
     def is_open(self):
-        return self._link.opened
+        return self._link.opened()
 
     @property
     def capabilities(self):
