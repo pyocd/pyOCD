@@ -115,18 +115,18 @@ class FlmFlashRegionBuilder:
             ram_start = region._RAMstart
             ram_region = self._memory_map.get_region_for_address(ram_start)
             if (ram_region is None or ram_region.type != MemoryType.RAM or not ram_region.attributes.get('defined', True)):
-                LOG.warning("Flash algorithm RAM base %#010x for region '%s' is not in defined RAM", ram_start, region.name)
-                raise RuntimeError("RAMstart attribute is outside of defined RAM")
-
+                ram_region = None
             # Use the explicit RAM size if provided. Otherwise use the remaining space in the containing RAM region.
             if hasattr(region, '_RAMsize'):
                 ram_size = region._RAMsize
                 # Check if the RAM size is within the containing region's bounds.
-                if not ram_region.contains_range(start=ram_start, length=ram_size):
+                if (ram_region is not None and not ram_region.contains_range(start=ram_start, length=ram_size)):
                     ram_size = ram_region.end - ram_start + 1
                     LOG.warning("Flash algorithm RAM range for region '%s' exceeds defined RAM. Limited to: %#010x-%#010x",
                                 region.name, ram_start, ram_start + ram_size - 1)
             else:
+                if ram_region is None:
+                    raise RuntimeError("no RAM size")
                 # If RAMsize is not specified, use the containing region's bounds to determine size.
                 ram_size = ram_region.end - ram_start + 1
             # Create a RamRegion for the algo to use.
