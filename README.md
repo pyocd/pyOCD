@@ -7,7 +7,7 @@ pyOCD
 
 ### News
 
-- The v0.44 release introduces default debug sequences and flash programming support via debug sequences
+- The v0.45 release extends debug sequence support and introduces file-based RTT and SWV capture
 
 See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recent news.
 
