@@ -321,7 +321,10 @@ class HidApiUSB(Interface):
         """@brief Read data on the IN endpoint associated to the HID interface"""
         # Windows doesn't use the read thread, so read directly.
         if _IS_WINDOWS:
-            read_data = bytes(self.device.read(self.packet_size))
+            # Pass a timeout so the read cannot block forever if the probe stops responding.
+            read_data = bytes(self.device.read(self.packet_size, timeout_ms=self.DEFAULT_USB_TIMEOUT_MS))
+            if not read_data:
+                raise DAPAccessIntf.DeviceError(f"Timeout reading from probe {self.serial_number}")
 
             if TRACE.isEnabledFor(logging.DEBUG):
                 # Strip off trailing zero bytes to reduce clutter.
