@@ -100,6 +100,7 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x00000680,
     'begin_stack' : 0x20000900,
+    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x400,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -171,6 +172,7 @@ FLASH_ALGO_OTP = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x000004cc,
     'begin_stack' : 0x20000700,
+    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x1800,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -210,3 +212,4 @@ class HC32F467xG(CoreSightTarget):
         self.write32(DBGMCU.STCTL, DBGMCU.STCTL_VALUE)
         self.write32(DBGMCU.STCTL1, DBGMCU.STCTL1_VALUE)
         self.write32(DBGMCU.TRACECTL, DBGMCU.TRACECTL_VALUE)
+

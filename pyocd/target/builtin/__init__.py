@@ -116,21 +116,26 @@ from . import target_M460
 from . import target_M480
 from . import target_M2354
 from . import target_HC32F334
+from . import target_HC32F336
 from . import target_HC32F448
 from . import target_HC32F45x
 from . import target_HC32F460
 from . import target_HC32F467
 from . import target_HC32F472
 from . import target_HC32F4A0
-from . import target_HC32M423
+from . import target_HC32F4A8
+from . import target_HC32F558
+from . import target_HC32M413
+from . import target_HC32M441
+from . import target_HC32M458
 from . import target_HC32F115
 from . import target_HC32F155
-from . import target_HC32F160
 from . import target_HC32x120
 from . import target_HC32L110
 from . import target_HC32L13x
 from . import target_HC32L19x
 from . import target_HC32L07x
+from . import target_HC32K118
 from . import target_MPS2_AN521
 from . import target_MPS3_AN522
 from . import target_MPS3_AN540
@@ -288,6 +293,14 @@ BUILTIN_TARGETS = {
           'hc32f334x8' : target_HC32F334.HC32F334x8,
           'hc32f334xa' : target_HC32F334.HC32F334xA,
           'hc32f334' : target_HC32F334.HC32F334xA,
+          'hc32f336x8' : target_HC32F336.HC32F336x8,
+          'hc32f336xa' : target_HC32F336.HC32F336xA,
+          'hc32f336' : target_HC32F336.HC32F336xA,
+          "hc32f431xa" : target_HC32M413.HC32M413xA,
+          "hc32f431" : target_HC32M413.HC32M413xA,
+          'hc32f436xc' : target_HC32M458.HC32M458xC,
+          'hc32f436xe' : target_HC32M458.HC32M458xE,
+          'hc32f436' : target_HC32M458.HC32M458xE,
           'hc32f448xa' : target_HC32F448.HC32F448xA,
           'hc32f448xc' : target_HC32F448.HC32F448xC,
           'hc32f448' : target_HC32F448.HC32F448xC,
@@ -317,7 +330,21 @@ BUILTIN_TARGETS = {
           'hc32a4a0' : target_HC32F4A0.HC32F4A0xI,
           'hc32f4a2xi' : target_HC32F4A0.HC32F4A0xI,
           'hc32f4a2' : target_HC32F4A0.HC32F4A0xI,
-          'hc32m423xa' : target_HC32M423.HC32M423xA,
+          'hc32f4a8xg' : target_HC32F4A8.HC32F4A8xG,
+          'hc32f4a8xi' : target_HC32F4A8.HC32F4A8xI,
+          'hc32f4a8' : target_HC32F4A8.HC32F4A8xI,
+          'hc32f558xe' : target_HC32F558.HC32F558xE,
+          'hc32f558xc' : target_HC32F558.HC32F558xC,
+          'hc32f558xa' : target_HC32F558.HC32F558xA,
+          'hc32f558' : target_HC32F558.HC32F558xE,
+          'hc32m413' : target_HC32M413.HC32M413xA,
+          'hc32m413xa' : target_HC32M413.HC32M413xA,
+          'hc32m441xa' : target_HC32M441.HC32M441xA,
+          'hc32m441xc' : target_HC32M441.HC32M441xC,
+          'hc32m441' : target_HC32M441.HC32M441xC,
+          'hc32m458xc' : target_HC32M458.HC32M458xC,
+          'hc32m458xe' : target_HC32M458.HC32M458xE,
+          'hc32m458' : target_HC32M458.HC32M458xE,
           'hc32f120x6' : target_HC32x120.HC32F120x6TA,
           'hc32f120x8' : target_HC32x120.HC32F120x8TA,
           'hc32f120' : target_HC32x120.HC32F120x8TA,
@@ -328,9 +355,6 @@ BUILTIN_TARGETS = {
           'hc32f155xa' : target_HC32F155.HC32F155xA,
           'hc32f155xc' : target_HC32F155.HC32F155xC,
           'hc32f155' : target_HC32F155.HC32F155xC,
-          'hc32f160xa' : target_HC32F160.HC32F160xA,
-          'hc32f160xc' : target_HC32F160.HC32F160xC,
-          'hc32f160' : target_HC32F160.HC32F160xC,
           'hc32l110' : target_HC32L110.HC32L110,
           'hc32f003' : target_HC32L110.HC32F003,
           'hc32f005' : target_HC32L110.HC32F005,
@@ -344,6 +368,10 @@ BUILTIN_TARGETS = {
           'hc32l072' : target_HC32L07x.HC32L072,
           'hc32l073' : target_HC32L07x.HC32L073,
           'hc32f072' : target_HC32L07x.HC32F072,
+          'hc32k116xa' : target_HC32K118.HC32K116xA,
+          'hc32k116' : target_HC32K118.HC32K116xA,
+          'hc32k118xc' : target_HC32K118.HC32K118xC,
+          'hc32k118' : target_HC32K118.HC32K118xC,
           'rp2040' : target_rp2.RP2040Core0,
           'rp2040_core0' : target_rp2.RP2040Core0,
           'rp2040_core1' : target_rp2.RP2040Core1,
