@@ -539,8 +539,6 @@ class FlashBuilder(MemoryBuilder):
 
         erase_finish = time()
 
-        self.flash.cleanup()
-
         self.last_erase_was_chip = chip_erase
         self.perf.erase_time = erase_finish - erase_start
 
@@ -854,6 +852,11 @@ class FlashBuilder(MemoryBuilder):
         self.flash.erase_all()
         self.flash.uninit()
 
+        # Update page state to reflect the erased flash contents.
+        for page in self.page_list:
+            assert page.erased is not None
+            page.same = page.erased
+
     def _erase_sectors(self, progress_cb=_stub_progress):
         """@brief Perform sector erase on sectors that need it."""
         progress = 0
@@ -869,6 +872,7 @@ class FlashBuilder(MemoryBuilder):
                     # Erase the sector
                     for addr in sector.addrs:
                         self.flash.erase_sector(addr)
+                    sector.mark_all_pages_not_same()
                     progress += sector.erase_weight
                     if erase_weight > 0:
                         progress_cb(float(progress) / float(erase_weight))

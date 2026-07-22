@@ -249,7 +249,7 @@ class CbuildRun:
                 # Ensure CMSIS_PACK_ROOT is set
                 self._cmsis_pack_root()
             else:
-                raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_file_path}'")
+                raise CbuildRunError(f"Invalid header in .cbuild-run.yml file '{yml_file_path}'")
         except OSError as err:
             if yml_path == "":
                 raise CbuildRunError("Cannot access *.cbuild-run.yml file: no path provided")
@@ -530,8 +530,12 @@ class CbuildRun:
     def debugger(self) -> Dict[str, Any]:
         """@brief Debugger section of cbuild-run."""
         if self._debugger is None:
-            self._debugger = self._data.get('debugger', {})
-            LOG.debug("Read debugger configuration: %s", self._debugger)
+            _debugger = self._data.get('debugger') or {}
+            LOG.debug("Read debugger configuration: %s", _debugger)
+            if 'stdio' in _debugger and 'telnet' in _debugger:
+                LOG.warning("Both 'stdio' and 'telnet' sections found in debugger configuration. "
+                            "Using 'stdio' section and ignoring 'telnet'.")
+            self._debugger = _debugger
         return self._debugger
 
     @property
@@ -639,52 +643,53 @@ class CbuildRun:
         return self._get_server_port('gdbserver')
 
     @property
-    def telnet_port(self) -> Optional[Tuple]:
-        """@brief Telnet server port assignments from debugger section.
+    def stdio_port(self) -> Optional[Tuple]:
+        """@brief STDIO server port assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
-        return self._get_server_port('telnet')
+        server_type = 'stdio' if 'stdio' in self.debugger else 'telnet'
+        return self._get_server_port(server_type)
 
     @property
-    def telnet_mode(self) -> Tuple:
-        """@brief Telnet server mode assignments from debugger section.
+    def stdio_mode(self) -> Tuple:
+        """@brief STDIO mode assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
         SUPPORTED_MODES = { 'off', 'server', 'file', 'console' }
         MODE_ALIASES = { False: 'off',
                         'monitor': 'server'
                        }
-        # Get telnet configuration from debugger section
-        telnet_config = self.debugger.get('telnet') or []
-        valid_config = any('mode' in t for t in telnet_config)
+        # Get STDIO configuration from debugger section
+        stdio_config = self._get_stdio_config()
+        valid_config = any('mode' in s for s in stdio_config)
         # Determine global mode if specified, default to 'off' otherwise
-        global_mode = next((t.get('mode') for t in telnet_config if 'pname' not in t), 'off')
+        global_mode = next((s.get('mode') for s in stdio_config if 'pname' not in s), 'off')
         global_mode = MODE_ALIASES.get(global_mode, global_mode)
-        # Build list of telnet modes for each core
-        telnet_mode = []
+        # Build list of STDIO modes for each core
+        stdio_mode = []
         for core in self.sorted_processors:
-            mode = next((t.get('mode') for t in telnet_config if t.get('pname') == core.name), global_mode)
+            mode = next((s.get('mode') for s in stdio_config if s.get('pname') == core.name), global_mode)
             mode = MODE_ALIASES.get(mode, mode)
             if mode not in SUPPORTED_MODES:
                 if valid_config:
-                    LOG.warning("Invalid telnet mode '%s' for core '%s' in cbuild-run, defaulting to '%s'",
+                    LOG.warning("Invalid STDIO mode '%s' for core '%s' in cbuild-run, defaulting to '%s'",
                             mode, core.name, global_mode)
                 mode = global_mode
-            telnet_mode.append(mode)
+            stdio_mode.append(mode)
 
-        return tuple(telnet_mode)
+        return tuple(stdio_mode)
 
     @property
-    def telnet_file(self) -> Dict[str, Optional[Tuple]]:
-        """@brief Telnet file path assignments from debugger section.
+    def stdio_file(self) -> Dict[str, Optional[Tuple]]:
+        """@brief STDIO file path assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
-        # Get telnet configuration from debugger section
-        telnet_config = self.debugger.get('telnet') or []
-        telnet_mode = self.telnet_mode
+        # Get STDIO configuration from debugger section
+        stdio_config = self._get_stdio_config()
+        stdio_mode = self.stdio_mode
 
-        if not any(mode == 'file' for mode in telnet_mode):
-            # No telnet file paths needed
+        if not any(mode == 'file' for mode in stdio_mode):
+            # No STDIO file paths needed
             return {'in': None, 'out': None}
 
         def _resolve_path(file_path: Optional[str], strict: bool = False) -> Optional[str]:
@@ -697,7 +702,7 @@ class CbuildRun:
             resolved_path = file_path_obj.resolve()
             # In strict mode check if the file exists
             if strict and not resolved_path.is_file():
-                LOG.warning("Telnet file '%s' not found", resolved_path)
+                LOG.warning("STDIO file '%s' not found", resolved_path)
 
             return str(resolved_path)
 
@@ -705,11 +710,11 @@ class CbuildRun:
         out_files = []
 
         # Per pname configuration
-        config_by_pname = {t['pname']: t for t in telnet_config if 'pname' in t}
+        config_by_pname = {s['pname']: s for s in stdio_config if 'pname' in s}
 
         if config_by_pname:
             # Build config per pname
-            for proc_info, mode in zip(self.sorted_processors, telnet_mode):
+            for proc_info, mode in zip(self.sorted_processors, stdio_mode):
                 if mode != 'file':
                     in_files.append(None)
                     out_files.append(None)
@@ -726,11 +731,11 @@ class CbuildRun:
                     out_file = str((self._base_path / f"{self._cbuild_name}.{proc_info.name}.out").resolve())
                 out_files.append(out_file)
         else:
-            config = next((t for t in telnet_config if t.get('mode') == 'file'), None)
+            config = next((s for s in stdio_config if s.get('mode') == 'file'), None)
             if config is not None:
                 if len(self.sorted_processors) > 1:
-                    LOG.warning("Ignoring invalid telnet file configuration for multicore target in cbuild-run")
-                    for proc_info, mode in zip(self.sorted_processors, telnet_mode):
+                    LOG.warning("Ignoring invalid STDIO file configuration for multicore target in cbuild-run")
+                    for proc_info, mode in zip(self.sorted_processors, stdio_mode):
                         if mode != 'file':
                             in_files.append(None)
                             out_files.append(None)
@@ -856,6 +861,11 @@ class CbuildRun:
         })
         TARGET[target] = tgt
 
+    def _get_stdio_config(self) -> List[dict]:
+        """@brief Returns STDIO configuration from debugger section, with telnet as an alias."""
+        server_type = 'stdio' if 'stdio' in self.debugger else 'telnet'
+        return self.debugger.get(server_type) or []
+
     def _get_server_port(self, server_type: str) -> Optional[Tuple]:
         """@brief Generic method to get server port assignments from debugger section."""
         server_config = self.debugger.get(server_type, [])
@@ -968,8 +978,8 @@ class CbuildRun:
 
         def _add_flashinfo_regions(
                 flash_attrs: Dict[str, Any],
-                flash_start: int,
-                flash_end: int,
+                parent_start: int,
+                parent_end: int,
                 flash_info: Dict[str, Any],
                 fallback_flm: Optional[PackFlashAlgo] = None,
             ) -> None:
@@ -987,7 +997,7 @@ class CbuildRun:
 
             # Validate blocks and calculate subregion ranges, extracting per-block args
             block_ranges = []  # List of (start, end, block_size, block_arg)
-            current_addr = flash_start
+            current_addr = flash_info['start']
             for elem in blocks:
                 try:
                     block_size = int(elem['size'])
@@ -1000,9 +1010,13 @@ class CbuildRun:
                     LOG.error("flash-info block 'size' and 'count' must be positive")
                     return
 
-                elem_end = current_addr + (block_size * block_count)
-                block_ranges.append((current_addr, elem_end, block_size, int(elem.get('arg', 0))))
-                current_addr = elem_end
+                block_start = current_addr
+                block_end = current_addr + (block_size * block_count)
+                sub_start = max(block_start, parent_start)
+                sub_end = min(block_end, parent_end)
+                if sub_start < sub_end:
+                    block_ranges.append((sub_start, sub_end, block_size, int(elem.get('arg', 0))))
+                current_addr = block_end
 
             if not block_ranges:
                 LOG.error("flash-info entry has no valid blocks")
@@ -1016,7 +1030,7 @@ class CbuildRun:
                 '_flashinfo_etime': etime,
             }
 
-            parent_attrs = {**flash_attrs, 'start': flash_start, 'length': flash_end - flash_start,
+            parent_attrs = {**flash_attrs, 'start': parent_start, 'length': parent_end - parent_start,
                             'sector_size': max(br[2] for br in block_ranges), 'page_size': page_size, **fi_attrs}
             if fallback_flm is not None:
                 parent_attrs['_fallback_flm'] = fallback_flm
@@ -1050,7 +1064,8 @@ class CbuildRun:
                 'access': memory['access'],
                 'pname': memory.get('pname'),
                 'alias': memory.get('alias'),
-                'is_default': memory.get('default')
+                'is_default': memory.get('default'),
+                'defined': memory.get('defined', False)
             }
 
             if memory.get('defined', False):

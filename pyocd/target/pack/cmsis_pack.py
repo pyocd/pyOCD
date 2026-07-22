@@ -820,6 +820,8 @@ class CmsisPackDevice:
                 fi_match = self._find_matching_flashinfo(attrs['start'], attrs['start'] + attrs['length'])
                 if fi_match is not None:
                     fi_elem_found, fi_start, fi_end = fi_match
+                    parent_start = max(attrs['start'], fi_start)
+                    parent_end = min(attrs['start'] + attrs['length'], fi_end)
                     if not self._saw_startup:
                         attrs['is_boot_memory'] = True
                         self._saw_startup = True
@@ -831,7 +833,7 @@ class CmsisPackDevice:
                         if fallback_flm is not None:
                             attrs.update(self._get_flash_ram_attributes(algo_element))
                         self._processed_algos.add(algo_element)
-                    self._add_flashinfo_regions(attrs, fi_start, fi_end, fi_elem_found, fallback_flm)
+                    self._add_flashinfo_regions(attrs, parent_start, parent_end, fi_elem_found, fallback_flm)
                     continue
 
                 # No flashinfo; use FLM if available.
@@ -993,13 +995,14 @@ class CmsisPackDevice:
     def _add_flashinfo_regions(
                 self,
                 flash_attrs: Dict[str, Any],
-                flash_start: int,
-                flash_end: int,
+                parent_start: int,
+                parent_end: int,
                 fi_elem: Element,
                 fallback_flm: Optional[PackFlashAlgo] = None,
             ) -> None:
         """@brief Create flash region(s) from a flashinfo XML element."""
         try:
+            flash_start = self._get_int_attribute(fi_elem, 'start')
             page_size = self._get_int_attribute(fi_elem, 'pagesize')
             blank_val_64 = int(fi_elem.attrib.get('blankval', '0xFFFFFFFFFFFFFFFF'), base=0) & 0xFFFFFFFFFFFFFFFF
             fill_val_64 = int(fi_elem.attrib.get('filler', '0xFFFFFFFFFFFFFFFF'), base=0) & 0xFFFFFFFFFFFFFFFF
@@ -1026,9 +1029,13 @@ class CmsisPackDevice:
                 LOG.error("%s DFP (%s): flashinfo block 'size' and 'count' must be positive",
                           self.pack_description.pack_name, self.part_number)
                 return
-            elem_end = current_addr + (block_size * count)
-            block_ranges.append((current_addr, elem_end, block_size, self._get_int_attribute(child, 'arg', 0)))
-            current_addr = elem_end
+            block_start = current_addr
+            block_end = current_addr + (block_size * count)
+            sub_start = max(block_start, parent_start)
+            sub_end = min(block_end, parent_end)
+            if sub_start < sub_end:
+                block_ranges.append((sub_start, sub_end, block_size, self._get_int_attribute(child, 'arg', 0)))
+            current_addr = block_end
 
         if not block_ranges:
             LOG.error("%s DFP (%s): flashinfo has no valid blocks",
@@ -1044,8 +1051,8 @@ class CmsisPackDevice:
         }
         blank_val = blank_val_64 & 0xFF
 
-        # Parent region spans the full flash range with the maximum sector size.
-        parent_attrs = {**flash_attrs, 'start': flash_start, 'length': flash_end - flash_start,
+        # Parent region spans the overlapping memory range with the maximum sector size.
+        parent_attrs = {**flash_attrs, 'start': parent_start, 'length': parent_end - parent_start,
                         'sector_size': max(br[2] for br in block_ranges), 'page_size': page_size, **fi_attrs}
         if fallback_flm is not None:
             parent_attrs['_fallback_flm'] = fallback_flm

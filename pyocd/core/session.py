@@ -295,11 +295,11 @@ class Session(Notifier):
         debugger_options['connect_mode'] = connect_mode
 
         debugger_options['gdbserver_port'] = self.cbuild_run.gdbserver_port
-        debugger_options['telnet_port'] = self.cbuild_run.telnet_port
-        debugger_options['telnet_mode'] = self.cbuild_run.telnet_mode
-        telnet_file = self.cbuild_run.telnet_file
-        debugger_options['telnet_file_in'] = telnet_file.get('in')
-        debugger_options['telnet_file_out'] = telnet_file.get('out')
+        debugger_options['stdio_port'] = self.cbuild_run.stdio_port
+        debugger_options['stdio_mode'] = self.cbuild_run.stdio_mode
+        stdio_file = self.cbuild_run.stdio_file
+        debugger_options['stdio_file_in'] = stdio_file.get('in')
+        debugger_options['stdio_file_out'] = stdio_file.get('out')
 
         debugger_options['rtt'] = self.cbuild_run.rtt
         debugger_options['systemview_file'] = self.cbuild_run.systemview_file

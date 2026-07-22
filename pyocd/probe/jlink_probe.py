@@ -2,6 +2,7 @@
 # Copyright (c) 2020,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2023 Marian Muller Rebeyrol
+# Copyright (c) 2026 Christophe Dufaza
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -187,11 +188,22 @@ class JLinkProbe(DebugProbe):
         try:
             # Configure UI usage. We must do this here rather than in the ctor because the ctor
             # doesn't have access to the session.
-            if self.session.options.get('jlink.non_interactive'):
+            non_interactive = self.session.options.get('jlink.non_interactive')
+
+            # With JLink DLL versions 9.14 and above, calling disable_dialog_boxes()
+            # before open() puts the pylink adapter into an inconsistent state.
+            # See:
+            # - #1925 "Jlink V9.22 No emulator with serial number"
+            # - #1927 "probe: jlink: open emulator before issuing commands"
+            # - square/pylink#259 "Fix exec command"
+            if non_interactive and self._link.version < "9.14":
                 self._link.disable_dialog_boxes()
 
             self._link.open(self._serial_number_int)
             self._is_open = True
+
+            if non_interactive and self._link.version >= "9.14":
+                self._link.disable_dialog_boxes()
 
             # Get available wire protocols.
             ifaces = self._link.supported_tifs()

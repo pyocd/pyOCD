@@ -35,7 +35,7 @@ class RTTConfig:
 
     # type aliases scoped to the class
     RTTControlBlock = Optional[Tuple[Optional[int], Optional[int], bool]]                 # (address, size, auto-detect)
-    RTTChannel      = Optional[Tuple[int, str, Optional[Union[int, str]], Optional[str]]] # (number, mode, port/file-out, file--in)
+    RTTChannel      = Optional[Tuple[int, str, Optional[Union[int, str]], Optional[str]]] # (number, mode, port/file-out, file-in)
     RTTChannelList  = Optional[Tuple[RTTChannel, ...]]
 
     _session: Session

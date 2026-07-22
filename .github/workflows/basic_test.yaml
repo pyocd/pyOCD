@@ -1,5 +1,6 @@
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2025 Antonio Chiu
+# Copyright (c) 2026 Arm Limited
 
 # pyocd workflow for:
 # - checking code with flake8
@@ -28,12 +29,12 @@ jobs:
         - macos-latest
         - windows-latest
         python-version:
-        - "3.8"
         - "3.9"
         - "3.10"
         - "3.11"
         - "3.12"
         - "3.13"
+        - "3.14"
 
     steps:
     # Only check out HEAD. We don't need the full history.
