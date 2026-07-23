@@ -100,7 +100,8 @@ class RP2Base(CoreSightTarget):
         RomRegion(  start=0x12000000,   length=0x1000000,   name="xip_nocache",           alias="xip"),
         RomRegion(  start=0x13000000,   length=0x1000000,   name="xip_noalloc_nocache",   alias="xip"),
         RamRegion(  start=0x20000000,   length=0x40000,     name="sram0_3",               ),
-        RamRegion(  start=0x20040000,   length=0x2000,      name="sram4_5",               ),
+        RamRegion(  start=0x20040000,   length=0x40000,     name="sram4_7",               ),
+        RamRegion(  start=0x20080000,   length=0x2000,      name="sram8_9",               ),
         RamRegion(  start=0x21000000,   length=0x40000,     name="sram0_3_alias",         alias="sram0_3"),
         RamRegion(  start=0x51000000,   length=0x1000,      name="usbram",                ),
         )
