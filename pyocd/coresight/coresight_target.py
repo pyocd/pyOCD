@@ -32,11 +32,11 @@ from ..target.pack.flm_region_builder import FlmFlashRegionBuilder
 
 if TYPE_CHECKING:
     from ..core.session import Session
-    from ..core.memory_map import MemoryMap
     from .ap import (APAddressBase, AccessPort)
     from ..debug.svd.model import SVDDevice
 
 LOG = logging.getLogger(__name__)
+
 
 class CoreSightTarget(SoCTarget):
     """@brief Represents an SoC that uses CoreSight debug infrastructure.
@@ -401,6 +401,9 @@ class CoreSightTarget(SoCTarget):
             assert self.debug_sequence_delegate
             if self.debug_sequence_delegate.trace_setup == TraceSetup.FULL:
                 self.debug_sequence_delegate.run_sequence('TraceCapture', pname=self.selected_core_or_raise.node_name)
+        ctrace_run = self.session.ctrace_run
+        if ctrace_run is not None:
+            ctrace_run.apply(self)
 
     def trace_flush(self) -> None:
         result = self.call_delegate('trace_flush', target=self, mode=0)

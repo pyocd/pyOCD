@@ -36,6 +36,7 @@ from .options_manager import OptionsManager
 from .target import Target
 from ..utility.notification import Notifier
 from ..target.pack.cbuild_run import CbuildRun
+from ..trace.ctrace_run import CTraceRun
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -187,6 +188,7 @@ class Session(Notifier):
         self._probeserver: Optional[DebugProbeServer] = None
         self._context_state = SimpleNamespace()
         self._cbuild_run: Optional[CbuildRun] = None
+        self._ctrace_run: Optional[CTraceRun] = None
         self._trace_started: bool = False
 
         # Set this session on the probe, if we were given a probe.
@@ -215,6 +217,11 @@ class Session(Notifier):
                 self._cbuild_run = CbuildRun(self.options.get('cbuild_run'))
                 cbuild_run_config = self._get_cbuild_run_config(command)
                 self._options.add_back(cbuild_run_config)
+                if cbuild_run_config.get('enable_swv'):
+                    try:
+                        self._ctrace_run = CTraceRun(self)
+                    except (exceptions.Error, OSError) as err:
+                        LOG.error("Failed to initialize ctrace-run support: %s", err)
 
         # Load options from the config file.
         config = self._get_config()
@@ -488,6 +495,11 @@ class Session(Notifier):
     def cbuild_run(self) -> Optional[CbuildRun]:
         """@brief The CbuildRun instance if a cbuild-run file was loaded."""
         return self._cbuild_run
+
+    @property
+    def ctrace_run(self) -> Optional[CTraceRun]:
+        """@brief The CTraceRun instance if trace was enabled by cbuild-run."""
+        return self._ctrace_run
 
     def __enter__(self) -> "Session":
         assert self._probe is not None
