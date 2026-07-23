@@ -788,53 +788,51 @@ class CbuildRun:
         return sv.get('auto-stop')
 
     @property
-    def trace_mode(self) -> Optional[str]:
-        trace = self.debugger.get('trace')
-        mode = trace.get('mode') if trace else None
-        if mode in {'server', 'file'} and self.trace_port_type in {'swo-uart', None}:
-            return mode
-        if mode:
-            LOG.warning("Trace mode '%s' is not supported; trace will not be enabled", mode)
-        return None
+    def trace(self) -> Dict[str, Any]:
+        """@brief Trace configuration from debugger section.
+            The method will not be called frequently, so performance is not critical.
+        """
+        SUPPORTED_MODES = { 'off', 'server', 'file' }
+        MODE_ALIASES = { False: 'off'}
+        trace = self.debugger.get('trace') or []
 
-    @property
-    def trace_port_type(self) -> Optional[str]:
-        trace = self.debugger.get('trace')
-        port_type = trace.get('port-type') if trace else None
-        if port_type in {'swo-uart', None}:
-            return port_type
-        LOG.warning("Trace port type '%s' is not supported; trace will not be enabled", port_type)
-        return None
-
-    @property
-    def trace_input_clock(self) -> Optional[int]:
-        trace = self.debugger.get('trace')
-        clock = trace.get('input-clock') if trace else None
-        if clock is None:
-            LOG.warning("Trace input clock not specified in cbuild-run; trace will not be enabled")
-        return clock
-
-    @property
-    def trace_output_clock(self) -> Optional[int]:
-        #TODO auto-detect if not provided or value is 0
-        trace = self.debugger.get('trace')
-        clock = trace.get('output-clock') if trace else None
-        return clock
-
-    @property
-    def trace_port(self) -> Optional[int]:
-        trace = self.debugger.get('trace')
-        if trace and trace.get('mode') == 'server':
-            return trace.get('server-port', 5555)
-        return None
-
-    @property
-    def trace_file(self) -> Optional[str]:
-        trace = self.debugger.get('trace')
-        if trace and trace.get('mode') == 'file':
-            default = self._cbuild_run_path.split('.cbuild-run')[0] + '.trace'
-            return trace.get('file', default)
-        return None
+        trace_config = {}
+        for t in trace:
+            if 'swo-uart' in t:
+                type_node = 'swo-uart'
+            elif 'trace-buffer' in t:
+                type_node = 'trace-buffer'
+                # TODO: Add support for trace-buffer configuration in the future
+                LOG.warning("Trace buffer configuration is not yet supported, ignoring trace-buffer entry in cbuild-run")
+                continue
+            else:
+                LOG.warning("Trace configuration in cbuild-run must specify either 'swo-uart' or 'trace-buffer'")
+                continue
+            trace_config['type'] = type_node
+            trace_config['name'] = t.get(type_node)
+            mode = t.get('mode', 'off')
+            mode = MODE_ALIASES.get(mode, mode)
+            if mode not in SUPPORTED_MODES:
+                LOG.warning("Invalid trace mode '%s' in cbuild-run, defaulting to 'off'", mode)
+                mode = 'off'
+            if mode == 'server':
+                trace_config['server-port'] = t.get('server-port', 5555)
+            elif mode == 'file':
+                if type_node == 'swo-uart':
+                    trace_config['file'] = t.get('file', f"{self.proj_path}/.trace/{self._cbuild_name}.SWO.raw")
+                else:
+                    trace_config['file'] = t.get('file', f"{self.proj_path}/.trace/{self._cbuild_name}.TB.raw")
+            if type_node == 'swo-uart' and mode != 'off' and t.get('input-clock') is None:
+                LOG.warning("Trace input clock not specified in cbuild-run; trace will not be enabled")
+                mode = 'off'
+            trace_config['mode'] = mode
+            trace_config['input-clock'] = t.get('input-clock')
+            trace_config['output-clock'] = t.get('output-clock')
+            # Currently only one trace configuration is supported, so we break after the first valid entry
+            if trace_config:
+                LOG.debug("Currently only one trace configuration is supported; ignoring additional entries in cbuild-run")
+                break
+        return trace_config
 
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""

@@ -306,15 +306,16 @@ class Session(Notifier):
         debugger_options['systemview_auto_start'] = self.cbuild_run.systemview_auto_start
         debugger_options['systemview_auto_stop'] = self.cbuild_run.systemview_auto_stop
 
-        if self.cbuild_run.trace_mode and self.cbuild_run.trace_input_clock is not None:
+        trace = self.cbuild_run.trace
+        if trace.get('mode', 'off') != 'off':
             debugger_options['enable_swv'] = True
-            debugger_options['swv_system_clock'] = self.cbuild_run.trace_input_clock
-            debugger_options['swv_clock'] = self.cbuild_run.trace_output_clock
+            debugger_options['swv_system_clock'] = trace.get('input-clock')
+            debugger_options['swv_clock'] = trace.get('output-clock')
             debugger_options['swv_raw_enable'] = True
-            if self.cbuild_run.trace_file is not None:
-                debugger_options['swv_raw_file'] = self.cbuild_run.trace_file
-            elif self.cbuild_run.trace_port is not None:
-                debugger_options['swv_raw_port'] = self.cbuild_run.trace_port
+            if trace.get('mode') == 'file':
+                debugger_options['swv_raw_file'] = trace.get('file')
+            elif trace.get('mode') == 'server':
+                debugger_options['swv_raw_port'] = trace.get('server-port')
 
         # Set reset types for load operations.
         debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset
