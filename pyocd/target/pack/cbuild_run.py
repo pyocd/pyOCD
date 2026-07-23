@@ -457,12 +457,11 @@ class CbuildRun:
     def trace_setup(self) -> TraceSetup:
         """@brief Debug sequence configuration."""
         conf = self._data.get('debug-sequences-conf') or {}
-        value = conf.get('traceSetup', TraceSetup.LEGACY.value)
+        value = conf.get('trace-setup', TraceSetup.LEGACY.value)
         try:
             return TraceSetup(value)
         except ValueError:
-            LOG.warning("Invalid traceSetup value '%s' in debug-sequences-conf; using '%s'",
-                    value, TraceSetup.LEGACY.value)
+            LOG.warning("Invalid trace-setup value '%s' in debug-sequences-conf; using '%s'", value, TraceSetup.LEGACY.value)
             return TraceSetup.LEGACY
 
     @property
