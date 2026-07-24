@@ -77,7 +77,7 @@ class LPC4088qsb(LPC4088):
                                                                 page_size=0x200,
                                                                 algo=INTERNAL_FLASH_ALGO),
         FlashRegion(    start=0x10000,     length=0x70000,      blocksize=0x8000,
-                                                                page_size=0x400,
+                                                                page_size=0x200,
                                                                 erase_sector_weight=LARGE_ERASE_SECTOR_WEIGHT,
                                                                 program_page_weight=LARGE_PROGRAM_PAGE_WEIGHT,
                                                                 algo=INTERNAL_FLASH_ALGO),
