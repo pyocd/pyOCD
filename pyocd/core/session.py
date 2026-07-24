@@ -113,6 +113,10 @@ class Session(Notifier):
         """Session notification events."""
         ## Sent after target-specific trace support has been reinitialized following a reset.
         TRACE_RESTART = 1
+        ## Sent to flush buffered raw trace data to its output file.
+        TRACE_DATA_FLUSH = 2
+        ## Sent to open a new raw trace output file for capture.
+        TRACE_DATA_CAPTURE = 3
 
     @classmethod
     def get_current(cls) -> Self:
