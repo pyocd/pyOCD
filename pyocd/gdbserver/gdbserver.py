@@ -24,7 +24,6 @@ from xml.etree.ElementTree import (Element, SubElement, tostring)
 from typing import (Dict, List, Optional, Tuple)
 
 from ..core import exceptions
-from ..core.soc_target import CoreRunStateChange
 from ..core.target import Target
 from ..flash.loader import FlashLoader
 from ..utility.cmdline import convert_vector_catch
@@ -340,7 +339,6 @@ class GDBServer(threading.Thread):
 
         self.packet_size = 2048
         self.is_target_running = (self.target.get_state() == Target.State.RUNNING)
-        self.board.target.core_run_state.set_core_running(self.core, self.is_target_running)
         self.flash_loader = None
         self.shutdown_event = threading.Event()
         if core is None:
@@ -427,13 +425,11 @@ class GDBServer(threading.Thread):
         # pylint: enable=invalid-name
 
     def trace_flush(self) -> None:
-        state_change = self.board.target.core_run_state.set_core_running(self.core, False)
-        if state_change is CoreRunStateChange.LAST_CORE_STOPPED and self.session.options.get('enable_swv'):
+        if self.session.options.get('enable_swv'):
             self.board.target.trace_flush()
 
     def trace_capture(self) -> None:
-        state_change = self.board.target.core_run_state.set_core_running(self.core, True)
-        if state_change is CoreRunStateChange.FIRST_CORE_STARTED and self.session.options.get('enable_swv'):
+        if self.session.options.get('enable_swv'):
             self.board.target.trace_capture()
 
     def _init_remote_commands(self):
