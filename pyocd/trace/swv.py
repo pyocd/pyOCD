@@ -298,6 +298,5 @@ class SWVReader(threading.Thread):
                 with raw_file:
                     while data := self._session.probe.swo_read():
                         raw_file.write(data)
-                        self._parser.parse(data)
             except (OSError, exceptions.ProbeError) as err:
                 LOG.warning("Failed to update SWV raw output file: %s", err)
