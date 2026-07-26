@@ -1,3 +1,6 @@
+# 2341:1002 Arduino UNO WiFi R4 CMSIS-DAP
+SUBSYSTEM=="usb", ATTR{idVendor}=="2341", ATTR{idProduct}=="1002", MODE:="666"
+
 # 04b4:f138 Cypress KitProg1/KitProg2 CMSIS-DAP mode
 SUBSYSTEM=="usb", ATTR{idVendor}=="04b4", ATTR{idProduct}=="f138", MODE:="666"
 
