@@ -33,6 +33,17 @@ class StubProbe(DebugProbe):
     def unique_id(self) -> str:
         return "0"
 
+    @property
+    def capabilities(self):
+        # `DebugProbe.capabilities` is abstract (raises NotImplementedError),
+        # so any caller that touches this property on a StubProbe — including
+        # `ListGenerator.list_targets()` when a CMSIS-Pack file is passed via
+        # `pyocd list --targets --pack=...` — crashes before producing any
+        # output. The stub has no real probe capabilities; return an empty
+        # set so the consuming code paths simply see "this probe supports
+        # nothing" and move on (issue #1959).
+        return set()
+
 class ListGenerator(object):
     @staticmethod
     def list_probes():
