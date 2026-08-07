@@ -2,6 +2,7 @@
 # Copyright (c) 2006-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2022 Clay McClure
+# Copyright (c) 2026 Ryan QIAN
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -578,21 +579,23 @@ class GDBServer(threading.Thread):
                 self.did_init_thread_providers = False
                 self.first_run_after_reset_or_flash = True
 
-                # Resume target when no clients are connected
-                try:
-                    # First check if it's halted
-                    if self.target.get_state() == Target.State.HALTED:
-                        # If the target is halted, flush the trace capture buffer.
-                        if self.is_target_running:
-                            self.is_target_running = False
-                            self.trace_flush()
-                        # Start trace capture before resuming.
-                        self.trace_capture()
-                        self.target.resume()
-                except Exception as e:
-                    LOG.error("Error resuming target after client detached: %s",
-                              e, exc_info=self.session.log_tracebacks)
-                self.is_target_running = (self.target.get_state() == Target.State.RUNNING)
+                # Resume target when no clients are connected, unless the
+                # resume_on_disconnect session option is False.
+                if self.session.options.get('resume_on_disconnect', True):
+                    try:
+                        # First check if it's halted
+                        if self.target.get_state() == Target.State.HALTED:
+                            # If the target is halted, flush the trace capture buffer.
+                            if self.is_target_running:
+                                self.is_target_running = False
+                                self.trace_flush()
+                            # Start trace capture before resuming.
+                            self.trace_capture()
+                            self.target.resume()
+                    except Exception as e:
+                        LOG.error("Error resuming target after client detached: %s",
+                                  e, exc_info=self.session.log_tracebacks)
+                    self.is_target_running = (self.target.get_state() == Target.State.RUNNING)
 
             # Decide server lifecycle on connected sessions
             if not self.client_sessions and not self.persist:
