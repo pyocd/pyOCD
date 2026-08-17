@@ -3,6 +3,7 @@
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2023 Marian Muller Rebeyrol
 # Copyright (c) 2026 Christophe Dufaza
+# Copyright (c) 2026 Aditya Nikam
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -498,7 +499,10 @@ class JLinkProbe(DebugProbe):
 
     def swo_read(self):
         try:
-            return self._link.swo_read(0, self._link.swo_num_bytes(), True)
+            count = self._link.swo_num_bytes()
+            if count <= 0:
+                return bytearray()
+            return self._link.swo_read(0, count, True)
         except JLinkException as exc:
             raise self._convert_exception(exc) from exc
 
