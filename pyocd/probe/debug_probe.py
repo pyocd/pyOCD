@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
+# Copyright (c) 2026 Ryan QIAN
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -137,6 +138,13 @@ class DebugProbe:
 
         ## @brief Pin access via the read_pins()/write_pins() APIs.
         PIN_ACCESS = 8
+
+        ## @brief Whether the probe can drive the target's nRESET signal via assert_reset().
+        #
+        # Probes whose assert_reset() genuinely drives nRESET advertise this so callers
+        # can gate hardware-reset preludes on real nRESET support. Probes whose
+        # assert_reset() is a no-op MUST NOT advertise it.
+        RESET_ASSERT = 9
 
     @classmethod
     def get_all_connected_probes(

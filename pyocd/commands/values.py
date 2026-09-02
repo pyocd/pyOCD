@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
+# Copyright (c) 2026 Ryan QIAN
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -730,6 +731,8 @@ class ClockFrequencyValue(ValueBase):
             swd_jtag = 'SWD'
         elif self.context.probe.wire_protocol == DebugProbe.Protocol.JTAG:
             swd_jtag = 'JTAG'
+        elif self.context.probe.wire_protocol == DebugProbe.Protocol.CJTAG:
+            swd_jtag = 'cJTAG'
         else:
             swd_jtag = '??'
 

@@ -2,6 +2,7 @@
 # Copyright (c) 2018-2020,2025-2026 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
 # Copyright (c) 2022 Chris Reed
+# Copyright (c) 2026 Ryan QIAN
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,7 +58,7 @@ BUILTIN_OPTIONS = [
     OptionInfo('cpu.step.instruction.timeout', float, 0.0,
         "Timeout in seconds for instruction step operations. Defaults to 0, or no timeout."),
     OptionInfo('dap_protocol', str, 'default',
-        "Wire protocol, either 'swd', 'jtag', or 'default'."),
+        "Wire protocol, either 'swd', 'jtag', 'cjtag', or 'default'."),
     OptionInfo('dap_swj_enable', bool, True,
         "Send SWJ transition sequence to switch between SWD and JTAG."),
     OptionInfo('dap_swj_use_dormant', bool, False,
@@ -221,6 +222,11 @@ BUILTIN_OPTIONS = [
         "Enable automatic start of SystemView."),
     OptionInfo('systemview_auto_stop', bool, None,
         "Enable automatic stop of SystemView."),
+
+    # RISC-V debug options (riscv.* namespace).
+    OptionInfo('riscv.srst_settle_ms', int, 500,
+        "Settle time in ms after releasing hardware SRST before re-initializing the DTM. "
+        "Bounds the DTM re-init polling window after SRST deassertion."),
     ]
 
 ## @brief Aliases for backwards-compatible option names.

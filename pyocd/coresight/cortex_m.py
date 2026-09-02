@@ -30,7 +30,8 @@ from ..utility import (cmdline, timeout)
 from .component import (CoreSightComponent, CoreSightCoreComponent)
 from .fpb import FPB
 from .dwt import DWT
-from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension)
+from .core_ids import (CORE_TYPE_NAME, CortexMExtension)
+from ..core.architecture import CoreArchitecture
 from .cortex_m_core_registers import (
     CortexMCoreRegisterInfo,
     CoreRegisterGroups,
@@ -324,7 +325,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
 
     @property
     def architecture(self) -> CoreArchitecture:
-        """@brief @ref pyocd.coresight.core_ids.CoreArchitecture "CoreArchitecture" for this core."""
+        """@brief @ref pyocd.core.architecture.CoreArchitecture "CoreArchitecture" for this core."""
         return self._architecture
 
     @property

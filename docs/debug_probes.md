@@ -250,6 +250,19 @@ These are the SWD/JTAG frequencies available with different values of `stlink.v3
 To use a Segger J-Link probe, the driver package must be installed. Segger makes drivers available for Linux, macOS,
 and Windows.
 
+
+### RISC-V debug probes
+
+RISC-V targets use JTAG as the debug transport. The following probe types are supported for RISC-V debugging:
+
+- **CMSIS-DAP** (JTAG mode): Most CMSIS-DAP probes support JTAG in addition to SWD. Use `--frequency 8000000`
+  for reliable operation.
+- **FTDI FT2232H**: Supported as a standalone JTAG probe. Requires MPSSE initialization before use.
+  Common for dual-core RISC-V targets.
+- **J-Link**: J-Link probes can be used for RISC-V targets in JTAG mode.
+
+RISC-V targets do **not** support SWD — JTAG is the only available wire protocol.
+
 [J-Link firmware and driver installer and updates on www.segger.com](https://www.segger.com/downloads/jlink/)
 
 On macOS, you can install the `segger-jlink` cask with Homebrew to get managed driver updates.

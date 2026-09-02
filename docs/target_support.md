@@ -3,10 +3,11 @@ title: Target support
 ---
 
 Through both built-in support and CMSIS-Packs, pyOCD supports nearly every Cortex-M MCU that is
-available on the market.
+available on the market. pyOCD also supports RISC-V targets with built-in target types.
 
 In addition, because pyOCD dynamically inspects the target's debug infrastructure, basic
-debug functionality is enabled for any target that correctly implement the CoreSight architecture.
+debug functionality is enabled for any target that correctly implement the CoreSight architecture
+or RISC-V debug specification.
 
 
 ## Target types
@@ -86,6 +87,80 @@ Note how the descriptions of all but the last probe show the name of the board a
 
 If the target type is *not* auto-detected, it will default to "cortex_m" unless specified as
 described above (see [Generic target type](#generic_target_type) above). In this case, the "Target" column will show "n/a".
+
+
+## RISC-V target support
+
+pyOCD supports RISC-V targets using the RISC-V Debug Specification (version 0.13 and 1.0). RISC-V
+target support differs from Arm in several important ways.
+
+### Generic RISC-V target type
+
+pyOCD provides a generic `"riscv"` target type that can connect to any RISC-V device implementing the
+debug specification. Like the `"cortex_m"` type, this provides basic debug functionality but no flash
+programming or memory map.
+
+### Key differences from Arm targets
+
+- **JTAG only**: RISC-V debug uses JTAG as the transport layer. There is no SWD equivalent for RISC-V.
+- **No auto-detection**: RISC-V targets must be explicitly specified via `--target` on the command line
+  or in a configuration file. On-board debug probes cannot auto-detect RISC-V target types.
+- **No CMSIS-Pack support**: There is no CMSIS Pack standard for RISC-V. All RISC-V targets must be
+  added as built-in targets.
+- **Hart-based cores**: Each CPU core is a "hart" (hardware thread). Multi-hart targets have multiple
+  core instances.
+
+### Built-in RISC-V targets
+
+RISC-V built-in targets are listed alongside Arm targets by `pyocd list --targets`. All current RISC-V targets are from HPMicro Semiconductor, spanning 9 SoC families with AndesCore D25 (single-core) and D45 (single/dual-core) IP.
+
+**Part (chip) targets:**
+
+| Target Type | SoC Family | Core | Notes |
+|---|---|---|---|
+| `hpm53x0` | HPM5300 | D25 | Base (no internal flash) |
+| `hpm53x1` | HPM5300 | D25 | 1 MB internal flash |
+| `hpm5ex0` | HPM5E00 | D25 | Hybrid flash, no internal flash |
+| `hpm5ex1` | HPM5E00 | D25 | |
+| `hpm62x0` | HPM6200 | D45 | Dual-core, no internal flash |
+| `hpm62x4` | HPM6200 | D45 | Dual-core, 4 MB internal flash |
+| `hpm63x0` | HPM6300 | D45 | No internal flash |
+| `hpm63x4` | HPM6300 | D45 | 4 MB internal flash |
+| `hpm67x0` | HPM6700 | D45 | Dual-core, no internal flash |
+| `hpm67x4` | HPM6700 | D45 | Dual-core, 4 MB internal flash |
+| `hpm68x0` | HPM6800 | D45 | No internal flash |
+| `hpm6ex0` | HPM6E00 | D45 | Dual-core, no internal flash |
+| `hpm6px0` | HPM6P00 | D45 | Dual-core, no internal flash |
+| `hpm6px1` | HPM6P00 | D45 | Dual-core, 1 MB internal flash |
+
+**Board targets:**
+
+| Target Type | Board | Notes |
+|---|---|---|
+| `hpm5300evk` | HPM5300EVK | |
+| `hpm5301evklite` | HPM5301EVK-Lite | |
+| `hpm5e00evk` | HPM5E00EVK | Hybrid flash |
+| `hpm6200evk` | HPM6200EVK | Dual-core |
+| `hpm6300evk` | HPM6300EVK | |
+| `hpm6750evk2` | HPM6750EVK2 | Dual-core |
+| `hpm6750evkmini` | HPM6750EVKMINI | Dual-core |
+| `hpm6800evk` | HPM6800EVK | |
+| `hpm6e00evk` | HPM6E00EVK | Dual-core |
+| `hpm6p00evk` | HPM6P00EVK | Dual-core |
+
+### Multi-core RISC-V targets
+
+Dual-core (or multi-hart) RISC-V targets expose multiple cores through a single Debug Module. Each
+core gets its own GDB server port (e.g., core 0 on port 3333, core 1 on port 3334). The JTAG
+transport is automatically serialized using a reentrant lock (`RLock`) so concurrent GDB sessions
+do not corrupt DMI state.
+
+For SoCs that hold secondary cores in reset after power-on (e.g., HPM6P80), pyOCD releases them
+during initialization via the `pre_hart_discover` callback and re-releases them after `ndmreset`
+via `post_ndmreset_hooks`.
+
+To add support for additional RISC-V MCUs, see the
+[Adding a RISC-V target]({% link _docs/adding_new_targets.md %}#adding-a-risc-v-target) guide.
 
 
 ## Target configuration

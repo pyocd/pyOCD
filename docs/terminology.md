@@ -57,4 +57,32 @@ These are the key terms used by pyOCD and its documentation.
     modify pyOCD's behaviour. Different from a Python script that uses pyOCD as a package, because the
     `pyocd` command line tool is the driving process.
 - **wire protocol**: The protocol used on the debug link, either SWD or JTAG for Arm-based devices.
+- **Abstract Command**: A RISC-V debug mechanism for accessing core registers without halting the hart,
+    defined in the RISC-V Debug Specification.
+- **DMI**: Debug Module Interface, the RISC-V register bus connecting the DTM to the Debug Module.
+    Accessed via JTAG using a 41-bit data register scan.
+- **DM**: Debug Module, the RISC-V equivalent of Arm's debug components. Controls hart debug state,
+    provides abstract commands, program buffer execution, and System Bus Access.
+- **DTM**: Debug Transport Module, the RISC-V equivalent of Arm's DP. Provides transport-layer
+    access (JTAG) to the DMI register space.
+- **hart**: HARdware Thread, the RISC-V term for a hardware execution context (equivalent to a CPU core
+    in Arm terminology). A multi-hart RISC-V core has multiple execution contexts.
+- **Program Buffer**: A region in the Debug Module that holds executable instructions, allowing the
+    debugger to run small code sequences on the hart for operations not supported by abstract commands.
+- **SBA**: System Bus Access, a RISC-V debug feature allowing the debugger to perform memory reads
+    and writes directly on the system bus without involving the hart.
+- **CSR**: Control and Status Register, the RISC-V equivalent of Arm's system control registers.
+    CSRs are accessed via dedicated instructions (CSRR/CSRW) and are grouped into standard,
+    custom, and vendor-specific address ranges.
+- **ebreak**: A RISC-V instruction that causes a breakpoint exception. Used for software breakpoints
+    (replacing instructions in RAM with EBREAK or C.EBREAK) and semihosting (3-instruction ebreak sequence).
+- **FENCE.I**: A RISC-V instruction that synchronizes the instruction and data caches. Required after
+    writing code or data to memory to ensure the CPU fetches the updated contents.
+- **mcontrol**: A RISC-V trigger register (tdata1 when type=2) used for hardware breakpoints and
+    watchpoints. Provides execute, load, and store address matching with configurable actions.
+- **trigger**: The RISC-V equivalent of Arm's FPB (breakpoints) and DWT (watchpoints). Each trigger
+    can be configured as a hardware breakpoint (execute match) or watchpoint (load/store address match).
+    The number of triggers is hardware-dependent (typically 2-8).
+- **WARL**: Write-Any-Read-Legal, a RISC-V register property where writing any value is accepted but
+    only legal values are retained when read back. Used for capability discovery in trigger registers.
 

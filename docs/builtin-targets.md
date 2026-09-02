@@ -966,4 +966,133 @@ title: Built-in targets
     <td>AMA3B1KK_KBR</td>
     </tr>
 
+    <tr><td colspan="3"><strong>RISC-V Targets — HPMicro Semiconductor</strong></td></tr>
+
+    <tr><td colspan="3"><em>Part (chip) targets</em></td></tr>
+
+
+    <tr><td><code>hpm53x0</code></td>
+    <td>HPMicro</td>
+    <td>HPM5300 base (no internal flash)</td>
+    </tr>
+
+    <tr><td><code>hpm53x1</code></td>
+    <td>HPMicro</td>
+    <td>HPM5300 (HPM53x1, 1 MB internal flash)</td>
+    </tr>
+
+    <tr><td><code>hpm5ex0</code></td>
+    <td>HPMicro</td>
+    <td>HPM5E00 base (hybrid flash, no internal flash)</td>
+    </tr>
+
+    <tr><td><code>hpm5ex1</code></td>
+    <td>HPMicro</td>
+    <td>HPM5E00 (HPM5Ex1)</td>
+    </tr>
+
+    <tr><td><code>hpm62x0</code></td>
+    <td>HPMicro</td>
+    <td>HPM6200 base (dual-core D45, no internal flash)</td>
+    </tr>
+
+    <tr><td><code>hpm62x4</code></td>
+    <td>HPMicro</td>
+    <td>HPM6200 (HPM62x4, 4 MB internal flash, dual-core)</td>
+    </tr>
+
+    <tr><td><code>hpm63x0</code></td>
+    <td>HPMicro</td>
+    <td>HPM6300 base (no internal flash)</td>
+    </tr>
+
+    <tr><td><code>hpm63x4</code></td>
+    <td>HPMicro</td>
+    <td>HPM6300 (HPM63x4, 4 MB internal flash)</td>
+    </tr>
+
+    <tr><td><code>hpm67x0</code></td>
+    <td>HPMicro</td>
+    <td>HPM6700 base (dual-core D45, no internal flash)</td>
+    </tr>
+
+    <tr><td><code>hpm67x4</code></td>
+    <td>HPMicro</td>
+    <td>HPM6700 (HPM67x4, 4 MB internal flash, dual-core)</td>
+    </tr>
+
+    <tr><td><code>hpm68x0</code></td>
+    <td>HPMicro</td>
+    <td>HPM6800 base (no internal flash)</td>
+    </tr>
+
+    <tr><td><code>hpm6ex0</code></td>
+    <td>HPMicro</td>
+    <td>HPM6E00 base (dual-core D45, no internal flash)</td>
+    </tr>
+
+    <tr><td><code>hpm6px0</code></td>
+    <td>HPMicro</td>
+    <td>HPM6P00 base (dual-core D45, no internal flash)</td>
+    </tr>
+
+    <tr><td><code>hpm6px1</code></td>
+    <td>HPMicro</td>
+    <td>HPM6P00 (HPM6Px1, 1 MB internal flash, dual-core)</td>
+    </tr>
+
+    <tr><td colspan="3"><em>Board targets</em></td></tr>
+
+
+    <tr><td><code>hpm5300evk</code></td>
+    <td>HPMicro</td>
+    <td>HPM5300EVK evaluation board</td>
+    </tr>
+
+    <tr><td><code>hpm5301evklite</code></td>
+    <td>HPMicro</td>
+    <td>HPM5301EVK-Lite evaluation board</td>
+    </tr>
+
+    <tr><td><code>hpm5e00evk</code></td>
+    <td>HPMicro</td>
+    <td>HPM5E00EVK evaluation board (hybrid flash)</td>
+    </tr>
+
+    <tr><td><code>hpm6200evk</code></td>
+    <td>HPMicro</td>
+    <td>HPM6200EVK evaluation board (dual-core)</td>
+    </tr>
+
+    <tr><td><code>hpm6300evk</code></td>
+    <td>HPMicro</td>
+    <td>HPM6300EVK evaluation board</td>
+    </tr>
+
+
+    <tr><td><code>hpm6750evk2</code></td>
+    <td>HPMicro</td>
+    <td>HPM6750EVK2 evaluation board (dual-core)</td>
+    </tr>
+
+    <tr><td><code>hpm6750evkmini</code></td>
+    <td>HPMicro</td>
+    <td>HPM6750EVKMINI evaluation board (dual-core)</td>
+    </tr>
+
+    <tr><td><code>hpm6800evk</code></td>
+    <td>HPMicro</td>
+    <td>HPM6800EVK evaluation board</td>
+    </tr>
+
+    <tr><td><code>hpm6e00evk</code></td>
+    <td>HPMicro</td>
+    <td>HPM6E00EVK evaluation board (dual-core)</td>
+    </tr>
+
+    <tr><td><code>hpm6p00evk</code></td>
+    <td>HPMicro</td>
+    <td>HPM6P00EVK evaluation board (dual-core)</td>
+    </tr>
+
 </table>

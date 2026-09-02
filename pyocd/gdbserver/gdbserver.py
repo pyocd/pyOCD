@@ -2,6 +2,7 @@
 # Copyright (c) 2006-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2022 Clay McClure
+# Copyright (c) 2026 Ryan QIAN
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -84,28 +85,33 @@ _client_log_filter = _ClientLogFilter()
 LOG.addFilter(_client_log_filter)
 TRACE_MEM.addFilter(_client_log_filter)
 
-def unescape(data: bytes) -> List[int]:
+def unescape(data: bytes) -> bytes:
     """@brief De-escapes binary data from Gdb.
 
     @param data Bytes-like object with possibly escaped values.
-    @return List of integers in the range 0-255, with all escaped bytes de-escaped.
+    @return Bytes with all escaped bytes de-escaped.
     """
-    data_idx = 0
-
-    # unpack the data into binary array
-    result = list(data)
-
-    # check for escaped characters
-    while data_idx < len(result):
-        if result[data_idx] == 0x7d:
-            result.pop(data_idx)
-            result[data_idx] = result[data_idx] ^ 0x20
-        data_idx += 1
-
-    return result
+    result = bytearray(data)
+    write_idx = 0
+    read_idx = 0
+    while read_idx < len(result):
+        if result[read_idx] == 0x7d:
+            read_idx += 1
+            if read_idx >= len(result):
+                break
+            result[write_idx] = result[read_idx] ^ 0x20
+        else:
+            result[write_idx] = result[read_idx]
+        write_idx += 1
+        read_idx += 1
+    return bytes(result[:write_idx])
 
 ## Tuple of int values of characters that must be escaped.
 _GDB_ESCAPED_CHARS = tuple(b'#$}*')
+
+# RISC-V register description XML can exceed the default 2 KB packet, so use a
+# larger buffer to keep it in a single reply.
+RISCV_REGISTER_XML_MAX_PACKET = 16384
 
 def escape(data):
     """@brief Escape binary data to be sent to Gdb.
@@ -337,7 +343,7 @@ class GDBServer(threading.Thread):
                 'soft_bkpt_as_hard',
                 ])
 
-        self.packet_size = 2048
+        self.packet_size = RISCV_REGISTER_XML_MAX_PACKET
         self.is_target_running = (self.target.get_state() == Target.State.RUNNING)
         self.flash_loader = None
         self.shutdown_event = threading.Event()
@@ -347,7 +353,6 @@ class GDBServer(threading.Thread):
             self.target_context = self.board.target.get_target_context(core=core)
         self.thread_provider = None
         self.did_init_thread_providers = False
-        self.first_run_after_reset_or_flash = True
 
         # Listening socket - same port for all clients
         self.listen_socket = ListenerSocket(self.port, self.packet_size)
@@ -373,13 +378,18 @@ class GDBServer(threading.Thread):
         # Use stdio handler for semihost console.
         self.stdio_handler = StdioHandler(session=session, core=self.core, eot_enabled=False)
         semihost_console = semihost.ConsoleIOHandler(self.stdio_handler)
-        self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
+        # Create architecture-appropriate semihosting agent.
+        self.semihost = self.target.create_semihost_agent(
+            self.target_context,
+            io_handler=semihost_io_handler, console=semihost_console)
         self._semihosting_client = None
 
         # Start with RTT disabled
         self.rtt_server: Optional[RTTServer] = None
 
         self._init_remote_commands()
+
+        # Track flash regions initialized for read access (flash controller may need init after reset).
 
         # pylint: disable=invalid-name
 
@@ -576,23 +586,24 @@ class GDBServer(threading.Thread):
             if not any(c.is_attached_to_target for c in self.client_sessions):
                 self.thread_provider = None
                 self.did_init_thread_providers = False
-                self.first_run_after_reset_or_flash = True
 
-                # Resume target when no clients are connected
-                try:
-                    # First check if it's halted
-                    if self.target.get_state() == Target.State.HALTED:
-                        # If the target is halted, flush the trace capture buffer.
-                        if self.is_target_running:
-                            self.is_target_running = False
-                            self.trace_flush()
-                        # Start trace capture before resuming.
-                        self.trace_capture()
-                        self.target.resume()
-                except Exception as e:
-                    LOG.error("Error resuming target after client detached: %s",
-                              e, exc_info=self.session.log_tracebacks)
-                self.is_target_running = (self.target.get_state() == Target.State.RUNNING)
+                # Resume target when no clients are connected, unless the
+                # resume_on_disconnect option is False (keeps target halted).
+                if self.session.options.get('resume_on_disconnect', True):
+                    try:
+                        # First check if it's halted
+                        if self.target.get_state() == Target.State.HALTED:
+                            # If the target is halted, flush the trace capture buffer.
+                            if self.is_target_running:
+                                self.is_target_running = False
+                                self.trace_flush()
+                            # Start trace capture before resuming.
+                            self.trace_capture()
+                            self.target.resume()
+                    except Exception as e:
+                        LOG.error("Error resuming target after client detached: %s",
+                                  e, exc_info=self.session.log_tracebacks)
+                    self.is_target_running = (self.target.get_state() == Target.State.RUNNING)
 
             # Decide server lifecycle on connected sessions
             if not self.client_sessions and not self.persist:
@@ -618,7 +629,7 @@ class GDBServer(threading.Thread):
 
         except Exception as e:
             LOG.error("Unhandled exception processing RSP command (%s): %s",
-                    to_str_safe(msg[1:2]), e, exc_info=self.session.log_tracebacks)
+                    to_str_safe(msg[1:2]), e, exc_info=True)
             return self.create_rsp_packet(b"E01")
 
     def extended_remote(self, client):
@@ -806,10 +817,8 @@ class GDBServer(threading.Thread):
         self.is_target_running = True
         LOG.debug("Target resumed")
 
-        if self.first_run_after_reset_or_flash:
-            self.first_run_after_reset_or_flash = False
-            if self.thread_provider is not None:
-                self.thread_provider.read_from_target = True
+        if self.thread_provider is not None:
+            self.thread_provider.read_from_target = True
 
         val = b''
 
@@ -1085,13 +1094,32 @@ class GDBServer(threading.Thread):
                     # object is used.
                     self.flash_loader = None
 
-            self.first_run_after_reset_or_flash = True
             if self.thread_provider is not None:
                 self.thread_provider.read_from_target = False
 
             return self.create_rsp_packet(b"OK")
 
         return None
+
+    def _ensure_flash_readable(self, addr: int) -> None:
+        """Ensure flash region containing addr is accessible for host reads.
+
+        VERIFY init establishes the flash read window. It is idempotent, so
+        repeated reads after the first are cheap. VERIFY saves and restores
+        the PC, so a debug read (core halted in flash) does not clobber the
+        debug PC.
+        """
+        try:
+            pname = self.target.selected_core.node_name if hasattr(self.target, 'selected_core') else None
+            region = self.board.target.memory_map.get_region_for_address(addr, pname)
+        except Exception:
+            return
+        if region is None or not region.is_flash or region.flash is None:
+            return
+        try:
+            region.flash.init(region.flash.Operation.VERIFY)
+        except Exception as e:
+            LOG.debug("Flash VERIFY init failed for region '%s': %s", region.name, e)
 
     def get_memory(self, client, data):
         split = data.split(b',')
@@ -1100,6 +1128,9 @@ class GDBServer(threading.Thread):
         length = int(length, 16)
 
         TRACE_MEM.debug("Command: Read memory (addr=0x%08x, len=%d)", addr, length)
+
+        # Ensure flash is accessible before reading (flash controller may need init after reset).
+        self._ensure_flash_readable(addr)
 
         try:
             mem = self.target_context.read_memory_block8(addr, length)
@@ -1523,14 +1554,12 @@ class GDBServer(threading.Thread):
         try:
             ipsr = self.target_context.read_core_register('ipsr')
             return self.target_context.core.exception_number_to_name(ipsr)
-        except exceptions.Error:
+        except (exceptions.Error, KeyError):
             return None
 
     def event_handler(self, notification):
         if notification.event == Target.Event.POST_RESET:
             # Invalidate threads list if flash is reprogrammed.
-            LOG.debug("POST_RESET event received")
-            self.first_run_after_reset_or_flash = True
             if self.thread_provider is not None:
                 self.thread_provider.read_from_target = False
 

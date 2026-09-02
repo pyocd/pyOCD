@@ -376,6 +376,14 @@ class CMSISDAPProbe(DebugProbe):
         except DAPAccess.Error as exc:
             raise self._convert_exception(exc) from exc
 
+    def jtag_sequence_batch(self, sequences: Sequence[Tuple[int, bool, bool, int]]) -> Optional[bytes]:
+        TRACE.debug("trace: jtag_sequence_batch(count=%i)", len(sequences))
+
+        try:
+            return self._link.jtag_sequence_batch(sequences)
+        except DAPAccess.Error as exc:
+            raise self._convert_exception(exc) from exc
+
     def disconnect(self) -> None:
         TRACE.debug("trace: disconnect")
 

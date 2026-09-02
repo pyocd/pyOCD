@@ -64,13 +64,6 @@ CORE_TYPE_NAME: Dict[Tuple[int, int], str] = {
         (CPUID_ARM_CHINA,  ARM_China_StarMC3): "Star-MC3",
     }
 
-class CoreArchitecture(Enum):
-    """@brief CPU architectures."""
-    ARMv6M = 1
-    ARMv7M = 2
-    ARMv8M_BASE = 3
-    ARMv8M_MAIN = 4
-
 class CortexMExtension(Enum):
     """@brief Extensions for the Cortex-M architecture."""
     FPU = "FPU" # Single-Precision floating point

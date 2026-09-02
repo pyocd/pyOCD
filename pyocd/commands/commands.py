@@ -924,22 +924,26 @@ class EraseCommand(CommandBase):
             eraser.erase()
         else:
             eraser = FlashEraser(self.context.session, FlashEraser.Mode.SECTOR)
-            while self.count:
-                # Look up the flash region so we can get the page size.
-                region = self.context.session.target.memory_map.get_region_for_address(self.addr)
+            # Batch: collect all sector addresses first, then a single eraser.erase()
+            # call, so the flash algo is inited/cleaned up once per region instead
+            # of once per sector, avoiding per-sector algo re-init overhead on
+            # multi-sector ranges.
+            addrs = []
+            addr = self.addr
+            count = self.count
+            while count:
+                region = self.context.session.target.memory_map.get_region_for_address(addr)
                 if not region:
-                    self.context.writei("address 0x%08x is not within a memory region", self.addr)
+                    self.context.writei("address 0x%08x is not within a memory region", addr)
                     break
                 if not region.is_flash:
-                    self.context.writei("address 0x%08x is not in flash", self.addr)
+                    self.context.writei("address 0x%08x is not in flash", addr)
                     break
-
-                # Erase this page.
-                eraser.erase([self.addr])
-
-                # Next page.
-                self.count -= 1
-                self.addr += region.blocksize
+                addrs.append(addr)
+                count -= 1
+                addr += region.blocksize
+            if addrs:
+                eraser.erase(addrs)
 
 class UnlockCommand(CommandBase):
     INFO = {

@@ -24,7 +24,7 @@ from ..core.target import Target
 from ..core.plugin import Plugin
 from ..debug.context import DebugContext
 from ..coresight.cortex_m_core_registers import index_for_reg
-from ..coresight.core_ids import CoreArchitecture
+from ..core.architecture import CoreArchitecture
 
 import logging
 

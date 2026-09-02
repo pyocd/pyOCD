@@ -957,6 +957,25 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
         return self._protocol.jtag_sequence(cycles, tms, read_tdo, tdi)
 
     @locked
+    def jtag_sequence_batch(self, sequences):
+        """Send multiple JTAG sequences in a single transfer.
+
+        This method enables breaking the 64-cycle limit by sending multiple sequences
+        in one USB transfer. Each sequence is still limited to 64 cycles (CMSIS-DAP constraint).
+
+        Args:
+            sequences: List of (cycles, tms, read_tdo, tdi) tuples
+
+        Returns:
+            Concatenated TDO data from all sequences with read_tdo=True
+
+        Raises:
+            DAPAccess.Error: If the command fails
+        """
+        self.flush()
+        return self._protocol.jtag_sequence_batch(sequences)
+
+    @locked
     def disconnect(self):
         self.flush()
         self._protocol.set_led(DAP_LED.DAP_TARGET_RUNNING, 0)

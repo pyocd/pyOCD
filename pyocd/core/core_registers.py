@@ -168,10 +168,11 @@ class CoreRegisterInfo:
         return copy(self)
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, CoreRegisterInfo) and (self.index == other.index)
+        return (isinstance(other, CoreRegisterInfo)
+                and (self.index, self.gdb_regnum) == (other.index, other.gdb_regnum))
 
     def __hash__(self) -> int:
-        return hash(self.index)
+        return hash((self.index, self.gdb_regnum))
 
     def __repr__(self) -> str:
         return "<{}@{:#x} {}={} {}-bit>".format(self.__class__.__name__, id(self), self.name, self.index, self.bitsize)

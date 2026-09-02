@@ -1,0 +1,62 @@
+# Copyright (c) 2026 Ryan QIAN
+# SPDX-License-Identifier: Apache-2.0
+# AndesCore D45 custom CSRs (supervisor + machine mode extensions)
+# CSR addresses are raw CSR numbers, not GDB register numbers
+
+machine_custom:
+  - [milmb,           0x7C0, 32, system]
+  - [mdlmb,           0x7C1, 32, system]
+  - [mecc_code,       0x7C2, 32, system]
+  - [mnvec,           0x7C3, 32, system]
+  - [mxstatus,        0x7C4, 32, system]
+  - [mpft_ctl,        0x7C5, 32, system]
+  - [mhsp_ctl,        0x7C6, 32, system]
+  - [msp_bound,       0x7C7, 32, system]
+  - [msp_base,        0x7C8, 32, system]
+  - [mdcause,         0x7C9, 32, system]
+  - [mcache_ctl,      0x7CA, 32, system]
+  - [mcctlbeginaddr,  0x7CB, 32, system]
+  - [mcctlcommand,    0x7CC, 32, system]
+  - [mcctldata,       0x7CD, 32, system]
+  - [mcounterwen,     0x7CE, 32, system]
+  - [mcounterinten,   0x7CF, 32, system]
+  - [mmisc_ctl,       0x7D0, 32, system]
+  - [mcountermask_m,  0x7D1, 32, system]
+  - [mcountermask_s,  0x7D2, 32, system]
+  - [mcountermask_u,  0x7D3, 32, system]
+  - [mcounterovf,     0x7D4, 32, system]
+  - [mslideleg,       0x7D5, 32, system]
+  - [mclk_ctl,        0x7DF, 32, system]
+
+debug_custom:
+  - [dexc2dbg,        0x7E0, 32, debug]
+  - [ddcause,         0x7E1, 32, debug]
+
+user_custom:
+  - [uitb,            0x800, 32, system]
+  - [ucode,           0x801, 32, system]
+  - [udcause,         0x809, 32, system]
+  - [ucctlbeginaddr,  0x80B, 32, system]
+  - [ucctlcommand,    0x80C, 32, system]
+
+supervisor_custom:  # conditional: loaded conditionally (only HPM6200+)
+  - [slie,            0x9C4, 32, system]
+  - [slip,            0x9C5, 32, system]
+  - [sdcause,         0x9C9, 32, system]
+  - [scctldata,       0x9CD, 32, system]
+  - [scounterinten,   0x9CF, 32, system]
+  - [scountermask_m,  0x9D1, 32, system]
+  - [scountermask_s,  0x9D2, 32, system]
+  - [scountermask_u,  0x9D3, 32, system]
+  - [scounterovf,     0x9D4, 32, system]
+  - [scountinhibit,   0x9E0, 32, system]
+  - [shpmevent3,      0x9E3, 32, system]
+  - [shpmevent4,      0x9E4, 32, system]
+  - [shpmevent5,      0x9E5, 32, system]
+  - [shpmevent6,      0x9E6, 32, system]
+
+config_custom:
+  - [micm_cfg,        0xFC0, 32, system]
+  - [mdcm_cfg,        0xFC1, 32, system]
+  - [mmsc_cfg,        0xFC2, 32, system]
+  - [mmsc_cfg2,       0xFC3, 32, system]

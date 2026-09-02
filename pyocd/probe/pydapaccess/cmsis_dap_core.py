@@ -488,6 +488,95 @@ class CMSISDAPProtocol(object):
         if len(resp) > 2:
             return resp[2:]
 
+    _MAX_SEQUENCES_PER_TRANSFER = 255
+
+    def jtag_sequence_batch(self, sequences):
+        """Send multiple JTAG sequences, splitting at packet size limits.
+
+        Splits large batches into multiple USB transfers to stay within both:
+        1. CMSIS-DAP 255-sequence count limit (1-byte count field)
+        2. HID packet byte size limit (typically 64 bytes for Full-Speed USB)
+
+        Each transfer is an independent command/response pair.
+
+        Protocol:
+        - Byte 0: DAP_JTAG_SEQUENCE command ID
+        - Byte 1: Sequence count (1-255)
+        - For each sequence:
+          - Info byte: [capture:1][tms:1][cycles:6]
+          - TDI data: (cycles + 7) // 8 bytes (little-endian)
+
+        Args:
+            sequences: List of (cycles, tms, read_tdo, tdi) tuples
+
+        Returns:
+            Concatenated TDO data from all sequences with read_tdo=True
+
+        Raises:
+            DAPAccessIntf.CommandError: If DAP_JTAG_SEQUENCE command fails
+            DAPAccessIntf.DeviceError: If response doesn't match command
+        """
+        if not sequences:
+            return None
+
+        max_seq = self._MAX_SEQUENCES_PER_TRANSFER
+        # HID packet limit: header (2 bytes) + sequences must fit in one report
+        max_packet = self.interface.get_packet_size()
+        all_tdo = bytearray()
+        offset = 0
+
+        while offset < len(sequences):
+            # Build cmd incrementally, flushing when byte size exceeds packet limit
+            # cmd[0] = DAP_JTAG_SEQUENCE, cmd[1] = count (filled after)
+            cmd = [Command.DAP_JTAG_SEQUENCE, 0]
+            chunk_start = offset
+            seq_count = 0
+
+            for i in range(chunk_start, min(len(sequences), chunk_start + max_seq)):
+                cycles, tms, read_tdo, tdi = sequences[i]
+                assert 1 <= cycles <= 64, f"cycles must be 1-64, got {cycles}"
+
+                # Calculate byte size for this sequence
+                byte_count = (cycles + 7) // 8
+                entry_size = 1 + byte_count  # info byte + TDI bytes
+
+                # Check if adding this sequence would exceed packet limit
+                if len(cmd) + entry_size > max_packet and seq_count > 0:
+                    break
+
+                # Build info byte: [capture:1][tms:1][cycles:6]
+                # cycles=64 is encoded as 0
+                info = (((0 if cycles == 64 else cycles) & 0x3f) |
+                        ((tms & 1) << 6) |
+                        (int(read_tdo) << 7))
+                cmd.append(info)
+
+                # Append TDI bytes (little-endian)
+                for j in range(byte_count):
+                    cmd.append(tdi & 0xff)
+                    tdi >>= 8
+
+                seq_count += 1
+                offset += 1
+
+            # Fill in actual sequence count
+            cmd[1] = seq_count
+
+            self.interface.write(cmd)
+
+            resp = self.interface.read()
+            if resp[0] != Command.DAP_JTAG_SEQUENCE:
+                raise DAPAccessIntf.DeviceError("expected DAP_JTAG_SEQUENCE")
+
+            if resp[1] != DAP_OK:
+                raise DAPAccessIntf.CommandError("DAP_JTAG_SEQUENCE batch failed")
+
+            # Collect captured TDO data (if any)
+            if len(resp) > 2:
+                all_tdo.extend(resp[2:])
+
+        return bytes(all_tdo) if all_tdo else None
+
     def jtag_configure(self, devices_irlen=None):
         # Default to a single device with an IRLEN of 4.
         if devices_irlen is None:

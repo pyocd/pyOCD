@@ -18,7 +18,8 @@
 import logging
 
 from .cortex_m import CortexM
-from .core_ids import (CORE_TYPE_NAME, CoreArchitecture, CortexMExtension)
+from .core_ids import (CORE_TYPE_NAME, CortexMExtension)
+from ..core.architecture import CoreArchitecture
 from ..core.target import Target
 from .cortex_m_core_registers import CoreRegisterGroups
 

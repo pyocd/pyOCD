@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2025-2026 Arm Limited
+# Copyright (c) 2026 Ryan QIAN
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -234,7 +235,9 @@ class RunServer(threading.Thread):
 
         self._stdio_handler = StdioHandler(session=session, core=self.core, eot_enabled=self._enable_eot)
         semihost_console = semihost.ConsoleIOHandler(self._stdio_handler)
-        self._semihost = semihost.SemihostAgent(self._target_context, io_handler=semihost_io_handler, console=semihost_console)
+        self._semihost = self._target.create_semihost_agent(
+            self._target_context,
+            io_handler=semihost_io_handler, console=semihost_console)
 
         # Start RTT server
         self._rtt_server = None

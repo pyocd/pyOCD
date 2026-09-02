@@ -1,0 +1,56 @@
+# Copyright (c) 2026 Ryan QIAN
+# SPDX-License-Identifier: Apache-2.0
+#
+# riscv_standard_csr.yaml
+# Standard RISC-V CSRs per Privileged Spec v1.12
+# Format: [name, csr_address, bitsize, group]
+# csr_address is the 12-bit CSR address (0x000-0xFFF)
+# group maps to GDB feature via RISCV_GDB_FEATURE_CSR
+# Sections marked 'conditional' are loaded only when the matching
+# hardware capability flag is set (e.g. misa.F/misa.D for 'fpu').
+# Vendor YAML files may also have 'supervisor_custom' as conditional.
+
+machine:
+  - [mstatus,     0x300, 32, system]
+  - [misa,        0x301, 32, system]
+  - [medeleg,     0x302, 32, system]
+  - [mideleg,     0x303, 32, system]
+  - [mie,         0x304, 32, system]
+  - [mtvec,       0x305, 32, system]
+  - [mcounteren,  0x306, 32, system]
+  - [mscratch,    0x340, 32, system]
+  - [mepc,        0x341, 32, system]
+  - [mcause,      0x342, 32, system]
+  - [mtval,       0x343, 32, system]
+  - [mip,         0x344, 32, system]
+  - [pmpcfg0,     0x3A0, 32, system]
+  - [pmpaddr0,    0x3B0, 32, system]
+
+supervisor:
+  - [sstatus,     0x100, 32, system]
+  - [sie,         0x104, 32, system]
+  - [stvec,       0x105, 32, system]
+  - [sscratch,    0x140, 32, system]
+  - [sepc,        0x141, 32, system]
+  - [scause,      0x142, 32, system]
+  - [stval,       0x143, 32, system]
+  - [sip,         0x144, 32, system]
+  - [satp,        0x180, 32, system]
+
+debug:
+  - [dcsr,        0x7B0, 32, debug]
+  - [dpc,         0x7B1, 32, debug]
+  - [dscratch0,   0x7B2, 32, debug]
+  - [dscratch1,   0x7B3, 32, debug]
+
+trigger:
+  - [tselect,     0x7A0, 32, debug]
+  - [tdata1,      0x7A1, 32, debug]
+  - [tdata2,      0x7A2, 32, debug]
+  - [tdata3,      0x7A3, 32, debug]
+  - [tinfo,       0x7A4, 32, debug]
+
+fpu:  # conditional: loaded only if misa.F or misa.D set
+  - [fflags,      0x001, 32, fpu]
+  - [frm,         0x002, 32, fpu]
+  - [fcsr,        0x003, 32, fpu]

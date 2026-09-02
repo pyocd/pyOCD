@@ -1,0 +1,52 @@
+{
+  "_license": "Apache-2.0",
+  "_copyright": "Copyright (c) 2026 Ryan QIAN",
+  "format": "flm",
+  "symbols": {
+    "Init": 914,
+    "UnInit": 1026,
+    "EraseSector": 1054,
+    "ProgramPage": 1092,
+    "Verify": 1130,
+    "EraseChip": 1386,
+    "BlankCheck": 1408,
+    "FlashDevice": 1920
+  },
+  "bss": {
+    "initialized": {
+      "offset": 1616,
+      "size": 4
+    },
+    "flash_base_addr": {
+      "offset": 1620,
+      "size": 4
+    },
+    "xpi_base": {
+      "offset": 1624,
+      "size": 4
+    },
+    "channel": {
+      "offset": 1628,
+      "size": 4
+    },
+    "nor_config": {
+      "offset": 1632,
+      "size": 256
+    },
+    "flm_initialized": {
+      "offset": 1888,
+      "size": 4
+    },
+    "flm_flash_base": {
+      "offset": 1892,
+      "size": 4
+    },
+    "flm_params": {
+      "offset": 1896,
+      "size": 16
+    }
+  },
+  "p_filesz": 2112,
+  "p_memsz": 2112,
+  "bss_total_size": 0
+}

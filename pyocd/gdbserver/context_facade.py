@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2016,2018-2020,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 Ryan QIAN
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +25,8 @@ from ..utility.mask import (align_up, round_up_div)
 from ..core import exceptions
 from ..core.target import Target
 from ..core.memory_map import MemoryType
-from ..coresight.core_ids import (CoreArchitecture, CortexMExtension)
+from ..core.architecture import CoreArchitecture
+from ..coresight.core_ids import CortexMExtension
 from . import signals
 
 LOG = logging.getLogger(__name__)
@@ -61,7 +63,9 @@ class GDBDebugContextFacade(object):
 
     ## The order certain target features should appear in target XML.
     REQUIRED_FEATURE_ORDER = ("org.gnu.gdb.arm.m-profile", "org.gnu.gdb.arm.m-system", "org.gnu.gdb.arm.secext",
-                              "org.gnu.gdb.arm.m-profile-mve", "org.gnu.gdb.arm.vfp")
+                              "org.gnu.gdb.arm.m-profile-mve", "org.gnu.gdb.arm.vfp",
+                              "org.gnu.gdb.riscv.cpu", "org.gnu.gdb.riscv.csr", "org.gnu.gdb.riscv.fpu",
+                              "org.gnu.gdb.riscv.custom")
 
     def __init__(self, context):
         self._context = context
@@ -181,26 +185,34 @@ class GDBDebugContextFacade(object):
 
         This includes:
         - The signal encountered.
-        - The current value of the important registers (sp, lr, pc).
+        - The current value of the important registers.
         """
         if force_signal is not None:
             response = ('T' + conversion.byte_to_hex2(force_signal)).encode()
         else:
             response = ('T' + conversion.byte_to_hex2(self.get_signal_value())).encode()
 
-        # Append fp(r7), sp(r13), lr(r14), pc(r15)
-        response += self._get_reg_index_value_pairs(['r7', 'sp', 'lr', 'pc'])
+        # Append important registers.
+        # ARM: fp(r7), sp(r13), lr(r14), pc(r15)
+        # RISC-V: s0(x8), sp(x2), ra(x1), pc(DPC)
+        core = self._context.core
+        if hasattr(core, 'architecture') and core.architecture == CoreArchitecture.RISCV32:
+            response += self._get_reg_index_value_pairs(['x8', 'x2', 'x1', 'pc'])
+        else:
+            response += self._get_reg_index_value_pairs(['r7', 'sp', 'lr', 'pc'])
 
         return response
 
     def get_signal_value(self):
-        if self._context.core.is_debug_trap():
+        core = self._context.core
+
+        if core.is_debug_trap():
             return signals.SIGTRAP
 
         # If not a fault then default to SIGSTOP
         signal = signals.SIGSTOP
 
-        if self._context.core.is_vector_catch():
+        if core.is_vector_catch():
             fault = self._context.core.read_core_register('ipsr')
             try:
                 signal = FAULT[fault]
@@ -333,6 +345,8 @@ class GDBDebugContextFacade(object):
                 architecture = 'armv8.1-m.main'
             else:
                 architecture = 'armv8-m.main'
+        elif arch == CoreArchitecture.RISCV32:
+            architecture = 'riscv:rv32'
         ElementTree.SubElement(xml_root, 'architecture').text = architecture
 
         # Extract list of registers, group into gdb features.

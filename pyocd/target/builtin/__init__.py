@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2013-2021 Arm Limited
+# Copyright (c) 2026 Ryan QIAN
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +16,7 @@
 # limitations under the License.
 
 from ...coresight.coresight_target import CoreSightTarget
+from ...riscv.target.riscv_target import RISCVTarget
 from ..family import target_kinetis
 from . import target_MIMXRT1011xxxxx
 from . import target_MIMXRT1015xxxxx
@@ -146,6 +148,29 @@ from . import target_STM32H7B0xx
 from . import target_Air001
 from . import target_Air32F103xx
 from . import target_AMA3B1KK
+from .hpmicro import target_hpm53x1
+from .hpmicro import target_hpm5ex0
+from .hpmicro import target_hpm5ex1
+from .hpmicro import target_hpm62x0
+from .hpmicro import target_hpm62x4
+from .hpmicro import target_hpm63x0
+from .hpmicro import target_hpm63x4
+from .hpmicro import target_hpm67x0
+from .hpmicro import target_hpm67x4
+from .hpmicro import target_hpm68x0
+from .hpmicro import target_hpm6ex0
+from .hpmicro import target_hpm6px0
+from .hpmicro import target_hpm6px1
+from .hpmicro import board_hpm5300evk
+from .hpmicro import board_hpm5301evklite
+from .hpmicro import board_hpm5e00evk
+from .hpmicro import board_hpm6200evk
+from .hpmicro import board_hpm6300evk
+from .hpmicro import board_hpm6750evk2
+from .hpmicro import board_hpm6750evkmini
+from .hpmicro import board_hpm6800evk
+from .hpmicro import board_hpm6e00evk
+from .hpmicro import board_hpm6p00evk
 
 ## @brief Dictionary of all builtin targets.
 #
@@ -359,4 +384,27 @@ BUILTIN_TARGETS = {
           'air32f103xe': target_Air32F103xx.Air32F103xE,
           'air32f103xg': target_Air32F103xx.Air32F103xG,
           'ama3b1kk_kbr': target_AMA3B1KK.AMA3B1KK_KBR,
+          'hpm53x1': target_hpm53x1.HPM53x1,
+          'hpm5300evk': board_hpm5300evk.HPM5300EVK,
+          'hpm5301evklite': board_hpm5301evklite.HPM5301EVKLite,
+          'hpm5ex0': target_hpm5ex0.HPM5Ex0,
+          'hpm5ex1': target_hpm5ex1.HPM5Ex1,
+          'hpm5e00evk': board_hpm5e00evk.HPM5E00EVK,
+          'hpm62x0': target_hpm62x0.HPM62x0,
+          'hpm62x4': target_hpm62x4.HPM62x4,
+          'hpm6200evk': board_hpm6200evk.HPM6200EVK,
+          'hpm63x0': target_hpm63x0.HPM63x0,
+          'hpm63x4': target_hpm63x4.HPM63x4,
+          'hpm6300evk': board_hpm6300evk.HPM6300EVK,
+          'hpm67x0': target_hpm67x0.HPM67x0,
+          'hpm67x4': target_hpm67x4.HPM67x4,
+          'hpm6750evk2': board_hpm6750evk2.HPM6750EVK2,
+          'hpm6750evkmini': board_hpm6750evkmini.HPM6750EVKMINI,
+          'hpm68x0': target_hpm68x0.HPM68x0,
+          'hpm6800evk': board_hpm6800evk.HPM6800EVK,
+          'hpm6ex0': target_hpm6ex0.HPM6Ex0,
+          'hpm6e00evk': board_hpm6e00evk.HPM6E00EVK,
+          'hpm6px0': target_hpm6px0.HPM6Px0,
+          'hpm6px1': target_hpm6px1.HPM6Px1,
+          'hpm6p00evk': board_hpm6p00evk.HPM6P00EVK,
          }

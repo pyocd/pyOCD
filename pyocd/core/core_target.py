@@ -53,3 +53,14 @@ class CoreTarget(TargetGraphNode):
 
     def exception_number_to_name(self, exc_num: int) -> Optional[str]:
         raise NotImplementedError()
+
+    def create_semihost_agent(self, context: "DebugContext", io_handler=None,
+                              console=None):
+        """@brief Create the semihosting agent appropriate for this core.
+
+        Cores override this to return an arch-specific agent (e.g. RISC-V's
+        3-ebreak trap agent). The default returns the standard agent that
+        detects ARM BKPT/SVC semihost calls.
+        """
+        from ..debug.semihost import SemihostAgent
+        return SemihostAgent(context, io_handler=io_handler, console=console)

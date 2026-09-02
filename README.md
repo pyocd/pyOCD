@@ -13,15 +13,16 @@ See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recen
 
 </td></tr></table>
 
-pyOCD is an open source Python based tool and package for programming and debugging Arm Cortex-M microcontrollers
-with a wide range of debug probes. It is fully cross-platform, with support for Linux, macOS, Windows, and FreeBSD.
+pyOCD is an open source Python based tool and package for programming and debugging Arm Cortex-M and RISC-V
+microcontrollers with a wide range of debug probes. It is fully cross-platform, with support for Linux, macOS, Windows, and FreeBSD.
 
 A command line tool is provided that covers most use cases, or you can make use of the Python
 API to facilitate custom target control. A common use for the Python API is to run and control CI
 tests.
 
-Support for more than 70 popular MCUs is built-in. In addition, through the use of CMSIS Device
-Family Packs, [nearly every Cortex-M device](https://www.keil.com/dd2/pack/) on the market is supported.
+Support for more than 70 popular Arm Cortex-M MCUs is built-in, along with RISC-V targets.
+In addition, through the use of CMSIS Device Family Packs, [nearly every Cortex-M device](https://www.keil.com/dd2/pack/)
+on the market is supported.
 
 The `pyocd` command line tool gives you total control over your device with these subcommands:
 
@@ -62,7 +63,7 @@ Requirements
 - Python 3.9.0 or later.†
 - macOS, Linux, Windows 7 or newer, or FreeBSD
 - A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
-- Microcontroller with an Arm Cortex-M CPU
+- Microcontroller with an Arm Cortex-M or RISC-V CPU
 - Supported debug probe
   - [CMSIS-DAP](https://arm-software.github.io/CMSIS_5/DAP/html/index.html) v1 (HID) or v2 (WinUSB), including:
     - Atmel EDBG/nEDBG
@@ -156,6 +157,25 @@ instructions.
 See the [target support documentation](https://pyocd.io/docs/target_support) for information on how to check if
 the MCU(s) you are using have built-in support, and how to install support for additional MCUs via
 CMSIS-Packs.
+
+#### RISC-V support
+
+In addition to Arm Cortex-M, pyOCD supports the RISC-V debug architecture defined by the
+[RISC-V Debug Specification](https://github.com/riscv/riscv-debug-spec) (version 0.13).
+The RISC-V debug path is separate from Arm CoreSight and reaches the hart through the Debug
+Module interface over the JTAG transport. RISC-V targets do not support SWD.
+
+The object model mirrors the Arm one with RISC-V-specific classes: a `RISCVTarget` SoC target
+owns one `RISCVCore` per hart. The Debug Module exposes abstract commands for register access,
+a program buffer for running debug sequences on the hart, and System Bus Access for direct
+memory operations, providing the same halt/step/resume, reset, breakpoint, watchpoint, memory,
+and core-register control as Arm targets. Multi-hart devices share one Debug Module, with each hart
+served by its own GDB server port.
+
+RISC-V target support is added through built-in target definitions that subclass `RISCVTarget`.
+Flash programming uses a program-buffer-based flash loader whose blob and offsets are extracted
+from the device's flash loader ELF by a generic extractor, so bringing up flash on a new RISC-V
+MCU needs no per-vendor flash algorithm code in pyOCD.
 
 
 Using GDB

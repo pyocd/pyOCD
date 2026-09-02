@@ -84,3 +84,46 @@ frequency: 8000000 # Set 8 MHz SWD default for all probes
 ````
 
 
+## RISC-V configuration
+
+RISC-V targets use JTAG as the debug transport (SWD is not supported). Some configuration differences
+apply compared to Arm targets.
+
+### Target type
+
+RISC-V targets must be explicitly specified since on-board debug probes cannot auto-detect the target
+type. Use the `--target` argument or set `target_override` in the config file.
+
+```yaml
+target_override: hpm5301evklite
+```
+
+See `pyocd list --targets` for available RISC-V target types.
+
+### JTAG frequency
+
+Set the JTAG clock frequency with the `frequency` option. Most RISC-V targets work reliably at 8 MHz:
+
+```yaml
+frequency: 8000000
+```
+
+### Probe selection for RISC-V
+
+RISC-V targets require a probe that supports JTAG mode. Example configurations for different probe
+types:
+
+```yaml
+probes:
+  # FTDI FT2232H probe
+  "ftdi://0x0403:0x6010/1":
+    target_override: hpm6200evk
+    frequency: 8000000
+
+  # CMSIS-DAP probe (JTAG mode)
+  "661629d75d71e89c":
+    target_override: hpm5301evklite
+    frequency: 8000000
+```
+
+

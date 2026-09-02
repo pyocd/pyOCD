@@ -1,0 +1,36 @@
+# pyOCD debugger
+# Copyright (c) 2026 Ryan QIAN
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""HPM6200EVK board definition.
+
+HPM6200EVK board with 16MB XPI0 NOR flash (XPI1 controller).
+"""
+
+from .target_hpm62x0 import HPM62x0
+
+
+class HPM6200EVK(HPM62x0):
+    """HPM6200EVK board with 16MB XPI0 NOR flash (XPI1 controller)."""
+
+    def __init__(self, session):
+        super().__init__(session)
+        self.add_xpi_flash(
+            flash_size=0x1000000,
+            nor_config_header=0xFCF90001,
+            nor_config_opt0=0x7,
+            nor_config_opt1=0x0,
+            is_boot_memory=True,
+        )

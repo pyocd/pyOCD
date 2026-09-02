@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2020 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2026 Ryan QIAN
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -252,13 +253,14 @@ class CommandExecutionContext:
                 self.selected_core = self.target.selected_core
 
             # Get the AP for the selected core.
-            if self.selected_core is not None:
+            # Some architectures (e.g. RISC-V) do not have APs.
+            if (self.selected_core is not None) and hasattr(self.selected_core, 'ap') and (self.selected_core.ap is not None):
                 self.selected_ap_address = self.selected_core.ap.address
-        except IndexError:
+        except (IndexError, AttributeError):
             pass
 
         # Fall back to the first MEM-AP.
-        if self.selected_ap_address is None:
+        if self.selected_ap_address is None and hasattr(self.target, 'aps') and self.target.aps:
             for ap_num in sorted(self.target.aps.keys()):
                 if isinstance(self.target.aps[ap_num], MEM_AP):
                     self.selected_ap_address = ap_num
