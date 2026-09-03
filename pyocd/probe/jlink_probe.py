@@ -500,7 +500,7 @@ class JLinkProbe(DebugProbe):
     def swo_read(self):
         try:
             count = self._link.swo_num_bytes()
-            if count <= 0:
+            if count == 0:
                 return bytearray()
             return self._link.swo_read(0, count, True)
         except JLinkException as exc:
