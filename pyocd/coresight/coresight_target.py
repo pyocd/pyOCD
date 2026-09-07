@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020,2025 Arm Limited
+# Copyright (c) 2015-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -23,6 +23,7 @@ from ..core.target import Target
 from ..core.memory_map import (FlashRegion, MemoryType, RamRegion, DeviceRegion, MemoryMap)
 from ..core.soc_target import SoCTarget
 from ..core import exceptions
+from ..flash.flash import Flash
 from . import (dap, discovery)
 from ..debug.svd.loader import SVDLoader
 from ..utility.sequencer import CallSequence
@@ -181,6 +182,7 @@ class CoreSightTarget(SoCTarget):
             else:
                 if self.has_debug_sequence(sequence, pname=pcore_pname):
                     self.debug_sequence_delegate.run_sequence(sequence, pname=pcore_pname)
+                    self.debug_sequence_delegate.get_sequence_functions().restore_temp_ap_csw()
                     return True
 
         # Sequence wasn't run.
@@ -224,7 +226,8 @@ class CoreSightTarget(SoCTarget):
                 self.session.context_state.is_performing_pre_reset = False
         elif mode == 'under-reset':
             LOG.info("Asserting reset prior to connect")
-            self.dp.assert_reset(True)
+            if not self.call_pre_discovery_debug_sequence('ResetHardwareAssert'):
+                self.dp.assert_reset(True)
 
     def perform_halt_on_connect(self) -> None:
         """@brief Halt cores.
@@ -255,7 +258,8 @@ class CoreSightTarget(SoCTarget):
         mode = self.session.options.get('connect_mode')
         if mode == 'under-reset':
             LOG.info("Deasserting reset post connect")
-            self.dp.assert_reset(False)
+            if not self.call_pre_discovery_debug_sequence('ResetHardwareDeassert'):
+                self.dp.assert_reset(False)
 
             LOG.debug("Clearing reset catch")
             # Apply to all cores.
@@ -298,6 +302,23 @@ class CoreSightTarget(SoCTarget):
 
             # Set the region in the flash instance.
             obj.region = region
+
+            if not getattr(obj, 'has_required_sequences', True):
+                fallback_flm = region.attributes.get('_fallback_flm')
+                fallback_msg = " Falling back to FLM." if fallback_flm is not None else ""
+                LOG.warning("Flash programming debug sequences are not available for region '%s' (address %#010x);"
+                            " check DFP debug description.%s", region.name, region.start, fallback_msg)
+
+                # Fall back to FLM if required flash programming sequences are not available.
+                if fallback_flm is not None:
+                    for subregion in list(region.submap.regions):
+                        region.submap.remove_region(subregion)
+                    region.flash_class = Flash
+                    region.flm = fallback_flm  # Also clears region.algo.
+                    if not flm_builder.finalise_region(region):
+                        continue
+                    obj = region.flash_class(self, region.algo)
+                    obj.region = region
 
             # Store the flash object back into the memory region.
             region.flash = obj
@@ -354,7 +375,7 @@ class CoreSightTarget(SoCTarget):
             return None
         return sorted(self.aps.values(), key=lambda v: v.address)[0]
 
-    def trace_start(self):
+    def trace_start(self) -> None:
         result = self.call_delegate('trace_start', target=self, mode=0)
         if not result and self.has_debug_sequence('TraceStart', pname=self.selected_core_or_raise.node_name):
             assert self.debug_sequence_delegate
@@ -363,7 +384,7 @@ class CoreSightTarget(SoCTarget):
             result = True
         return result
 
-    def trace_stop(self):
+    def trace_stop(self) -> None:
         result = self.call_delegate('trace_stop', target=self, mode=0)
         if not result and self.has_debug_sequence('TraceStop', pname=self.selected_core_or_raise.node_name):
             assert self.debug_sequence_delegate
@@ -371,3 +392,9 @@ class CoreSightTarget(SoCTarget):
                     pname=self.selected_core_or_raise.node_name)
             result = True
         return result
+
+    def trace_capture(self) -> None:
+        pass
+
+    def trace_flush(self) -> None:
+        pass

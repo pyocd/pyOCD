@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018-2021,2025 Arm Limited
+# Copyright (c) 2006-2013,2018-2021,2025,2026 Arm Limited
 # Copyright (c) 2020 Koji Kitayama
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
@@ -959,8 +959,8 @@ class DAPAccessCMSISDAP(DAPAccessIntf):
     @locked
     def disconnect(self):
         self.flush()
-        self._protocol.set_led(DAP_LED.DAP_DEBUGGER_CONNECTED, 0)
         self._protocol.set_led(DAP_LED.DAP_TARGET_RUNNING, 0)
+        self._protocol.set_led(DAP_LED.DAP_DEBUGGER_CONNECTED, 0)
         self._protocol.disconnect()
 
     def has_swo(self):

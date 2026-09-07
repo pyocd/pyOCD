@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 import pytest
 
 from pyocd.core.options_manager import OptionsManager
-from pyocd.core.options import OPTIONS_INFO
+from pyocd.core.options import (OPTIONS_ALIASES, OPTIONS_INFO)
 
 @pytest.fixture(scope='function')
 def mgr():
@@ -72,6 +72,30 @@ class TestOptionsManager(object):
         mgr.add_back({'debug__traceback': False})
         assert 'debug.traceback' in mgr
         assert mgr.get('debug.traceback') == False
+
+    def test_option_alias(self, mgr):
+        mgr.add_back({'telnet_mode': 'file'})
+        assert 'stdio_mode' in mgr
+        assert 'telnet_mode' not in mgr
+        assert mgr.get('stdio_mode') == 'file'
+        assert mgr.get('telnet_mode') is None
+        assert mgr.get_default('telnet_mode') is None
+
+    def test_option_alias_layer_priority(self, mgr):
+        mgr.add_back({'stdio_mode': 'server'})
+        mgr.add_front({'telnet_mode': 'file'})
+        assert mgr.get('stdio_mode') == 'file'
+
+    def test_option_alias_same_layer_order(self, mgr):
+        mgr.add_back({'telnet_mode': 'file', 'stdio_mode': 'console'})
+        assert mgr.get('stdio_mode') == 'console'
+
+        mgr = OptionsManager()
+        mgr.add_back({'stdio_mode': 'console', 'telnet_mode': 'file'})
+        assert mgr.get('stdio_mode') == 'file'
+
+    def test_legacy_aliases_not_registered_as_options(self):
+        assert not any(name in OPTIONS_INFO for name in OPTIONS_ALIASES)
 
     def test_set(self, mgr, layer1):
         mgr.add_front(layer1)

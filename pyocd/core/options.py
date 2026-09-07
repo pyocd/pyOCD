@@ -139,7 +139,7 @@ BUILTIN_OPTIONS = [
     OptionInfo('scan_all_aps', bool, False,
         "Controls whether all 256 ADIv5 AP addresses will be probed. Default is False."),
     OptionInfo('serve_local_only', bool, True,
-        "When this option is True, the GDB server, probe server, and semihosting telnet, and raw SWV "
+        "When this option is True, the GDB server, probe server, stdio server, rtt server, and raw SWV "
         "server are only served on localhost. Set to False to enable remote connections."),
     OptionInfo('smart_flash', bool, True,
         "If set to True, the flash loader will attempt to not program pages whose contents are not "
@@ -165,7 +165,7 @@ BUILTIN_OPTIONS = [
         "Duration in seconds that a failed target status check will be retried before an error is raised. "
         "Only applies while the target is running after a resume operation in the debugger and pyOCD is waiting "
         "for it to halt again."),
-    OptionInfo('gdbserver_port', int, 3333,
+    OptionInfo('gdbserver_port', (int, tuple), 3333,
         "Base TCP port for the gdbserver."),
     OptionInfo('persist', bool, False,
         "If True, the GDB server will not exit after GDB disconnects."),
@@ -194,8 +194,8 @@ BUILTIN_OPTIONS = [
         "Enable flag for the raw SWV stream server."),
     OptionInfo('swv_raw_port', int, 3443,
         "TCP port number for the raw SWV stream server."),
-    OptionInfo('telnet_port', int, 4444,
-        "Base TCP port number for the semihosting telnet server."),
+    OptionInfo('swv_raw_file', str, None,
+        "File path for the raw SWV stream output."),
     OptionInfo('vector_catch', str, 'h',
         "Enable vector catch sources."),
     OptionInfo('register_fields', bool, True,
@@ -204,24 +204,32 @@ BUILTIN_OPTIONS = [
     OptionInfo('soft_bkpt_as_hard', bool, False,
         "Replace software breakpoints with hardware breakpoints."),
 
-    # Internal cbuild-run session options
-    OptionInfo('cbuild_run.gdbserver_port', tuple, None,
-        "List of TCP ports for the gdbserver."),
-    OptionInfo('cbuild_run.telnet_port', tuple, None,
-        "List of TCP ports for telnet server."),
-    OptionInfo('cbuild_run.telnet_mode', tuple, None,
-        "List of telnet modes for each core."),
-    OptionInfo('cbuild_run.telnet_file_in', tuple, None,
-        "List of telnet input file paths for each core."),
-    OptionInfo('cbuild_run.telnet_file_out', tuple, None,
-        "List of telnet output file paths for each core."),
-    OptionInfo('cbuild_run.rtt_control_block', tuple, None,
-        "List of RTT control block configurations for each core."),
-    OptionInfo('cbuild_run.rtt_channel', tuple, None,
-        "List of RTT channel configurations for each core."),
-    OptionInfo('cbuild_run.systemview', tuple, None,
-        "SystemView configuration."),
+    # Extended options with multicore support
+    OptionInfo('stdio_mode', (str, tuple), None,
+        "List of STDIO modes for each core."),
+    OptionInfo('stdio_port', (int, tuple), 4444,
+        "Base TCP port number for the STDIO server."),
+    OptionInfo('stdio_file_in', (str, tuple), None,
+        "List of STDIO input file paths for each core."),
+    OptionInfo('stdio_file_out', (str, tuple), None,
+        "List of STDIO output file paths for each core."),
+    OptionInfo('rtt', tuple, None,
+        "List of RTT configurations for each core."),
+    OptionInfo('systemview_file', str, None,
+        "SystemView output file path."),
+    OptionInfo('systemview_auto_start', bool, None,
+        "Enable automatic start of SystemView."),
+    OptionInfo('systemview_auto_stop', bool, None,
+        "Enable automatic stop of SystemView."),
     ]
+
+## @brief Aliases for backwards-compatible option names.
+OPTIONS_ALIASES: Dict[str, str] = {
+    'telnet_port': 'stdio_port',
+    'telnet_mode': 'stdio_mode',
+    'telnet_file_in': 'stdio_file_in',
+    'telnet_file_out': 'stdio_file_out',
+}
 
 ## @brief The runtime dictionary of options.
 OPTIONS_INFO: Dict[str, OptionInfo] = {}

@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: '0 2 * * *'  # nightly at 02:00 UTC
   workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Target branch'
+        default: develop
 
 jobs:
   build_artifacts:
@@ -25,13 +29,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
-          ref: develop
+          ref: ${{ inputs.target_branch || 'develop' }}
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -66,8 +70,8 @@ jobs:
           ./dist/pyocd/pyocd --help
 
       - name: Upload PyInstaller artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_name }}-${{ env.PYOCD_VERSION }}
           path: dist/pyocd/*
-          retention-days: 1
+          retention-days: 2

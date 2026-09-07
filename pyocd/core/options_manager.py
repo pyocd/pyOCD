@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2020,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -19,7 +19,7 @@ import logging
 from functools import partial
 from typing import (Any, Callable, Dict, List, Mapping, NamedTuple, Optional)
 
-from .options import OPTIONS_INFO
+from .options import (OPTIONS_ALIASES, OPTIONS_INFO)
 from ..utility.notification import Notifier
 
 LOG = logging.getLogger(__name__)
@@ -101,14 +101,15 @@ class OptionsManager(Notifier):
         1. Strip dictionary entries with a value of None.
         2. Replace double-underscores ("__") with a dot (".").
         3. Convert option names to all-lowercase.
+        4. Resolve option aliases.
         """
         output = {}
         for name, value in new_options.items():
             if value is None:
                 continue
-            else:
-                name = name.replace("__", ".").lower()
-                output[name] = value
+            name = name.replace("__", ".").lower()
+            name = OPTIONS_ALIASES.get(name, name)
+            output[name] = value
         return output
 
     def is_set(self, key: str) -> bool:

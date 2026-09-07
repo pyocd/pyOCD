@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020,2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -320,7 +320,12 @@ class SoCTarget(TargetGraphNode):
     def trace_stop(self):
         self.call_delegate('trace_stop', target=self, mode=0)
 
+    def trace_capture(self):
+        self.call_delegate('trace_capture', target=self, mode=0)
+
+    def trace_flush(self):
+        self.call_delegate('trace_flush', target=self, mode=0)
+
     def add_target_command_groups(self, command_set: CommandSet):
         """@brief Hook for adding target-specific commands to a command set."""
         self.call_delegate('add_target_command_groups', target=self, command_set=command_set)
-

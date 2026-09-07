@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015,2018-2019 Arm Limited
+# Copyright (c) 2015,2018-2019,2026 Arm Limited
 # Copyright (c) 2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -142,6 +142,10 @@ class TestConvertSessionOptions(object):
         assert convert_session_options(['no-test_binary']) == {}
         # Valid
         assert convert_session_options(['test_binary=abc']) == {'test_binary': 'abc'}
+
+    def test_option_alias(self):
+        assert convert_session_options(['telnet_mode=file']) == {'stdio_mode': 'file'}
+        assert convert_session_options(['telnet_port=4445']) == {'stdio_port': 4445}
 
 class TestTargetTypeNormalisation:
     def test_passthrough(self):

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2021 Arm Limited
+# Copyright (c) 2006-2021,2026 Arm Limited
 # Copyright (c) 2020 Patrick Huesmann
 # Copyright (c) 2021 mentha
 # Copyright (c) 2021-2023 Chris Reed
@@ -391,7 +391,7 @@ class FindDap:
         if cmsis_dap_interface is None:
             return False
         if self._serial is not None:
-            if dev.serial_number is None:
+            if not dev.serial_number:
                 if self._serial == "":
                     return True
                 if self._serial == generate_device_unique_id(dev.idProduct, dev.idVendor, dev.bus, dev.address):

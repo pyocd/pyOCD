@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021-2022 Chris Reed
-# Copyright (c) 2025 Arm Limited
+# Copyright (c) 2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ from .scope import Scope
 LOG = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from .sequences import (DebugSequence, DebugSequenceExecutionContext)
+    from .sequences import (DebugSequence, DebugSequenceExecutionContext, FlashSequenceParams)
     from ...target.pack.cmsis_pack import CmsisPackDevice
 
 class DebugSequenceDelegate:
@@ -49,7 +49,12 @@ class DebugSequenceDelegate:
         """
         raise NotImplementedError()
 
-    def run_sequence(self, name: str, pname: Optional[str] = None) -> Optional[Scope]:
+    def run_sequence(
+            self,
+            name: str,
+            pname: Optional[str] = None,
+            flash_params: Optional["FlashSequenceParams"] = None
+        ) -> Optional[Scope]:
         """@brief Execute the debug sequence with the specified name.
         @exception NameError No sequence with the given name is defined.
         """
@@ -100,6 +105,22 @@ class DebugSequenceDelegate:
         """
         raise NotImplementedError()
 
+    def get_traceclockin(self) -> int:
+        """@brief Return the value for the __traceclockin variable.
+
+        Returns the system (input) clock frequency in Hz that drives the trace unit.
+        Returns 0 if the system clock is not configured.
+        """
+        return 0
+
+    def get_traceclockout(self) -> int:
+        """@brief Return the value for the __traceclockout variable.
+
+        Returns the desired SWO output clock (baud rate) in Hz.
+        Returns 0 if the output clock is not configured.
+        """
+        return 0
+
     def get_sequence_functions(self) -> DebugSequenceFunctionsDelegate:
         """@brief Return an instance of the sequence function implementations delegate.
 
@@ -122,3 +143,7 @@ class DebugSequenceFunctionsDelegate:
     def context(self) -> DebugSequenceExecutionContext:
         from .sequences import DebugSequenceExecutionContext
         return DebugSequenceExecutionContext.get_active_context()
+
+    def restore_temp_ap_csw(self) -> None:
+        """@brief Restore CSW on any temporary MEM-AP objects created during sequence execution."""
+        raise NotImplementedError()

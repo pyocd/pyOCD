@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2019,2025 Arm Limited
+# Copyright (c) 2017-2019,2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,8 +41,9 @@ class ProgressReport(object):
             progress = 1.0
             LOG.debug("progress out of bounds: %.3f", progress)
 
-        # Reset state on 0.0
-        if progress == 0.0 and not self.started:
+        # Reset state on 0.0 for the initial use or when reusing the same
+        # progress reporter for a later phase such as program after erase.
+        if progress == 0.0 and (not self.started or self.done):
             self._start()
 
         # Check for backwards progress

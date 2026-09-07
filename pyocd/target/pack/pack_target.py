@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2020,2025 Arm Limited
+# Copyright (c) 2017-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -33,6 +33,7 @@ from ...coresight.cortex_m import CortexM
 from ...debug.sequences.delegates import DebugSequenceDelegate
 from ...debug.sequences.functions import DebugSequenceCommonFunctions
 from ...debug.sequences.sequences import (Block, DebugSequence, DebugSequenceExecutionContext)
+from ...debug.sequences.default_sequences import DefaultDebugSequences
 from ...debug.sequences.scope import Scope
 from ...debug.svd.loader import SVDFile
 from ...core.session import Session
@@ -45,6 +46,7 @@ if TYPE_CHECKING:
     from ...core.core_target import CoreTarget
     from ...commands.execution_context import CommandSet
     from ...utility.notification import Notification
+    from ...debug.sequences.sequences import FlashSequenceParams
 
 try:
     import cmsis_pack_manager
@@ -150,16 +152,42 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         self._debugvars: Optional[Scope] = None
         self._functions = DebugSequenceCommonFunctions()
 
+        self._all_sequences: Optional[Set[DebugSequence]] = None
+        self._generic_map: Optional[Dict[str, DebugSequence]] = None
+
+        specific = {}
+        for seq in self._sequences:
+            if seq.pname is None:
+                continue
+            if seq.pname not in specific:
+                specific[seq.pname] = {}
+            specific[seq.pname][seq.name] = seq
+
+        self._specific_map_by_pname = specific
+
         self._session.options.subscribe(self._debugvars_did_change, 'pack.debug_sequences.debugvars')
 
     @property
     def all_sequences(self) -> Set[DebugSequence]:
-        return self._sequences
+        if self._all_sequences is None:
+            self._all_sequences = set(self._get_generic_map().values())
+            for pname_dict in self._specific_map_by_pname.values():
+                self._all_sequences.update(pname_dict.values())
+        return self._all_sequences
 
     @property
     def cmsis_pack_device(self) -> CmsisPackDevice:
         """@brief Accessor for the pack device that contains the sequences."""
         return self._pack_device
+
+    def _get_generic_map(self) -> Dict[str, DebugSequence]:
+        """@brief Lazily load generic debug sequences with correct probe capabilities."""
+        if self._generic_map is None:
+            self._generic_map = DefaultDebugSequences.get_sequences(self._session.probe)
+            generic_overrides = {seq.name: seq for seq in self._sequences if seq.pname is None}
+            if generic_overrides:
+                self._generic_map.update(generic_overrides)
+        return self._generic_map
 
     def get_root_scope(self, context: DebugSequenceExecutionContext) -> Scope:
         """@brief Return a scope that will be used as the parent of sequences."""
@@ -225,7 +253,12 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
 
         return False
 
-    def run_sequence(self, name: str, pname: Optional[str] = None) -> Optional[Scope]:
+    def run_sequence(
+            self,
+            name: str,
+            pname: Optional[str] = None,
+            flash_params: Optional["FlashSequenceParams"] = None
+        ) -> Optional[Scope]:
         """@brief Run a top level debug sequence.
 
         @return The scope created while running the sequence is returned. If the sequence wasn't executed
@@ -258,7 +291,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         LOG.debug("Running debug sequence '%s'%s", name, pname_desc)
 
         # Create runtime context and contextified functions instance.
-        context = DebugSequenceExecutionContext(self._session, self, pname)
+        context = DebugSequenceExecutionContext(self._session, self, pname, flash_params=flash_params)
 
         # Map optional pname to AP address. If the pname is not specified, then use the device's
         # first available AP. If no APs are known (eg haven't been discovered yet) then use 0.
@@ -281,10 +314,10 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
             try:
                 executed_scope = seq.execute(context)
             except exceptions.Error as err:
+                prefix = f"Error while running debug sequence '{name}'"
                 if pname:
-                    LOG.error("Error while running debug sequence '%s' (core %s): %s", name, pname, err)
-                else:
-                    LOG.error("Error while running debug sequence '%s': %s", name, err)
+                    prefix += f" (core {pname})"
+                err.args = (f"{prefix}: {err}",)
                 raise
 
         return executed_scope
@@ -293,17 +326,39 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         # Return *only* sequences with no Pname when passed pname=None. Otherwise we'd have
         # to mangle the dict keys to include pname since there can be multiple sequences with
         # the same name but different
-        return {
-            seq.name: seq
-            for seq in self._sequences
-            if (seq.pname is None) or (seq.pname == pname)
-        }
+        result = self._get_generic_map().copy()
+
+        # If pname is specified, override with pname-specific sequences
+        if pname is not None and pname in self._specific_map_by_pname:
+            result.update(self._specific_map_by_pname[pname])
+
+        return result
 
     def has_sequence_with_name(self, name: str, pname: Optional[str] = None) -> bool:
-        return name in self.sequences_for_pname(pname)
+        # Check pname-specific sequences first
+        if pname is not None and pname in self._specific_map_by_pname:
+            if name in self._specific_map_by_pname[pname]:
+                return True
+
+        # Check generic sequences
+        return name in self._get_generic_map()
 
     def get_sequence_with_name(self, name: str, pname: Optional[str] = None) -> DebugSequence:
-        return self.sequences_for_pname(pname)[name]
+        generic_map = self._get_generic_map()
+        # Check pname-specific sequences first (if pname provided)
+        if pname is not None and pname in self._specific_map_by_pname:
+            if name in self._specific_map_by_pname[pname]:
+                return self._specific_map_by_pname[pname][name]
+
+        # Check generic sequences (defaults + cbuild-run generic)
+        if name in generic_map:
+            return generic_map[name]
+
+        # Sequence not found
+        raise KeyError(
+            f"sequence '{name}' not found"
+            + (f" for pname '{pname}'" if pname else "")
+        )
 
     def default_reset_sequence(self, pname: str) -> str:
         proc_map = self.cmsis_pack_device.processors_map
@@ -318,10 +373,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         """
         session = self._target.session
         assert session.probe, "must have a valid probe"
-        # Not having a wire protocol set is allowed if performing pre-reset since it will only
-        # execute ResetHardware (or equivalent), which can only access pins and such (theoretically).
-        assert self._session.context_state.is_performing_pre_reset or session.probe.wire_protocol, \
-            "must have valid, connected probe"
+
         if session.probe.wire_protocol == DebugProbe.Protocol.JTAG:
             protocol = 1
         elif session.probe.wire_protocol == DebugProbe.Protocol.SWD:
@@ -342,7 +394,7 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         - [16] connect under reset?
         - [17] pre-connect reset?
         """
-        ctype = 1
+        ctype = 1 if self._session.command not in ('load', 'erase') else 2
         ctype |= self.RESET_TYPE_MAP.get(self._session.options.get('reset_type'), 0) << 8
 
         connect_mode = self._target.session.options.get('connect_mode')
@@ -366,6 +418,22 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         """
         # Set SWO bit depending on the option value.
         return 1 if self._target.session.options.get('enable_swv') else 0
+
+    def get_traceclockin(self) -> int:
+        """@brief Return the system clock frequency in Hz for __traceclockin.
+        Returns 0 if the system clock is not configured.
+        """
+        if self._target.session.options.get('enable_swv'):
+            return self._target.session.options.get('swv_system_clock') or 0
+        return 0
+
+    def get_traceclockout(self) -> int:
+        """@brief Return the SWO output clock in Hz for __traceclockout.
+        Returns 0 if the output clock is not configured.
+        """
+        if self._target.session.options.get('enable_swv'):
+            return self._target.session.options.get('swv_clock') or 0
+        return 0
 
     def get_sequence_functions(self) -> DebugSequenceCommonFunctions:
         return self._functions
@@ -502,7 +570,7 @@ class PackTargets:
         @param dev A CmsisPackDevice object.
         """
         try:
-            # Check if we're even going to populate this target before bothing to build the class.
+            # Check if we're even going to populate this target before booting to build the class.
             part = normalise_target_type_name(dev.part_number)
             if part in TARGET:
                 LOG.debug("did not populate target for DFP part number %s because there is already "

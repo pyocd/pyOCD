@@ -19,15 +19,15 @@ from __future__ import annotations
 import logging
 import yaml
 import os
-import io
 import platform
 
 from pathlib import Path
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import (cast, Optional, Set, Dict, List, Tuple, Union, IO, Any, TYPE_CHECKING)
+from typing import (cast, Optional, Set, Dict, List, Tuple, Any, TYPE_CHECKING)
 
 from .flash_algo import PackFlashAlgo
+from ...flash.flash_dsq import FlashDebugSequence
 from .. import (normalise_target_type_name, TARGET)
 from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.ap import (APAddressBase, APv1Address, APv2Address)
@@ -41,14 +41,8 @@ from ...utility.cmdline import convert_reset_type
 from ...debug.sequences.scope import Scope
 from ...debug.sequences.delegates import DebugSequenceDelegate
 from ...debug.sequences.functions import DebugSequenceCommonFunctions
-from ...debug.sequences.sequences import (
-    Block,
-    DebugSequence,
-    DebugSequenceNode,
-    IfControl,
-    WhileControl,
-    DebugSequenceExecutionContext
-)
+from ...debug.sequences.sequences import (Block, DebugSequence, DebugSequenceExecutionContext)
+from ...debug.sequences.default_sequences import (DefaultDebugSequences, _YAMLSequenceParser)
 
 if TYPE_CHECKING:
     from ...core.session import Session
@@ -56,6 +50,7 @@ if TYPE_CHECKING:
     from ...core.core_target import CoreTarget
     from ...utility.sequencer import CallSequence
     from ...commands.execution_context import CommandSet
+    from ...debug.sequences.sequences import FlashSequenceParams
 
 LOG = logging.getLogger(__name__)
 
@@ -227,6 +222,7 @@ class CbuildRun:
         self._debug_topology: Optional[Dict[str, Any]] = None
         self._memory_map: Optional[MemoryMap] = None
         self._programming: Optional[List[dict]] = None
+        self._flashinfo: Optional[List[dict]] = None
         self._valid_dps: List[int] = []
         self._apids: Dict[int, APAddressBase] = {}
         self._uses_apv2: bool = False
@@ -237,12 +233,13 @@ class CbuildRun:
         self._use_default_memory_map: bool = True
         self._system_resources: Optional[Dict[str, list]] = None
         self._system_descriptions: Optional[List[dict]] = None
-        self._required_packs: Dict[str, Optional[Path]] = {}
-        self._rtt_config_cache: Optional[Tuple] = None
 
         try:
             # Convert to Path object early and resolve to absolute path
             yml_file_path = Path(yml_path).resolve()
+            self._cbuild_run_path = str(yml_file_path)
+            self._base_path = yml_file_path.parent  # Store base path for later use
+            LOG.debug("cbuild-run base path: '%s'", self._base_path)
 
             with yml_file_path.open('r') as yml_file:
                 yml_data = yaml.safe_load(yml_file)
@@ -252,12 +249,7 @@ class CbuildRun:
                 # Ensure CMSIS_PACK_ROOT is set
                 self._cmsis_pack_root()
             else:
-                raise CbuildRunError(f"Invalid .cbuild-run.yml file '{yml_file_path}'")
-
-            # Set cbuild-run path as the current working directory
-            base_path = yml_file_path.parent
-            os.chdir(base_path)
-            LOG.debug("Working directory set to: '%s'", os.getcwd())
+                raise CbuildRunError(f"Invalid header in .cbuild-run.yml file '{yml_file_path}'")
         except OSError as err:
             if yml_path == "":
                 raise CbuildRunError("Cannot access *.cbuild-run.yml file: no path provided")
@@ -293,39 +285,29 @@ class CbuildRun:
         os.environ['CMSIS_PACK_ROOT'] = str(cmsis_pack_root)
         LOG.debug("CMSIS_PACK_ROOT set to: '%s'", os.environ['CMSIS_PACK_ROOT'])
 
-    def _get_required_packs(self) -> None:
-        """@brief Determines required CMSIS packs from the .cbuild-run.yml file."""
-        if not self._required_packs:
-            cmsis_pack_root = Path(os.environ['CMSIS_PACK_ROOT']).expanduser().resolve()
-
-            def _pack_path(cmsis_pack: str) -> Optional[Path]:
-                try:
-                    vendor, pack = cmsis_pack.split('::', 1)
-                    name, version = pack.split('@', 1)
-                except ValueError:
-                    LOG.error("Invalid pack format '%s'. Expected 'Vendor::Pack@Version'", cmsis_pack)
-                    return None
-
-                return cmsis_pack_root / vendor / name / version
-
-            for pack_type in ('device-pack', 'board-pack'):
-                pack = self._data.get(pack_type)
-                if pack is not None:
-                    self._required_packs[pack] = _pack_path(pack)
-
     def _check_path(self, file_path: Path, required: bool = False) -> Path:
         """@brief Checks if the required files are accessible and verifies pack installation if needed."""
-        file_path = Path(os.path.expandvars(str(file_path))).expanduser().resolve()
-        # If the file exists, we don't need to do any further checks
-        if file_path.is_file():
-            return file_path
+
+        def _normalize_path(path: str) -> Path:
+            # Expand environment variables first, then check if absolute
+            path = Path(os.path.expandvars(path)).expanduser()
+            if not path.is_absolute():
+                path = self._base_path / path
+            path = path.resolve()
+            return path
 
         def _is_under(parent: Path, child: Path) -> bool:
+            # Can be replaced with child.is_relative_to(parent) in Python 3.9+
             try:
                 child.relative_to(parent)
                 return True
             except ValueError:
                 return False
+
+        file_path = _normalize_path(str(file_path))
+        # If the file exists, we don't need to do any further checks
+        if file_path.is_file():
+            return file_path
 
         # Select appropriate logging level and error message based on whether the file is required
         if required:
@@ -335,16 +317,22 @@ class CbuildRun:
             log = LOG.warning
             err = f"File '{file_path}' not found"
 
-        self._get_required_packs()
+        required_packs = (
+            (self._data.get('device-pack'), self._data.get('device-pack-path')),
+            (self._data.get('board-pack'), self._data.get('board-pack-path'))
+        )
         # Verify pack installation only if the file is located within a required pack.
-        for pack, pack_path in self._required_packs.items():
-            if pack_path is not None and _is_under(pack_path, file_path):
+        for pack, pack_path in required_packs:
+            if pack is None or pack_path is None:
+                continue
+            pack_path = _normalize_path(str(pack_path))
+            if _is_under(pack_path, file_path):
                 if not pack_path.exists():
                     log("Pack '%s' is required but not installed. "
-                              "Install with: cpackget add %s", pack, pack)
+                        "Install with: cpackget add %s", pack, pack)
                 else:
                     log("Installed pack '%s' is corrupted or incomplete. "
-                          "Reinstall with: cpackget add -F %s", pack, pack)
+                        "Reinstall with: cpackget add -F %s", pack, pack)
                 # We've found the relevant pack, no need to check further
                 break
 
@@ -398,6 +386,31 @@ class CbuildRun:
         return self._memory_map
 
     @property
+    def proj_path(self) -> str:
+        """@brief Path to the project directory, including trailing slash."""
+        return str(Path(self.proj_path_name).parent)
+
+    @property
+    def proj_path_name(self) -> str:
+        """@brief Csolution file path."""
+        solution = self._data.get('solution')
+        if solution is not None:
+            # Expand environment variables first, then resolve relative to base_path
+            proj_path = Path(os.path.expandvars(solution)).expanduser()
+            if not proj_path.is_absolute():
+                proj_path = self._base_path / proj_path
+            proj_path = proj_path.resolve()
+            # Return the solution file name
+            return str(proj_path)
+        else:
+            return ''
+
+    @property
+    def pack_path(self) -> str:
+        # Returns device-pack-path if specified, otherwise an empty string.
+        return self._data.get('device-pack-path', '')
+
+    @property
     def svd(self) -> Optional[str]:
         """@brief Path to the SVD file for the target device."""
         #TODO handle multicore devices
@@ -416,7 +429,13 @@ class CbuildRun:
     @property
     def output(self) -> List[dict]:
         """@brief List of output files generated by the build process, with metadata."""
-        return self._data.get('output', [])
+        _output = self._data.get('output', [])
+        for f in _output:
+            file = Path(os.path.expandvars(f['file'])).expanduser()
+            if not file.is_absolute():
+                file = self._base_path / file
+            f['file'] = str(file.resolve())
+        return _output
 
     @property
     def debug_sequences(self) -> List[dict]:
@@ -488,11 +507,23 @@ class CbuildRun:
         return self._programming
 
     @property
+    def flashinfo(self) -> List[dict]:
+        """@brief Flash info section of cbuild-run."""
+        if self._flashinfo is None:
+            self._flashinfo = self._data.get('flash-info', [])
+            LOG.debug("Read %d flash info entries", len(self._flashinfo))
+        return self._flashinfo
+
+    @property
     def debugger(self) -> Dict[str, Any]:
         """@brief Debugger section of cbuild-run."""
         if self._debugger is None:
-            self._debugger = self._data.get('debugger', {})
-            LOG.debug("Read debugger configuration: %s", self._debugger)
+            _debugger = self._data.get('debugger') or {}
+            LOG.debug("Read debugger configuration: %s", _debugger)
+            if 'stdio' in _debugger and 'telnet' in _debugger:
+                LOG.warning("Both 'stdio' and 'telnet' sections found in debugger configuration. "
+                            "Using 'stdio' section and ignoring 'telnet'.")
+            self._debugger = _debugger
         return self._debugger
 
     @property
@@ -578,6 +609,9 @@ class CbuildRun:
         if reset not in {'off', 'hardware', 'system', 'core'}:
             LOG.warning("Invalid post-reset type '%s' in cbuild-run, defaulting to 'hardware'", reset)
             reset = 'hardware'
+        # Check if ResetHardware is supported for the target, if not default to pin reset
+        if reset == 'hardware' and not any(elem.get('name') == 'ResetHardware' for elem in self.debug_sequences):
+            reset = 'n_srst'
         return reset
 
     @property
@@ -597,62 +631,66 @@ class CbuildRun:
         return self._get_server_port('gdbserver')
 
     @property
-    def telnet_port(self) -> Optional[Tuple]:
-        """@brief Telnet server port assignments from debugger section.
+    def stdio_port(self) -> Optional[Tuple]:
+        """@brief STDIO server port assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
-        return self._get_server_port('telnet')
+        server_type = 'stdio' if 'stdio' in self.debugger else 'telnet'
+        return self._get_server_port(server_type)
 
     @property
-    def telnet_mode(self) -> Tuple:
-        """@brief Telnet server mode assignments from debugger section.
+    def stdio_mode(self) -> Tuple:
+        """@brief STDIO mode assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
-        SUPPORTED_MODES = { 'off', 'telnet', 'file', 'console' }
+        SUPPORTED_MODES = { 'off', 'server', 'file', 'console' }
         MODE_ALIASES = { False: 'off',
-                        'monitor': 'telnet',
-                        'server': 'telnet'
-                      }
-        # Get telnet configuration from debugger section
-        telnet_config = self.debugger.get('telnet') or []
-        valid_config = any('mode' in t for t in telnet_config)
+                        'monitor': 'server'
+                       }
+        # Get STDIO configuration from debugger section
+        stdio_config = self._get_stdio_config()
+        valid_config = any('mode' in s for s in stdio_config)
         # Determine global mode if specified, default to 'off' otherwise
-        global_mode = next((t.get('mode') for t in telnet_config if 'pname' not in t), 'off')
+        global_mode = next((s.get('mode') for s in stdio_config if 'pname' not in s), 'off')
         global_mode = MODE_ALIASES.get(global_mode, global_mode)
-        # Build list of telnet modes for each core
-        telnet_mode = []
+        # Build list of STDIO modes for each core
+        stdio_mode = []
         for core in self.sorted_processors:
-            mode = next((t.get('mode') for t in telnet_config if t.get('pname') == core.name), global_mode)
+            mode = next((s.get('mode') for s in stdio_config if s.get('pname') == core.name), global_mode)
             mode = MODE_ALIASES.get(mode, mode)
             if mode not in SUPPORTED_MODES:
                 if valid_config:
-                    LOG.warning("Invalid telnet mode '%s' for core '%s' in cbuild-run, defaulting to '%s'",
+                    LOG.warning("Invalid STDIO mode '%s' for core '%s' in cbuild-run, defaulting to '%s'",
                             mode, core.name, global_mode)
                 mode = global_mode
-            telnet_mode.append(mode)
+            stdio_mode.append(mode)
 
-        return tuple(telnet_mode)
+        return tuple(stdio_mode)
 
     @property
-    def telnet_file(self) -> Dict[str, Optional[Tuple]]:
-        """@brief Telnet file path assignments from debugger section.
+    def stdio_file(self) -> Dict[str, Optional[Tuple]]:
+        """@brief STDIO file path assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
-        # Get telnet configuration from debugger section
-        telnet_config = self.debugger.get('telnet') or []
-        telnet_mode = self.telnet_mode
+        # Get STDIO configuration from debugger section
+        stdio_config = self._get_stdio_config()
+        stdio_mode = self.stdio_mode
 
-        if not any(mode == 'file' for mode in telnet_mode):
-            # No telnet file paths needed
+        if not any(mode == 'file' for mode in stdio_mode):
+            # No STDIO file paths needed
             return {'in': None, 'out': None}
 
         def _resolve_path(file_path: Optional[str], strict: bool = False) -> Optional[str]:
             if file_path is None:
                 return None
-            resolved_path = Path(os.path.expandvars(str(file_path))).expanduser().resolve()
+            file_path_obj = Path(os.path.expandvars(str(file_path))).expanduser()
+            # Resolve relative to base_path if not absolute
+            if not file_path_obj.is_absolute():
+                file_path_obj = self._base_path / file_path_obj
+            resolved_path = file_path_obj.resolve()
             # In strict mode check if the file exists
             if strict and not resolved_path.is_file():
-                LOG.warning("Telnet file '%s' not found", resolved_path)
+                LOG.warning("STDIO file '%s' not found", resolved_path)
 
             return str(resolved_path)
 
@@ -660,11 +698,11 @@ class CbuildRun:
         out_files = []
 
         # Per pname configuration
-        config_by_pname = {t['pname']: t for t in telnet_config if 'pname' in t}
+        config_by_pname = {s['pname']: s for s in stdio_config if 'pname' in s}
 
         if config_by_pname:
             # Build config per pname
-            for proc_info, mode in zip(self.sorted_processors, telnet_mode):
+            for proc_info, mode in zip(self.sorted_processors, stdio_mode):
                 if mode != 'file':
                     in_files.append(None)
                     out_files.append(None)
@@ -674,141 +712,69 @@ class CbuildRun:
                 # Check for file-in and file-out, use defaults if not provided
                 in_file = _resolve_path(config.get('file-in'), strict=True)
                 if in_file is None:
-                    in_file = f"{self._cbuild_name}.{proc_info.name}.in"
+                    in_file = str((self._base_path / f"{self._cbuild_name}.{proc_info.name}.in").resolve())
                 in_files.append(in_file)
                 out_file = _resolve_path(config.get('file-out'))
                 if out_file is None:
-                    out_file = f"{self._cbuild_name}.{proc_info.name}.out"
+                    out_file = str((self._base_path / f"{self._cbuild_name}.{proc_info.name}.out").resolve())
                 out_files.append(out_file)
         else:
-            config = next((t for t in telnet_config if t.get('mode') == 'file'), None)
+            config = next((s for s in stdio_config if s.get('mode') == 'file'), None)
             if config is not None:
                 if len(self.sorted_processors) > 1:
-                    LOG.warning("Ignoring invalid telnet file configuration for multicore target in cbuild-run")
-                    for proc_info, mode in zip(self.sorted_processors, telnet_mode):
+                    LOG.warning("Ignoring invalid STDIO file configuration for multicore target in cbuild-run")
+                    for proc_info, mode in zip(self.sorted_processors, stdio_mode):
                         if mode != 'file':
                             in_files.append(None)
                             out_files.append(None)
                         else:
-                            in_files.append(f"{self._cbuild_name}.{proc_info.name}.in")
-                            out_files.append(f"{self._cbuild_name}.{proc_info.name}.out")
+                            in_files.append(str((self._base_path / f"{self._cbuild_name}.{proc_info.name}.in").resolve()))
+                            out_files.append(str((self._base_path / f"{self._cbuild_name}.{proc_info.name}.out").resolve()))
                 else:
                     in_file = _resolve_path(config.get('file-in'), strict=True)
                     if in_file is None:
-                        in_file = f"{self._cbuild_name}.in"
+                        in_file = str((self._base_path / f"{self._cbuild_name}.in").resolve())
                     in_files.append(in_file)
                     out_file = _resolve_path(config.get('file-out'))
                     if out_file is None:
-                        out_file = f"{self._cbuild_name}.out"
+                        out_file = str((self._base_path / f"{self._cbuild_name}.out").resolve())
                     out_files.append(out_file)
 
         return {'in': tuple(in_files) if any(in_files) else None,
                 'out': tuple(out_files) if any(out_files) else None}
 
     @property
-    def rtt_config(self) -> Optional[Tuple]:
-        """@brief Cached RTT configurations."""
-        if self._rtt_config_cache is None:
-            self._rtt_config_cache = self._get_rtt_config()
-        return self._rtt_config_cache
+    def rtt(self) -> Optional[Tuple]:
+        rtt = self.debugger.get('rtt') or []
+        return tuple(rtt) if rtt else None
 
     @property
-    def rtt_control_block(self) -> Optional[Tuple]:
-        """@brief RTT control block configurations for each core."""
-        rtt_config_list = self.rtt_config
-        if rtt_config_list is None:
+    def systemview_file(self) -> Optional[str]:
+        rtt = self.debugger.get('rtt') or []
+        if not rtt:
             return None
-
-        control_block_list = []
-        for config in rtt_config_list:
-            config = config.get('control-block')
-            if config is not None:
-                control_block_list.append({
-                    'address': config.get('address'),
-                    'size': config.get('size'),
-                    'auto-detect': config.get('auto-detect', False)
-                })
-            else:
-                control_block_list.append(None)
-
-        return tuple(control_block_list)
+        sv = self.debugger.get('systemview') or {}
+        file = sv.get('file')
+        if file is None:
+            # Set default systemview file name if not provided
+            file = self._cbuild_run_path.split('.cbuild-run')[0] + '.SVDat'
+        return file if file else None
 
     @property
-    def rtt_channel(self) -> Optional[Tuple]:
-        """@brief RTT channel configurations for each core."""
-
-        SUPPORTED_MODES = { 'stdio', 'telnet', 'systemview'}
-
-        rtt_config_list = self.rtt_config
-        if rtt_config_list is None:
+    def systemview_auto_start(self) -> Optional[bool]:
+        rtt = self.debugger.get('rtt') or []
+        if not rtt:
             return None
-
-        channel_list = []
-        for idx, config in enumerate(rtt_config_list):
-            channels = config.get('channel', [])
-            valid_channel_list = []
-            for ch_cfg in channels or []:
-                ch_num = ch_cfg.get('number', None)
-                if ch_num is None:
-                    # Warn about missing channel number
-                    LOG.warning("RTT channel configuration for core %d is missing channel number; channel disabled", idx)
-                    continue
-                if any(ch['number'] == ch_num for ch in valid_channel_list):
-                    LOG.warning("RTT channel %d for core %d is already configured; skipping duplicate", ch_num, idx)
-                    continue
-                ch_mode = ch_cfg.get('mode', None)
-                if ch_mode is None:
-                    # Warn about missing channel mode
-                    LOG.warning("RTT channel %d configuration for core %d is missing mode; channel disabled", ch_num, idx)
-                    continue
-                if ch_mode not in SUPPORTED_MODES:
-                    # Warn about unsupported channel mode
-                    LOG.warning("RTT channel %d configuration for core %d has unsupported mode '%s'; channel disabled",
-                                ch_num, idx, ch_mode)
-                    continue
-                # STDIO mode
-                if ch_mode == 'stdio':
-                    valid_channel_list.append({'number': ch_num, 'mode': ch_mode})
-                # Telnet mode
-                elif ch_mode == 'telnet':
-                    port = ch_cfg.get('port', None)
-                    if port is None:
-                        LOG.warning("RTT telnet channel %d configuration for core %d is missing port configuration; channel disabled", ch_num, idx)
-                        continue
-                    else:
-                        valid_channel_list.append({'number': ch_num, 'mode': ch_mode, 'port': port})
-                # SystemView mode
-                elif ch_mode == 'systemview':
-                    valid_channel_list.append({'number': ch_num, 'mode': ch_mode})
-
-            valid_channel_list.sort(key=lambda x: int(x['number']))
-            channel_list.append(valid_channel_list if valid_channel_list else None)
-
-        return tuple(channel_list)
+        sv = self.debugger.get('systemview') or {}
+        return sv.get('auto-start')
 
     @property
-    def systemview(self) -> Optional[Dict[str, Any]]:
-        """@brief SystemView configurations for each core."""
-        systemview = self.debugger.get('systemview') or []
-
-        # Set default values
-        file = f"{self._cbuild_name}.SVDat"
-        auto_start = True
-        auto_stop = True
-
-        if systemview:
-            _file = systemview.get('file', file)
-            auto_start = systemview.get('auto-start', True)
-            auto_stop = systemview.get('auto-stop', True)
-            if _file is not None:
-                file = str(Path(os.path.expandvars(str(_file))).expanduser().resolve())
-
-        systemview_cfg ={
-            'file': file,
-            'auto-start': auto_start,
-            'auto-stop': auto_stop
-        }
-        return systemview_cfg
+    def systemview_auto_stop(self) -> Optional[bool]:
+        rtt = self.debugger.get('rtt') or []
+        if not rtt:
+            return None
+        sv = self.debugger.get('systemview') or {}
+        return sv.get('auto-stop')
 
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
@@ -834,52 +800,10 @@ class CbuildRun:
         })
         TARGET[target] = tgt
 
-    def _get_rtt_config(self) -> Optional[Tuple]:
-        """@brief RTT configuration from debugger section.
-
-        Returns a tuple of RTT configurations, one per core. If no RTT configuration
-        exists in the debugger section, returns None.
-        """
-        rtt_config_list = self.debugger.get('rtt') or []
-        if not rtt_config_list:
-            return None
-
-        # Check for a global configuration (no 'pname')
-        global_config = next((c for c in rtt_config_list if 'pname' not in c), None)
-
-        # Create a map of pname to its specific configuration
-        pname_map = {c['pname']: c for c in rtt_config_list if 'pname' in c}
-
-        sorted_processors = self.sorted_processors
-        is_multicore = len(sorted_processors) > 1
-        primary_core_index = self.primary_core if self.primary_core is not None else 0
-
-        # Warn the user if a global control-block is used on a multicore target
-        if is_multicore and global_config and ('control-block' in global_config):
-            LOG.warning("Global RTT 'control-block' configuration is only applied to the primary core for "
-                        "multicore targets. Other global RTT settings are applied to all cores.")
-
-        rtt_configs = []
-        for i, proc_info in enumerate(sorted_processors):
-            core_config = {}
-
-            # Apply global settings
-            if global_config:
-                # Default global configuration
-                core_config.update(deepcopy(global_config))
-                if is_multicore and i != primary_core_index:
-                    # Remove control-block for non-primary cores in multicore targets
-                    core_config.pop('control-block', None)
-
-            # Override with core-specific settings
-            pname_config = pname_map.get(proc_info.name)
-            if pname_config:
-                core_config.update(deepcopy(pname_config))
-
-            # Add configuration to the list
-            rtt_configs.append(core_config)
-
-        return tuple(rtt_configs)
+    def _get_stdio_config(self) -> List[dict]:
+        """@brief Returns STDIO configuration from debugger section, with telnet as an alias."""
+        server_type = 'stdio' if 'stdio' in self.debugger else 'telnet'
+        return self.debugger.get(server_type) or []
 
     def _get_server_port(self, server_type: str) -> Optional[Tuple]:
         """@brief Generic method to get server port assignments from debugger section."""
@@ -991,6 +915,76 @@ class CbuildRun:
             _memory['size'] = size
             memory_to_process.append(_memory)
 
+        def _add_flashinfo_regions(
+                flash_attrs: Dict[str, Any],
+                parent_start: int,
+                parent_end: int,
+                flash_info: Dict[str, Any],
+                fallback_flm: Optional[PackFlashAlgo] = None,
+            ) -> None:
+            page_size = flash_info.get('page-size')
+            blocks = flash_info.get('blocks')
+            if page_size is None or blocks is None:
+                LOG.error("flash-info entry missing required 'page-size' or 'blocks' fields")
+                return
+
+            # Extract optional flashinfo attributes with spec defaults
+            blank_val_64 = int(flash_info.get('blank-val', 0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF
+            fill_val_64 = int(flash_info.get('fill-val', 0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF
+            ptime = flash_info.get('ptime', 100) / 1e3  # Programming timeout in s
+            etime = flash_info.get('etime', 300) / 1e3  # Erase timeout in s
+
+            # Validate blocks and calculate subregion ranges, extracting per-block args
+            block_ranges = []  # List of (start, end, block_size, block_arg)
+            current_addr = flash_info['start']
+            for elem in blocks:
+                try:
+                    block_size = int(elem['size'])
+                    block_count = int(elem['count'])
+                except (KeyError, TypeError, ValueError):
+                    LOG.error("flash-info block entries must define integer 'size' and 'count'")
+                    return
+
+                if block_size <= 0 or block_count <= 0:
+                    LOG.error("flash-info block 'size' and 'count' must be positive")
+                    return
+
+                block_start = current_addr
+                block_end = current_addr + (block_size * block_count)
+                sub_start = max(block_start, parent_start)
+                sub_end = min(block_end, parent_end)
+                if sub_start < sub_end:
+                    block_ranges.append((sub_start, sub_end, block_size, int(elem.get('arg', 0))))
+                current_addr = block_end
+
+            if not block_ranges:
+                LOG.error("flash-info entry has no valid blocks")
+                return
+
+            fi_attrs = {
+                'flash_class': FlashDebugSequence,
+                '_flashinfo_blank_val': blank_val_64,
+                '_flashinfo_fill_val': fill_val_64,
+                '_flashinfo_ptime': ptime,
+                '_flashinfo_etime': etime,
+            }
+
+            parent_attrs = {**flash_attrs, 'start': parent_start, 'length': parent_end - parent_start,
+                            'sector_size': max(br[2] for br in block_ranges), 'page_size': page_size, **fi_attrs}
+            if fallback_flm is not None:
+                parent_attrs['_fallback_flm'] = fallback_flm
+            parent_region = MEMORY_TYPE_CLASS_MAP[MemoryType.FLASH](**parent_attrs)
+
+            for sub_start, sub_end, block_size, block_arg in block_ranges:
+                sub_attrs = {**flash_attrs, 'start': sub_start, 'length': sub_end - sub_start,
+                             'sector_size': block_size, 'page_size': page_size,
+                             'erased_byte_value': blank_val_64 & 0xFF,
+                             'name': flash_attrs.get('name', 'flash') + f"_{block_size:#x}",
+                             **fi_attrs, '_flashinfo_block_arg': block_arg}
+                parent_region.submap.add_region(MEMORY_TYPE_CLASS_MAP[MemoryType.FLASH](**sub_attrs))
+
+            regions.append(parent_region)
+
         while memory_to_process:
             memory = memory_to_process.pop()
             # Determine memory type based on access permissions
@@ -1009,50 +1003,87 @@ class CbuildRun:
                 'access': memory['access'],
                 'pname': memory.get('pname'),
                 'alias': memory.get('alias'),
+                'is_default': memory.get('default'),
+                'defined': memory.get('defined', False)
             }
 
             if memory.get('defined', False):
-                for algorithm in self.programming:
-                    if 'pname' in memory and 'pname' in algorithm:
-                        if memory['pname'] != algorithm['pname']:
+                fallback_algos = []
+                for flash in self.flashinfo + self.programming:
+                    if any(flash is fallback_algo for fallback_algo in fallback_algos):
+                        continue
+
+                    if 'pname' in memory and 'pname' in flash:
+                        if memory['pname'] != flash['pname']:
                             # Skip this algorithm if 'Pname' exists and does not match
                             continue
 
-                    memory_end = memory['start'] + memory['size']
-                    algorithm_end = algorithm['start'] + algorithm['size']
+                    if 'blocks' in flash:
+                        flash['size'] = sum(block['size'] * block['count'] for block in flash['blocks'])
 
-                    if (memory['start'] < algorithm_end) and (algorithm['start'] < memory_end):
+                    memory_end = memory['start'] + memory['size']
+                    flash_end = flash['start'] + flash['size']
+
+                    if (memory['start'] < flash_end) and (flash['start'] < memory_end):
                         # Create a local copy of attributes
                         flash_attrs = attrs.copy()
                         # If memory region and algorithm overlap, classify this part of region as FLASH
                         memory_type = MemoryType.FLASH
                         # Split memory into covered and uncovered section
-                        flash_start = max(memory['start'], algorithm['start'])
-                        flash_end = min(memory_end, algorithm_end)
-                        if memory['start'] < algorithm['start']:
-                            _memory_slice(memory, memory['start'], algorithm['start'] - memory['start'])
-                        if memory_end > algorithm_end:
-                            _memory_slice(memory, algorithm_end, memory_end - algorithm_end)
+                        flash_start = max(memory['start'], flash['start'])
+                        flash_end = min(memory_end, flash_end)
+                        if memory['start'] < flash['start']:
+                            _memory_slice(memory, memory['start'], flash['start'] - memory['start'])
+                        if memory_end > flash_end:
+                            _memory_slice(memory, flash_end, memory_end - flash_end)
                         # Update flash attributes
                         flash_attrs['start'] = flash_start
                         flash_attrs['length'] = flash_end - flash_start
                         # Amend region 'pname' attribute if it is not already set
-                        if (flash_attrs['pname'] is None) and ('pname' in algorithm):
-                            flash_attrs['pname'] = algorithm['pname']
-                        # Add additional attributes related to the algorithm
-                        if 'ram-start' in algorithm:
-                            flash_attrs['_RAMstart'] = algorithm['ram-start']
-                        if 'ram-size' in algorithm:
-                            flash_attrs['_RAMsize'] = algorithm['ram-size']
-                        if ('_RAMstart' not in flash_attrs) or ('_RAMsize' not in flash_attrs):
-                            LOG.error("Flash algorithm '%s' has no RAMstart or RAMsize", algorithm['algorithm'])
-                        algorithm_path = self._check_path(Path(algorithm['algorithm']), required=True)
-                        flash_attrs['flm'] = PackFlashAlgo(str(algorithm_path))
-                        # Set sector size to a fixed value to prevent any possibility of infinite recursion due to
-                        # the default lambdas for sector_size and blocksize returning each other's value.
-                        flash_attrs['sector_size'] = 0
-                        # Create appropriate memory region object and store it
-                        regions.append(MEMORY_TYPE_CLASS_MAP[memory_type](**flash_attrs))
+                        if (flash_attrs['pname'] is None) and ('pname' in flash):
+                            flash_attrs['pname'] = flash['pname']
+                        if 'algorithm' in flash:
+                            # Add additional attributes related to the algorithm
+                            if 'ram-start' in flash:
+                                flash_attrs['_RAMstart'] = flash['ram-start']
+                            if 'ram-size' in flash:
+                                flash_attrs['_RAMsize'] = flash['ram-size']
+                            if ('_RAMstart' not in flash_attrs) or ('_RAMsize' not in flash_attrs):
+                                LOG.error("Flash algorithm '%s' has no RAMstart or RAMsize", flash['algorithm'])
+                            algorithm_path = self._check_path(Path(flash['algorithm']), required=True)
+                            flash_attrs['flm'] = PackFlashAlgo(str(algorithm_path))
+                            # Set sector size to a fixed value to prevent any possibility of infinite recursion due to
+                            # the default lambdas for sector_size and blocksize returning each other's value.
+                            flash_attrs['sector_size'] = 0
+                            # Create appropriate memory region object and store it
+                            regions.append(MEMORY_TYPE_CLASS_MAP[memory_type](**flash_attrs))
+                        else:
+                            fallback_flm = None
+                            for programming in self.programming:
+                                if 'pname' in memory and 'pname' in programming and memory['pname'] != programming['pname']:
+                                    continue
+
+                                algo_size = programming.get('size')
+                                if algo_size is None:
+                                    continue
+
+                                algo_end = programming['start'] + algo_size
+                                if (flash_start >= algo_end) or (programming['start'] >= flash_end):
+                                    continue
+
+                                fallback_algos.append(programming)
+                                try:
+                                    algorithm_path = self._check_path(Path(programming['algorithm']), required=False)
+                                    fallback_flm = PackFlashAlgo(str(algorithm_path))
+                                except (exceptions.Error, OSError, ValueError) as err:
+                                    LOG.debug("Could not load FLM fallback '%s': %s", programming.get('algorithm'), err)
+                                else:
+                                    if 'ram-start' in programming:
+                                        flash_attrs['_RAMstart'] = programming['ram-start']
+                                    if 'ram-size' in programming:
+                                        flash_attrs['_RAMsize'] = programming['ram-size']
+                                break
+                            _add_flashinfo_regions(flash_attrs, flash_start, flash_end, flash, fallback_flm)
                         # Stop searching for algorithms if one without pname was found
                         if flash_attrs['pname'] is None:
                             break
@@ -1076,7 +1107,11 @@ class CbuildRun:
                 if item['type'] == 'svd':
                     if (pname is not None) and (item.get('pname') not in (None, pname)):
                         continue
-                    svd_path = str(Path(os.path.expandvars(item['file'])).expanduser().resolve())
+                    # Expand environment variables first, then resolve relative to base_path
+                    file_path = Path(os.path.expandvars(item['file'])).expanduser()
+                    if not file_path.is_absolute():
+                        file_path = self._base_path / file_path
+                    svd_path = str(file_path.resolve())
                     break
             return svd_path
 
@@ -1103,11 +1138,12 @@ class CbuildRun:
                     ap_address = APv1Address(0, dpid, apid)
 
                 self._apids[apid] = ap_address
-                pname, reset_sequence = _processors.get(apid, (f'Unknown{apid}', 'ResetSystem'))
-                self._processors_map[pname] = ProcessorInfo(name=pname,
-                                                            ap_address=ap_address,
-                                                            svd_path=get_svd_path(pname),
-                                                            default_reset_sequence=reset_sequence)
+                if apid in _processors:
+                    pname, reset_sequence = _processors[apid]
+                    self._processors_map[pname] = ProcessorInfo(name=pname,
+                                                                ap_address=ap_address,
+                                                                svd_path=get_svd_path(pname),
+                                                                default_reset_sequence=reset_sequence)
         if not self._valid_dps:
             # Use default __dp of 0.
             self._valid_dps.append(0)
@@ -1118,10 +1154,11 @@ class CbuildRun:
                                                             ap_address=APv1Address(0),
                                                             svd_path=get_svd_path())
 
-
-class CbuildRunSequences:
+class CbuildRunSequences(_YAMLSequenceParser):
     """@brief Parses debug sequences and debug variable definitions from .cbuild-run.yml."""
+
     def __init__(self, device: CbuildRun) -> None:
+        self._cbuild_device = device
         self._cbuild_vars = device.debug_vars
         self._cbuild_debugger = device.debugger
         self._cbuild_sequences = device.debug_sequences
@@ -1129,7 +1166,6 @@ class CbuildRunSequences:
         self._debugvars: Optional[Block] = None
         self._debugvars_conf: Optional[Block] = None
         self._sequences: Set[DebugSequence] = set()
-        self._control_nodes = {'if', 'while'}
 
     @property
     def variables(self) -> Optional[Block]:
@@ -1140,62 +1176,21 @@ class CbuildRunSequences:
     @property
     def dbgconf_variables(self) -> Optional[Block]:
         if self._debugvars_conf is None:
-            self._dbgconf_variables()
+            dbgconf_file = self._cbuild_debugger.get('dbgconf')
+            # Resolve dbgconf path relative to the device's base path
+            if dbgconf_file is not None:
+                file_path = Path(os.path.expandvars(dbgconf_file)).expanduser()
+                if not file_path.is_absolute():
+                    file_path = self._cbuild_device._base_path / file_path
+                dbgconf_file = str(file_path.resolve())
+            self._debugvars_conf = self._dbgconf_variables(dbgconf_file)
         return self._debugvars_conf
 
     @property
     def sequences(self) -> Set[DebugSequence]:
         if not self._sequences:
-            self._build_sequences()
+            self._sequences = self._build_sequences(self._cbuild_sequences)
         return self._sequences
-
-    def _dbgconf_variables(self) -> Optional[Block]:
-        dbgconf_file = self._cbuild_debugger.get('dbgconf')
-        if dbgconf_file is not None:
-            try:
-                with open(dbgconf_file) as f:
-                    dbgconf = f.read()
-                    self._debugvars_conf = Block(dbgconf, info='dbgconf')
-            except FileNotFoundError:
-                LOG.warning("dbgconf file '%s' was not found", dbgconf_file)
-
-    def _build_sequences(self) -> None:
-        for elem in self._cbuild_sequences:
-            name = elem.get('name')
-            if name is None:
-                LOG.warning("invalid debug sequence; missing name")
-                continue
-
-            pname = elem.get('pname')
-            info = elem.get('info', '')
-            sequence = DebugSequence(name, True, pname, info)
-
-            if 'blocks' in elem:
-                for child in elem['blocks']:
-                    self._build_sequence_node(sequence, child)
-            self._sequences.add(sequence)
-
-    def _build_sequence_node(self, parent: DebugSequenceNode, elem: dict) -> None:
-        info = elem.get('info', "")
-        if any(node in elem for node in self._control_nodes):
-            if 'if' in elem:
-                node = IfControl(str(elem['if']), info)
-            elif 'while' in elem:
-                node = WhileControl(str(elem['while']), info, int(elem.get('timeout', 0)))
-
-            parent.add_child(node)
-
-            if 'blocks' in elem:
-                for child in elem['blocks']:
-                    self._build_sequence_node(node, child)
-            elif 'execute' in elem:
-                child = {k: v for k, v in elem.items() if k not in self._control_nodes}
-                self._build_sequence_node(node, child)
-        else:
-            if 'execute' in elem:
-                is_atomic = True if 'atomic' in elem else False
-                node = Block(elem['execute'], is_atomic, info)
-                parent.add_child(node)
 
 
 class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
@@ -1228,13 +1223,40 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         self._debugvars: Optional[Scope] = None
         self._functions = DebugSequenceCommonFunctions()
 
+        self._all_sequences: Optional[Set[DebugSequence]] = None
+        self._generic_map: Optional[Dict[str, DebugSequence]] = None
+
+        specific = {}
+        for seq in self._sequences:
+            if seq.pname is None:
+                continue
+            if seq.pname not in specific:
+                specific[seq.pname] = {}
+            specific[seq.pname][seq.name] = seq
+
+        self._specific_map_by_pname = specific
+
     @property
     def all_sequences(self) -> Set[DebugSequence]:
-        return self._sequences
+        """@brief Returns all available sequences (cbuild-run + defaults)."""
+        if self._all_sequences is None:
+            self._all_sequences = set(self._get_generic_map().values())
+            for pname_dict in self._specific_map_by_pname.values():
+                self._all_sequences.update(pname_dict.values())
+        return self._all_sequences
 
     @property
     def cmsis_pack_device(self) -> CbuildRun:
         return self._device
+
+    def _get_generic_map(self) -> Dict[str, DebugSequence]:
+        """@brief Lazily load generic debug sequences with correct probe capabilities."""
+        if self._generic_map is None:
+            self._generic_map = DefaultDebugSequences.get_sequences(self._session.probe)
+            generic_overrides = {seq.name: seq for seq in self._sequences if seq.pname is None}
+            if generic_overrides:
+                self._generic_map.update(generic_overrides)
+        return self._generic_map
 
     def get_root_scope(self, context: DebugSequenceExecutionContext) -> Scope:
         if self._debugvars is not None:
@@ -1263,7 +1285,12 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
 
         return self._debugvars
 
-    def run_sequence(self, name: str, pname: Optional[str] = None) -> Optional[Scope]:
+    def run_sequence(
+            self,
+            name: str,
+            pname: Optional[str] = None,
+            flash_params: Optional["FlashSequenceParams"] = None
+        ) -> Optional[Scope]:
         """@brief Executes a debug sequence by name for the specified processor."""
         pname_desc = f" ({pname})" if (pname and LOG.isEnabledFor(logging.DEBUG)) else ""
 
@@ -1277,7 +1304,7 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         LOG.debug("Running debug sequence '%s'%s", name, pname_desc)
 
         # Create runtime context and contextified functions instance.
-        context = DebugSequenceExecutionContext(self._session, self, pname)
+        context = DebugSequenceExecutionContext(self._session, self, pname, flash_params=flash_params)
 
         # Map optional pname to AP address. If the pname is not specified, then use the device's
         # first available AP. If not APs are known (eg haven't been discovered yet) then use 0.
@@ -1298,30 +1325,49 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
             try:
                 executed_scope = seq.execute(context)
             except exceptions.Error as err:
+                prefix = f"Error while running debug sequence '{name}'"
                 if pname:
-                    LOG.error("Error while running debug sequence '%s' (core %s): %s", name, pname, err)
-                else:
-                    LOG.error("Error while running debug sequence '%s': %s", name, err)
+                    prefix += f" (core {pname})"
+                err.args = (f"{prefix}: {err}",)
                 raise
 
         return executed_scope
 
-
     def sequences_for_pname(self, pname: Optional[str]) -> Dict[str, DebugSequence]:
-        # Return *only* sequences with no Pname when passed pname=None. Otherwise we'd have
-        # to mangle the dict keys to include pname since there can be multiple sequences with
-        # the same name but different
-        return {
-            seq.name: seq
-            for seq in self._sequences
-            if (seq.pname is None) or (seq.pname == pname)
-        }
+        # Start with generic sequences (defaults + cbuild-run generic)
+        result = self._get_generic_map().copy()
+
+        # If pname is specified, override with pname-specific sequences
+        if pname is not None and pname in self._specific_map_by_pname:
+            result.update(self._specific_map_by_pname[pname])
+
+        return result
 
     def has_sequence_with_name(self, name: str, pname: Optional[str] = None) -> bool:
-        return name in self.sequences_for_pname(pname)
+        # Check pname-specific sequences first
+        if pname is not None and pname in self._specific_map_by_pname:
+            if name in self._specific_map_by_pname[pname]:
+                return True
+
+        # Check generic sequences
+        return name in self._get_generic_map()
 
     def get_sequence_with_name(self, name: str, pname: Optional[str] = None) -> DebugSequence:
-        return self.sequences_for_pname(pname)[name]
+        generic_map = self._get_generic_map()
+        # Check pname-specific sequences first (if pname provided)
+        if pname is not None and pname in self._specific_map_by_pname:
+            if name in self._specific_map_by_pname[pname]:
+                return self._specific_map_by_pname[pname][name]
+
+        # Check generic sequences (defaults + cbuild-run generic)
+        if name in generic_map:
+            return generic_map[name]
+
+        # Sequence not found
+        raise KeyError(
+            f"sequence '{name}' not found"
+            + (f" for pname '{pname}'" if pname else "")
+        )
 
     def default_reset_sequence(self, pname: str) -> str:
         proc_map = self.cmsis_pack_device.processors_map
@@ -1336,10 +1382,7 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         """
         session = self._target.session
         assert session.probe, "must have a valid probe"
-        # Not having a wire protocol set is allowed if performing pre-reset since it will only
-        # execute ResetHardware (or equivalent), which can only access pins and such (theoretically).
-        assert self._session.context_state.is_performing_pre_reset or session.probe.wire_protocol, \
-            "must have valid, connected probe"
+
         if session.probe.wire_protocol == DebugProbe.Protocol.JTAG:
             protocol = 1
         elif session.probe.wire_protocol == DebugProbe.Protocol.SWD:
@@ -1360,7 +1403,7 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         - [16] connect under reset?
         - [17] pre-connect reset?
         """
-        ctype = 1
+        ctype = 1 if self._session.command not in ('load', 'erase') else 2
         ctype |= self.RESET_TYPE_MAP.get(self._session.options.get('reset_type'), 0) << 8
 
         connect_mode = self._target.session.options.get('connect_mode')
@@ -1384,6 +1427,22 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         """
         # Set SWO bit depending on the option value.
         return 1 if self._target.session.options.get('enable_swv') else 0
+
+    def get_traceclockin(self) -> int:
+        """@brief Return the system clock frequency in Hz for __traceclockin.
+        Returns 0 if the system clock is not configured.
+        """
+        if self._target.session.options.get('enable_swv'):
+            return self._target.session.options.get('swv_system_clock') or 0
+        return 0
+
+    def get_traceclockout(self) -> int:
+        """@brief Return the SWO output clock in Hz for __traceclockout.
+        Returns 0 if the output clock is not configured.
+        """
+        if self._target.session.options.get('enable_swv'):
+            return self._target.session.options.get('swv_clock') or 0
+        return 0
 
     def get_sequence_functions(self) -> DebugSequenceCommonFunctions:
         return self._functions

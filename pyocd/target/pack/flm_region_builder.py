@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2022-2023 Chris Reed
-# Copyright (c) 2025 Arm Limited
+# Copyright (c) 2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -113,20 +113,23 @@ class FlmFlashRegionBuilder:
         # See if an explicit RAM range was specified for the algo.
         if hasattr(region, '_RAMstart'):
             ram_start = region._RAMstart
-
-            # The region size comes either from the RAMsize attribute, the containing region's
-            # bounds, or a large, arbitrary value.
+            ram_region = self._memory_map.get_region_for_address(ram_start)
+            if (ram_region is None or ram_region.type != MemoryType.RAM or not ram_region.attributes.get('defined', True)):
+                ram_region = None
+            # Use the explicit RAM size if provided. Otherwise use the remaining space in the containing RAM region.
             if hasattr(region, '_RAMsize'):
                 ram_size = region._RAMsize
+                # Check if the RAM size is within the containing region's bounds.
+                if (ram_region is not None and not ram_region.contains_range(start=ram_start, length=ram_size)):
+                    ram_size = ram_region.end - ram_start + 1
+                    LOG.warning("Flash algorithm RAM range for region '%s' exceeds defined RAM. Limited to: %#010x-%#010x",
+                                region.name, ram_start, ram_start + ram_size - 1)
             else:
-                containing_region = self._memory_map.get_region_for_address(ram_start)
-                if containing_region is not None:
-                    ram_size = containing_region.length - (ram_start - containing_region.start)
-                else:
-                    # No size specified, and the RAMstart attribute is outside of a known region,
-                    # so just use a mid-range arbitrary size.
-                    ram_size = 16 * 1024
-
+                if ram_region is None:
+                    raise RuntimeError("no RAM size")
+                # If RAMsize is not specified, use the containing region's bounds to determine size.
+                ram_size = ram_region.end - ram_start + 1
+            # Create a RamRegion for the algo to use.
             ram_for_algo = RamRegion(start=ram_start, length=ram_size)
         else:
             # No RAM addresses were given, so go with the RAM marked default.

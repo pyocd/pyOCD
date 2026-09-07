@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020,2025 Arm Limited
+# Copyright (c) 2019-2020,2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,6 +56,11 @@ class CoreSightDiscovery(object):
             cmp = cmpid.factory(cmpid.ap, cmpid, cmpid.address)
             # Call component's init method if it was created successfully
             if cmp is not None:
+                if cmp.parent is None:
+                    # If the component has no parent, attach it to the target.
+                    # This handles CoreSight components discovered through non-core APs,
+                    # which otherwise would not be reachable from target-level searches.
+                    self.target.add_child(cmp)
                 cmp.init()
         except exceptions.Error as err:
             LOG.error("Error attempting to create component %s: %s", cmpid.name, err,

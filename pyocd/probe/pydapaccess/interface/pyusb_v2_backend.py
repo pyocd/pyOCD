@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2021,2025 Arm Limited
+# Copyright (c) 2019-2021,2025,2026 Arm Limited
 # Copyright (c) 2021 mentha
 # Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2025 Lars Häring
@@ -382,7 +382,7 @@ class HasCmsisDapv2Interface:
             return False
 
         if self._serial is not None:
-            if dev.serial_number is None:
+            if not dev.serial_number:
                 if self._serial == "":
                     return True
                 if self._serial == generate_device_unique_id(dev.idProduct, dev.idVendor, dev.bus, dev.address):

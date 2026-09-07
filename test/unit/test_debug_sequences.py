@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020,2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -95,6 +95,12 @@ class SequenceDelegateForTesting:
         return 1
 
     def get_traceout(self):
+        return 0
+
+    def get_traceclockin(self) -> int:
+        return 0
+
+    def get_traceclockout(self) -> int:
         return 0
 
     def get_sequence_functions(self) -> SequenceFunctionsDelegateForTesting:
@@ -769,5 +775,3 @@ class TestDebugSequences:
         w.add_child(Block("x += 1;"))
         seq.add_child(w)
         seq.execute(context)
-
-

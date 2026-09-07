@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019 Arm Limited
+# Copyright (c) 2019,2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -102,15 +102,16 @@ class GraphNode:
 
         return _search(self)
 
-    def get_first_child_of_type(self, klass: Type[_T]) -> Optional[_T]:
+    def get_first_child_of_type(self, klass: Type[_T], filter: Optional[str] = None) -> Optional[_T]:
         """@brief Breadth-first search for a child of the given class.
         @param self
         @param klass The class type to search for. The first child at any depth that is an instance
             of this class or a subclass thereof will be returned. Matching children at more shallow
             nodes will take precedence over deeper nodes.
+        @param filter Optional string to filter the children by a specific attribute.
         @returns Either a node object or None.
         """
-        matches = self.find_children(lambda c: isinstance(c, klass))
+        matches = self.find_children(lambda c: isinstance(c, klass) and (filter is None or getattr(c, filter, False)))
         if len(matches):
             return cast(Optional[_T], matches[0])
         else:

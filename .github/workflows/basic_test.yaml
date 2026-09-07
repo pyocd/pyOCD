@@ -1,5 +1,6 @@
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2025 Antonio Chiu
+# Copyright (c) 2026 Arm Limited
 
 # pyocd workflow for:
 # - checking code with flake8
@@ -28,21 +29,21 @@ jobs:
         - macos-latest
         - windows-latest
         python-version:
-        - "3.8"
         - "3.9"
         - "3.10"
         - "3.11"
         - "3.12"
         - "3.13"
+        - "3.14"
 
     steps:
     # Only check out HEAD. We don't need the full history.
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 1
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -50,11 +51,12 @@ jobs:
     # Python versions on all OSes.
     - name: Get pip cache dir
       id: pip-cache
+      shell: bash
       run: |
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
 
     - name: Setup pip cache
-      uses: actions/cache@v3
+      uses: actions/cache@v5
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.cfg') }}
@@ -65,10 +67,6 @@ jobs:
       run: |
         python -m pip install --upgrade setuptools pip wheel build twine
         pip install -e .[test]
-
-    - name: Setup flake8 annotations
-      # This commit is v1.1. Using exact commit for security.
-      uses: rbialon/flake8-annotations@48819b39d57c621b5a64a1cdce40a5caa6a43b89
 
     # Stop the build if there are Python syntax errors or undefined names.
     - name: Lint with flake8
@@ -92,7 +90,7 @@ jobs:
         twine check dist/*
 
     - name: Upload pytest test results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: pytest-results-${{ matrix.python-version }}-${{ matrix.os }}
         path: |

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020,2025 Arm Limited
+# Copyright (c) 2015-2020,2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -240,7 +240,7 @@ def flash_test(board_id):
             if info.program_type == FlashBuilder.FLASH_SECTOR_ERASE:
                 print("TEST PASSED")
                 test_pass_count += 1
-                result.page_erase_rate = float(len(new_data)) / float(info.program_time)
+                result.page_erase_rate = float(len(new_data)) / float(info.erase_time + info.program_time)
             else:
                 print("TEST FAILED")
             test_count += 1
@@ -278,6 +278,7 @@ def flash_test(board_id):
             fb = flash.get_flash_builder()
             fb.add_data(rom_start, data)
             fb.add_data(addr, more_data)
+            fb.erase(progress_cb=print_progress())
             fb.program(progress_cb=print_progress())
             data_flashed = target.read_memory_block8(rom_start, len(data))
             data_flashed_more = target.read_memory_block8(addr, len(more_data))
@@ -310,6 +311,7 @@ def flash_test(board_id):
             print("\n------ Test Empty Block Write ------")
             # Freebee if nothing asserts
             fb = flash.get_flash_builder()
+            fb.erase()
             fb.program()
             print("TEST PASSED")
             test_pass_count += 1
@@ -349,7 +351,7 @@ def flash_test(board_id):
                 if info.total_byte_count == data_size:
                     print("TEST PASSED")
                     test_pass_count += 1
-                    result.chip_erase_rate_erased = float(len(new_data)) / float(info.program_time)
+                    result.chip_erase_rate_erased = float(len(new_data)) / float(info.erase_time + info.program_time)
                 else:
                     print("TEST FAILED")
                 test_count += 1
@@ -364,7 +366,7 @@ def flash_test(board_id):
                 if info.total_byte_count == data_size:
                     print("TEST PASSED")
                     test_pass_count += 1
-                    result.chip_erase_rate = float(len(new_data)) / float(info.program_time)
+                    result.chip_erase_rate = float(len(new_data)) / float(info.erase_time + info.program_time)
                 else:
                     print("TEST FAILED")
                 test_count += 1
@@ -379,7 +381,7 @@ def flash_test(board_id):
             if info.total_byte_count == data_size:
                 print("TEST PASSED")
                 test_pass_count += 1
-                result.page_erase_rate_same = float(len(new_data)) / float(info.program_time)
+                result.page_erase_rate_same = float(len(new_data)) / float(info.erase_time + info.program_time)
                 result.analyze = info.analyze_type
                 result.analyze_time = info.analyze_time
                 result.analyze_rate = float(len(new_data)) / float(info.analyze_time)

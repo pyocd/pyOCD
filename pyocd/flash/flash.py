@@ -18,7 +18,7 @@
 
 from dataclasses import dataclass
 import logging
-from enum import Enum
+from enum import IntEnum
 
 from ..core import exceptions
 from ..core.target import Target
@@ -109,7 +109,7 @@ class Flash:
 
     All of the "pc_" entry point key values must have bit 0 set to indicate a Thumb function.
     """
-    class Operation(Enum):
+    class Operation(IntEnum):
         """@brief Operations passed to init()."""
         ## Erase all or sector erase.
         ERASE = 1
@@ -211,18 +211,14 @@ class Flash:
             address = self.get_flash_info().rom_start
 
         assert isinstance(operation, self.Operation)
-        assert (self._did_prepare_target) or (not self._did_prepare_target and self._active_operation is None)
 
-        self.target.halt()
-
-        # Handle the algo already being inited.
-        if self._active_operation is not None:
-            # Uninit if the algo was left inited for a different operation.
-            if self._active_operation != operation:
-                self.uninit()
-            # Don't need to reinit for the same operation.
-            else:
-                return
+        # Clean up any different flash algo left loaded in target RAM.
+        current_flash_algo = getattr(self.target.session.context_state, 'current_flash_algo', None)
+        if current_flash_algo is not self:
+            if current_flash_algo is not None:
+                current_flash_algo.cleanup()
+            self._did_prepare_target = False
+            self._active_operation = None
 
         # Setup target for running the flash algo.
         if not self._did_prepare_target:
@@ -230,6 +226,8 @@ class Flash:
 
             if reset:
                 self.target.reset_and_halt()
+            else:
+                self.target.halt()
             self.prepare_target()
 
             # Load flash algo code into target RAM.
@@ -240,6 +238,16 @@ class Flash:
                 self.target.write32(self.end_stack, self._STACK_CANARY)
 
             self._did_prepare_target = True
+            self.target.session.context_state.current_flash_algo = self
+
+        # Handle the algo already being inited.
+        if self._active_operation is not None:
+            # Uninit if the algo was left inited for a different operation.
+            if self._active_operation != operation:
+                self.uninit()
+            # Don't need to reinit for the same operation.
+            else:
+                return
 
         # update core register to execute the init subroutine
         if self._is_api_valid('pc_init'):
@@ -267,6 +275,8 @@ class Flash:
         self.uninit()
         self.restore_target()
         self._did_prepare_target = False
+        if getattr(self.target.session.context_state, 'current_flash_algo', None) is self:
+            self.target.session.context_state.current_flash_algo = None
 
     def uninit(self):
         """@brief Uninitialize the flash algo.
@@ -531,7 +541,8 @@ class Flash:
 
         fb = FlashBuilder(self)
         fb.add_data(addr, data)
-        info = fb.program(chip_erase, progress_cb, smart_flash, fast_verify)
+        fb.erase(chip_erase, progress_cb, smart_flash, fast_verify)
+        info = fb.program(progress_cb, smart_flash, fast_verify)
         return info
 
     def _call_function(self, pc, r0=None, r1=None, r2=None, r3=None, init=False):

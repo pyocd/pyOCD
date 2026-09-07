@@ -453,3 +453,29 @@ trace_stop(target: SoCTarget, mode: int) -> None
 *mode* - The trace mode. Currently always 0 to indicate SWO. \
 **Result** \
 Ignored.
+
+### trace_capture
+
+Notification to capture trace data.
+```
+trace_capture(target: SoCTarget, mode: int) -> None
+```
+
+**Parameters** \
+*target* - A `CoreSightTarget` object. \
+*mode* - The trace mode. Currently always 0 to indicate SWO. \
+**Result** \
+Ignored.
+
+### trace_flush
+
+Notification to flush trace data.
+```
+trace_flush(target: SoCTarget, mode: int) -> None
+```
+
+**Parameters** \
+*target* - A `CoreSightTarget` object. \
+*mode* - The trace mode. Currently always 0 to indicate SWO. \
+**Result** \
+Ignored.

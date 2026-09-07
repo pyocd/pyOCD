@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020,2025 Arm Limited
+# Copyright (c) 2015-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -606,6 +606,9 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         ## Cached current CSW value.
         self._cached_csw: int = -1
 
+        ## Original CSW value read during init().
+        self.original_csw: Optional[int] = None
+
         ## Supported transfer sizes (overridden in subclasses).
         self._transfer_sizes: Set[int] = {32}
 
@@ -1053,6 +1056,18 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             if ap_regaddr == self._reg_offset + MEM_AP_CSW:
                 self._invalidate_cache()
             raise
+
+    def restore_original_csw_if_cached_modified(self) -> None:
+        """@brief Restore original CSW if the cached value indicates it was modified.
+
+        This is primarily used for temporary MEM-AP instances created by debug sequences prior to
+        discovery, so that subsequent operations see the AP with its initial CSW value.
+        """
+        if self.original_csw is None:
+            return
+        if self._cached_csw != -1 and self._cached_csw != self.original_csw:
+            self.write_reg(self._reg_offset + MEM_AP_CSW, self.original_csw)
+            self._cached_csw = self.original_csw
 
     def _invalidate_cache(self) -> None:
         """@brief Invalidate cached registers associated with this AP."""
