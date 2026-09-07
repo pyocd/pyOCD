@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2026 Arm Limited
+# Copyright (c) 2026 Giridhar
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -189,6 +190,9 @@ class PackFindSubcommand(PackSubcommandBase):
         # Look for matching part numbers.
         matches = self._get_matches(cache)
 
+        if not matches:
+            return 1
+
         if matches:
             # Get the list of installed pack targets.
             installed_targets = pack_target.ManagedPacks.get_installed_targets(cache=cache)
@@ -250,6 +254,9 @@ class PackInstallSubcommand(PackSubcommandBase):
 
         # Look for matching part numbers.
         matches = self._get_matches(cache)
+
+        if not matches:
+            return 1
 
         if matches:
             devices = [cache.index[dev] for dev in matches]
@@ -338,6 +345,9 @@ class PackSubcommand(PackSubcommandBase):
             self._args.patterns = self._args.find_devices or self._args.install_devices
 
             matches = self._get_matches(cache)
+
+            if not matches:
+                return 1
 
             if self._args.find_devices:
                 # Get the list of installed pack targets.
