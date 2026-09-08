@@ -131,9 +131,10 @@ class RunSubcommand(SubcommandBase):
                     if isinstance(session.board.target.cores[core_number], GenericMemAPTarget):
                         continue
 
+                    rtt_cfg = cfg if (cfg := rtt_config_list[core_number]) and cfg.channels is not None else None
                     run_server = RunServer(session=session,
                                            core=core_number,
-                                           rtt_config=rtt_config_list[core_number],
+                                           rtt_config=rtt_cfg,
                                            systemview_config=systemview_config,
                                            enable_eot=self._args.eot,
                                            shutdown_event=self.shared_shutdown)
@@ -238,13 +239,18 @@ class RunServer(threading.Thread):
 
         # Start RTT server
         self._rtt_server = None
-        try:
-            rtt_manager = RTTManager(session=session, core=core, rtt_config=rtt_config, systemview_config=systemview_config)
-            self._rtt_server = rtt_manager.start_server()
-            if self._rtt_server is not None:
-                rtt_manager.configure_channels(stdio_handler=self._stdio_handler)
-        except RuntimeError as e:
-            LOG.debug("RTT configuration failed for core %d: %s", self.core, e)
+        self._rtt_config = rtt_config
+        self._rtt_manager = None
+        if self._rtt_config is not None:
+            # Try to start RTT server. If RTT control block is not initialized at program start, this may fail.
+            # In that case, we'll keep trying to start the RTT server every 10ms in the main loop.
+            try:
+                self._rtt_manager = RTTManager(session=session, core=core, rtt_config=rtt_config, systemview_config=systemview_config)
+                self._rtt_server = self._rtt_manager.start_server()
+                if self._rtt_server is not None:
+                    self._rtt_manager.configure_channels(stdio_handler=self._stdio_handler)
+            except RuntimeError as e:
+                LOG.debug("RTT configuration failed for core %d: %s", self.core, e)
 
     def run(self):
         stdio_info = self._stdio_handler.info
@@ -283,11 +289,23 @@ class RunServer(threading.Thread):
                 if self._rtt_server:
                     self._rtt_server.poll()
 
-                # Check target state and handle semihosting every 10ms (every 10 loop iterations)
-                # to avoid slowing down RTT polling
+                # 10ms loop (every 10th iteration of 1ms loop) to avoid slowing down RTT polling
                 if state_check_interval_counter == 10:
                     state_check_interval_counter = 0
 
+                    # Try to start RTT server if it isn't already running, and if the configuration is present
+                    # This allows RTT to start up successfully even if the RTT control block is not initialized at program start
+                    if self._rtt_config is not None and self._rtt_manager is not None and self._rtt_server is None:
+                        # Attempt to start RTT server
+                        try:
+                            self._rtt_server = self._rtt_manager.start_server()
+                            if self._rtt_server is not None:
+                                LOG.info("RTT enabled for core %d", self.core)
+                                self._rtt_manager.configure_channels(stdio_handler=self._stdio_handler)
+                        except RuntimeError as e:
+                            LOG.debug("RTT configuration failed for core %d: %s", self.core, e)
+
+                    # Check target state
                     state = self._target.get_state()
 
                     # If we were able to successfully read the target state after previously receiving a fault,
