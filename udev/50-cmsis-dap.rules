@@ -1,3 +1,6 @@
+# 2341:1002 Arduino UNO WiFi R4 CMSIS-DAP
+SUBSYSTEM=="usb", ATTR{idVendor}=="2341", ATTR{idProduct}=="1002", MODE:="666"
+
 # 2e3c:f000 Artery Technology CMSIS-DAP
 SUBSYSTEM=="usb", ATTR{idVendor}=="2e3c", ATTR{idProduct}=="f000", MODE:="666"
 
