@@ -1131,7 +1131,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         if reset_type is not Target.ResetType.EMULATED:
             with timeout.Timeout(self.session.options.get('reset.halt_timeout')) as t_o:
                 while t_o.check():
-                    if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
+                    if self.get_state() == Target.State.HALTED:
                         break
                     sleep(0.01)
                 else:

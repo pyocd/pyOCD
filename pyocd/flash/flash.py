@@ -649,7 +649,7 @@ class Flash:
             while time_out.check():
                 try:
                     state = self.target.get_state()
-                    if state != Target.State.RUNNING:
+                    if state == Target.State.HALTED:
                         break
                 except exceptions.TransferTimeoutError:
                     LOG.debug("target.get_state probe timeout")

@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2020 NXP
-# Copyright (c) 2006-2018 Arm Limited
+# Copyright (c) 2006-2018,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -216,7 +216,7 @@ class Kinetis(CoreSightTarget):
             self.mdm_ap.write_reg(MDM_CTRL, 0)
 
             # sanity check that the target is still halted
-            if self.get_state() == Target.State.RUNNING:
+            if self.get_state() != Target.State.HALTED:
                 raise exceptions.DebugError("Target failed to stay halted during init sequence")
 
     def is_locked(self):

@@ -253,7 +253,7 @@ class CortexM_S5JS100(CortexM):
         with Timeout(5.0) as t_o:
             while t_o.check():
                 try:
-                    if not self.is_running():
+                    if self.is_halted():
                         break
                 except exceptions.TransferError:
                     self.flush()

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2020 Arm Limited
+# Copyright (c) 2016-2020,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -31,7 +31,7 @@ class MemoryCache(object):
     will be used to fill the cache.
 
     The cache is invalidated whenever the target has run since the last cache operation (based on run
-    tokens). If the target is currently running, all accesses cause the cache to be invalidated.
+    tokens). If the target is currently not halted, all accesses cause the cache to be invalidated.
 
     The target's memory map is referenced. All memory accesses must be fully contained within a single
     memory region, or a TransferFaultError will be raised. However, if an access is outside of all regions,
@@ -51,8 +51,8 @@ class MemoryCache(object):
 
     def _check_cache(self):
         """@brief Invalidates the cache if appropriate."""
-        if self._core.is_running():
-            LOG.debug("core is running; invalidating cache")
+        if not self._core.is_halted():
+            LOG.debug("core is not halted; invalidating cache")
             self._reset_cache()
         elif self._run_token != self._core.run_token:
             self._dump_metrics()

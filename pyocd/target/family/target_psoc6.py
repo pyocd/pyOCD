@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2013-2019,2025 Arm Limited
+# Copyright (c) 2013-2019,2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -75,7 +75,7 @@ class CortexM_PSoC6(CortexM):
         with Timeout(5.0) as t_o:
             while t_o.check():
                 try:
-                    if not self.is_running():
+                    if self.is_halted():
                         break
                 except exceptions.TransferError:
                     self.flush()
@@ -225,7 +225,7 @@ class CortexM_PSoC64(CortexM):
         with Timeout(5.0) as t_o:
             while t_o.check():
                 try:
-                    if not self.is_running():
+                    if self.is_halted():
                         break
                 except exceptions.TransferError:
                     self.flush()
