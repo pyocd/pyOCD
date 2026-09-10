@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2020,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,6 +44,9 @@ class MockCoreForMemCache(CoreSightCoreComponent):
 
     def is_running(self):
         return False
+
+    def is_halted(self):
+        return True
 
 MockDebugContext = mock.Mock(spec=DebugContext)
 

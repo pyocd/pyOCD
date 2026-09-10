@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020,2025 Arm Limited
+# Copyright (c) 2019-2020,2025-2026 Arm Limited
 # Copyright (C) 2020 Ted Tawara
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2021 Matthias Wauer
@@ -332,7 +332,7 @@ class CortexM_LPC5500(CortexM_v8M):
         # wait until the unit resets
         with timeout.Timeout(1.0) as t_o:
             while t_o.check():
-                if self.get_state() not in (Target.State.RESET, Target.State.RUNNING):
+                if self.get_state() == Target.State.HALTED:
                     break
                 sleep(0.01)
 

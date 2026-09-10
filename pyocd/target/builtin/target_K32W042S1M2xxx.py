@@ -207,7 +207,7 @@ class K32W042S(Kinetis):
             self.mdm_ap.write_reg(MDM_CTRL, 0)
 
             # sanity check that the target is still halted
-            if self.get_state() == Target.State.RUNNING:
+            if self.get_state() != Target.State.HALTED:
                 raise exceptions.DebugError("Target failed to stay halted during init sequence")
 
     def post_connect_hook(self):

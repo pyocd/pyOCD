@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016-2020,2025 Arm Limited
+# Copyright (c) 2016-2020,2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,9 +74,9 @@ class RegisterCache(object):
             LOG.debug("no accesses")
 
     def _check_cache(self):
-        """@brief Invalidates the cache if needed and returns whether the core is running."""
-        if self._core.is_running():
-            LOG.debug("core is running; invalidating cache")
+        """@brief Invalidates the cache if needed and returns whether the core is not halted."""
+        if not self._core.is_halted():
+            LOG.debug("core is not halted; invalidating cache")
             self._reset_cache()
             return True
         elif self._run_token != self._core.run_token:
@@ -93,7 +93,7 @@ class RegisterCache(object):
         return reg_list
 
     def read_core_registers_raw(self, reg_list):
-        # Invalidate the cache. If the core is still running, just read directly from it.
+        # Invalidate the cache. If the core is not halted, just read directly from it.
         if self._check_cache():
             return self._context.read_core_registers_raw(reg_list)
 
@@ -163,7 +163,7 @@ class RegisterCache(object):
 
     # TODO only write dirty registers to target right before running.
     def write_core_registers_raw(self, reg_list, data_list):
-        # Check and invalidate the cache. If the core is still running, just pass the writes
+        # Check and invalidate the cache. If the core is not halted, just pass the writes
         # to our context.
         if self._check_cache():
             self._context.write_core_registers_raw(reg_list, data_list)

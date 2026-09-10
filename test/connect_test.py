@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2020,2025 Arm Limited
+# Copyright (c) 2017-2020,2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,11 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
 import sys
 import traceback
 import argparse
-from collections import namedtuple
 import logging
 
 from pyocd.core.helpers import ConnectHelper
@@ -39,8 +37,8 @@ STATE_NAMES = {
     Target.State.LOCKUP : "lockup",
     }
 
-RUNNING = Target.State.RUNNING
-HALTED = Target.State.HALTED
+RUNNING = (Target.State.RUNNING, Target.State.SLEEPING)
+HALTED = (Target.State.HALTED,)
 
 class ConnectTestCase(object):
     def __init__(self, prev_exit_state, connect_mode, expected_state, disconnect_resume, exit_state):
@@ -89,6 +87,9 @@ def connect_test(board):
     rom_region = memory_map.get_boot_memory()
     rom_start = rom_region.start
 
+    def format_state_names(states):
+        return "/".join(STATE_NAMES.get(state, "unknown") for state in states)
+
     def test_connect(connect_mode, expected_state, resume):
         print("Connecting with connect_mode=%s" % connect_mode)
         live_session = ConnectHelper.session_with_chosen_probe(
@@ -99,19 +100,18 @@ def connect_test(board):
                         **get_session_options())
         live_session.open()
         live_board = live_session.board
-        print("Verifying target is", STATE_NAMES.get(expected_state, "unknown"))
+        expected_state_name = format_state_names(expected_state)
+        print("Verifying target is", expected_state_name)
         actualState = live_board.target.get_state()
-        # Accept sleeping for running, as a hack to work around nRF52840-DK test binary.
-        # TODO remove sleeping hack.
-        if (actualState == expected_state) \
-                or (expected_state == RUNNING and actualState == Target.State.SLEEPING):
+        # Check if the actual state matches the expected state.
+        if actualState in expected_state:
             passed = 1
             print("TEST PASSED")
         else:
             passed = 0
             print("TEST FAILED (state={}, expected={})".format(
                 STATE_NAMES.get(actualState, "unknown"),
-                STATE_NAMES.get(expected_state, "unknown")))
+                expected_state_name))
         print("Disconnecting with resume=%s" % resume)
         live_session.close()
         live_session = None
@@ -140,11 +140,11 @@ def connect_test(board):
     test_count += 1
     print("Verifying target is running")
     current_state = live_board.target.get_state()
-    if live_board.target.is_running() or current_state == Target.State.SLEEPING:
+    if current_state in RUNNING:
         test_pass_count += 1
         print("TEST PASSED")
     else:
-        print("State=%s" % current_state)
+        print("State=%s" % STATE_NAMES.get(current_state, "unknown"))
         print("TEST FAILED")
     print("Disconnecting with resume=True")
     live_session.options['resume_on_disconnect'] = True
@@ -164,16 +164,16 @@ def connect_test(board):
         case.passed=did_pass
 
     print("\n\nTest Summary:")
-    print("\n{:<4}{:<12}{:<19}{:<12}{:<21}{:<11}{:<10}".format(
+    print("\n{:<4}{:<18}{:<19}{:<18}{:<21}{:<18}{:<10}".format(
         "#", "Prev Exit", "Connect Mode", "Expected", "Disconnect Resume", "Exit", "Passed"))
     for i, case in enumerate(test_cases):
-        print("{:<4}{:<12}{:<19}{:<12}{:<21}{:<11}{:<10}".format(
+        print("{:<4}{:<18}{:<19}{:<18}{:<21}{:<18}{:<10}".format(
             i,
-            STATE_NAMES[case.prev_exit_state],
+            format_state_names(case.prev_exit_state),
             case.connect_mode,
-            STATE_NAMES[case.expected_state],
+            format_state_names(case.expected_state),
             repr(case.disconnect_resume),
-            STATE_NAMES[case.exit_state],
+            format_state_names(case.exit_state),
             "PASS" if case.passed else "FAIL"))
     print("\nPass count %i of %i tests" % (test_pass_count, test_count))
     if test_pass_count == test_count:
