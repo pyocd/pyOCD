@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2019,2025 Arm Limited
+# Copyright (c) 2017-2019,2025-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -64,6 +64,9 @@ class MockCore(CoreSightCoreComponent, MemoryInterface):
 
     def is_running(self):
         return False
+
+    def is_halted(self):
+        return True
 
     def read_core_registers_raw(self, reg_list):
         reg_list = [CortexMCoreRegisterInfo.register_name_to_index(reg) for reg in reg_list]
