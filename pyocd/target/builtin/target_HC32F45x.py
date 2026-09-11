@@ -95,6 +95,7 @@ FLASH_ALGO = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x00000634,
     'begin_stack' : 0x20000900,
+    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x200,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -168,6 +169,7 @@ FLASH_ALGO_OTP = {
 
     'static_base' : 0x20000000 + 0x00000004 + 0x0000050c,
     'begin_stack' : 0x20000800,
+    'begin_data' : 0x20000000 + 0x1000,
     'page_size' : 0x3fc,
     'analyzer_supported' : False,
     'analyzer_address' : 0x00000000,
@@ -281,3 +283,4 @@ class HC32F452xE(CoreSightTarget):
     def post_connect_hook(self):
         self.write32(DBGMCU.STCTL, DBGMCU.STCTL_VALUE)
         self.write32(DBGMCU.TRACECTL, DBGMCU.TRACECTL_VALUE)
+
