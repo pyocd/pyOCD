@@ -24,7 +24,7 @@ import platform
 from pathlib import Path
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import (cast, Optional, Set, Dict, List, Tuple, Any, TYPE_CHECKING)
+from typing import (cast, Optional, Set, Dict, List, Tuple, Any, Literal, TYPE_CHECKING)
 
 from .flash_algo import PackFlashAlgo
 from ...flash.flash_dsq import FlashDebugSequence
@@ -46,7 +46,6 @@ from ...debug.sequences.default_sequences import (DefaultDebugSequences, _YAMLSe
 
 if TYPE_CHECKING:
     from ...core.session import Session
-    from ...coresight.cortex_m import CortexM
     from ...core.core_target import CoreTarget
     from ...utility.sequencer import CallSequence
     from ...commands.execution_context import CommandSet
@@ -219,6 +218,7 @@ class CbuildRun:
         self._vars: Optional[Dict[str, str]] = None
         self._sequences: Optional[List[dict]] = None
         self._debugger: Optional[Dict[str, Any]] = None
+        self._trace_config: Optional[TraceConfig] = None
         self._debug_topology: Optional[Dict[str, Any]] = None
         self._memory_map: Optional[MemoryMap] = None
         self._programming: Optional[List[dict]] = None
@@ -252,9 +252,9 @@ class CbuildRun:
                 raise CbuildRunError(f"Invalid header in .cbuild-run.yml file '{yml_file_path}'")
         except OSError as err:
             if yml_path == "":
-                raise CbuildRunError("Cannot access *.cbuild-run.yml file: no path provided")
+                raise CbuildRunError("Cannot access .cbuild-run.yml file: no path provided")
             else:
-                raise CbuildRunError(f"Cannot access *.cbuild-run.yml file '{yml_path}': {err.strerror}") from err
+                raise CbuildRunError(f"Cannot access .cbuild-run.yml file '{yml_path}': {err.strerror}") from err
 
     def _cmsis_pack_root(self) -> None:
         """@brief Sets the CMSIS_PACK_ROOT environment variable if not already set.
@@ -409,6 +409,14 @@ class CbuildRun:
     def pack_path(self) -> str:
         # Returns device-pack-path if specified, otherwise an empty string.
         return self._data.get('device-pack-path', '')
+
+    @property
+    def solution_set(self) -> str:
+        """@brief Combined name of the <solution>+<target-type>@<target-set>."""
+        target_set = self._data.get('target-set')
+        if target_set in (None, '<default>'):
+            return self._cbuild_name
+        return f"{self._cbuild_name}@{target_set}"
 
     @property
     def svd(self) -> Optional[str]:
@@ -654,10 +662,8 @@ class CbuildRun:
         """@brief STDIO mode assignments from debugger section.
             The method will not be called frequently, so performance is not critical.
         """
-        SUPPORTED_MODES = { 'off', 'server', 'file', 'console' }
-        MODE_ALIASES = { False: 'off',
-                        'monitor': 'server'
-                       }
+        SUPPORTED_MODES = {'off', 'server', 'file', 'console'}
+        MODE_ALIASES = {False: 'off', 'monitor': 'server'}
         # Get STDIO configuration from debugger section
         stdio_config = self._get_stdio_config()
         valid_config = any('mode' in s for s in stdio_config)
@@ -787,6 +793,19 @@ class CbuildRun:
         sv = self.debugger.get('systemview') or {}
         return sv.get('auto-stop')
 
+    @property
+    def trace(self) -> "TraceConfig":
+        """@brief Parsed trace configuration from the debugger and debug topology sections."""
+        if self._trace_config is None:
+            self._trace_config = TraceConfig(
+                self.debugger,
+                self.debug_topology,
+                self._base_path,
+                self.proj_path,
+                self.solution_set,
+            )
+        return self._trace_config
+
     def populate_target(self, target: Optional[str] = None) -> None:
         """@brief Generates and populates the target defined by the .cbuild-run.yml file."""
         if target is None:
@@ -803,7 +822,7 @@ class CbuildRun:
                     "_cbuild_device": self,
                     "__init__": CbuildRunTargetMethods._cbuild_target_init,
                     "create_init_sequence": CbuildRunTargetMethods._cbuild_target_create_init_sequence,
-                    "update_processor_name" : CbuildRunTargetMethods._cbuild_target_update_processor_name,
+                    "update_processor_name": CbuildRunTargetMethods._cbuild_target_update_processor_name,
                     "configure_core_reset": CbuildRunTargetMethods._cbuild_target_configure_core_reset,
                     "add_core": CbuildRunTargetMethods._cbuild_target_add_core,
                     "get_output": CbuildRunTargetMethods._cbuild_target_get_output,
@@ -1165,6 +1184,163 @@ class CbuildRun:
                                                             ap_address=APv1Address(0),
                                                             svd_path=get_svd_path())
 
+
+@dataclass(frozen=True)
+class TraceSink:
+    """@brief A resolved trace source selected by a cbuild-run configuration."""
+    type: Literal['swo-uart', 'trace-buffer']
+    name: Optional[str]
+    mode: Literal['off', 'server', 'file']
+    input_clock: Optional[int] = None
+    output_clock: Optional[int] = None
+    server_port: Optional[int] = None
+    file: Optional[str] = None
+
+    @property
+    def enabled(self) -> bool:
+        return self.mode != 'off'
+
+
+class TraceConfig:
+    """@brief Parse and validate trace sources selected in a cbuild-run file."""
+
+    SUPPORTED_MODES = {'off', 'server', 'file'}
+
+    def __init__(
+            self,
+            debugger: Dict[str, Any],
+            topology: Dict[str, Any],
+            base_path: Path,
+            project_path: str,
+            solution_set: str,
+        ) -> None:
+        trace_sinks = topology.get('trace-sinks')
+        if trace_sinks is None:
+            trace_sinks = [{'serialwire': None}, {'tracebuffer': None}]
+        elif not isinstance(trace_sinks, list):
+            LOG.warning("Debug topology trace-sinks must be a list")
+            trace_sinks = []
+
+        serialwire_count = 0
+        trace_buffer_names = []
+        for sink in trace_sinks:
+            if not isinstance(sink, dict):
+                LOG.warning("Ignoring invalid trace sink in debug topology")
+                continue
+            serialwire_count += 'serialwire' in sink
+            if 'tracebuffer' not in sink:
+                continue
+            name = sink['tracebuffer']
+            if name is None or isinstance(name, str):
+                trace_buffer_names.append(name)
+            else:
+                LOG.warning("Ignoring trace buffer with invalid name %r in debug topology", name)
+
+        has_serialwire = serialwire_count > 0
+        if serialwire_count > 1:
+            LOG.warning("Debug topology has multiple serialwire sinks; ignoring all but the first")
+
+        if len(trace_buffer_names) > 1 and None in trace_buffer_names:
+            LOG.warning("Ignoring unnamed trace buffer: all trace buffers must be named when more than one is present")
+            trace_buffer_names.remove(None)
+        for name in set(trace_buffer_names):
+            if trace_buffer_names.count(name) > 1:
+                LOG.warning("Ignoring duplicate trace buffer '%s' in debug topology", name or '<unnamed>')
+                trace_buffer_names = [buffer_name for buffer_name in trace_buffer_names if buffer_name != name]
+        self._sources: List[TraceSink] = []
+        self._swo_uart: Optional[TraceSink] = None
+        self._trace_buffers: Dict[str, TraceSink] = {}
+        next_server_port = 5555
+
+        for entry in debugger.get('trace') or []:
+            if not isinstance(entry, dict):
+                LOG.warning("Trace configuration entries in cbuild-run must be mappings")
+                continue
+
+            if 'swo-uart' in entry:
+                source_type: Literal['swo-uart', 'trace-buffer'] = 'swo-uart'
+            elif 'trace-buffer' in entry:
+                source_type = 'trace-buffer'
+            else:
+                LOG.warning("Trace configuration in cbuild-run must specify either 'swo-uart' or 'trace-buffer'")
+                continue
+
+            if source_type == 'swo-uart' and self._swo_uart is not None:
+                LOG.warning("Ignoring additional 'swo-uart' trace configuration in cbuild-run")
+                continue
+
+            name = entry.get(source_type)
+            if name is not None and not isinstance(name, str):
+                LOG.warning("Ignoring %s trace configuration with invalid name %r", source_type, name)
+                continue
+            if source_type == 'swo-uart' and not has_serialwire:
+                LOG.warning("Ignoring 'swo-uart' trace configuration: serialwire is not supported by debug topology")
+                continue
+            if source_type == 'trace-buffer':
+                if name is None and trace_buffer_names != [None]:
+                    LOG.warning("Ignoring unnamed trace-buffer configuration: debug topology must have exactly one unnamed trace buffer")
+                    continue
+                if name is not None and name not in trace_buffer_names:
+                    LOG.warning("Ignoring trace-buffer configuration '%s': not supported by debug topology", name)
+                    continue
+                buffer_key = name or ''
+                if buffer_key in self._trace_buffers:
+                    LOG.warning("Ignoring duplicate trace-buffer configuration '%s'", name or '<unnamed>')
+                    continue
+
+            mode = entry.get('mode', 'off')
+            mode = 'off' if mode is False else mode
+            if mode not in self.SUPPORTED_MODES:
+                LOG.warning("Invalid trace mode '%s' in cbuild-run; disabling trace source", mode)
+                mode = 'off'
+
+            input_clock = entry.get('input-clock')
+            if source_type == 'swo-uart' and mode != 'off' and input_clock is None:
+                LOG.warning("Trace input clock not specified in cbuild-run; disabling SWO trace")
+                mode = 'off'
+
+            server_port = None
+            if mode == 'server':
+                server_port = entry.get('server-port')
+                if server_port is None:
+                    server_port = next_server_port
+                    next_server_port += 1
+            file = None
+            if mode == 'file':
+                channel = 'SWO' if source_type == 'swo-uart' else 'TB'
+                if source_type == 'trace-buffer' and name:
+                    channel += f"_{name}"
+                default_file = Path(project_path) / '.trace' / f"{solution_set}.{channel}.raw"
+                file_path = Path(entry.get('file', default_file)).expanduser()
+                if not file_path.is_absolute():
+                    file_path = base_path / file_path
+                file = str(file_path.resolve())
+
+            sink = TraceSink(source_type, name, cast(Any, mode), input_clock, entry.get('output-clock'), server_port, file)
+            self._sources.append(sink)
+            if source_type == 'swo-uart':
+                self._swo_uart = sink
+            else:
+                self._trace_buffers[name or ''] = sink
+
+        LOG.debug("Read %d trace configurations", len(self._sources))
+
+    @property
+    def swo_uart(self) -> Optional[TraceSink]:
+        """@brief The sole configured SWO UART source, if any."""
+        return self._swo_uart
+
+    @property
+    def trace_buffers(self) -> Dict[str, TraceSink]:
+        """@brief Trace-buffer configurations keyed by their topology names."""
+        return self._trace_buffers.copy()
+
+    @property
+    def enabled(self) -> Tuple[TraceSink, ...]:
+        """@brief All enabled trace sources in declaration order."""
+        return tuple(source for source in self._sources if source.enabled)
+
+
 class CbuildRunSequences(_YAMLSequenceParser):
     """@brief Parses debug sequences and debug variable definitions from .cbuild-run.yml."""
 
@@ -1272,6 +1448,16 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         return self._device.trace_setup
 
     @property
+    def trace_enabled(self) -> bool:
+        """@brief Whether cbuild-run enables trace capture and flush debug sequences."""
+        return bool(self._device.trace.enabled)
+
+    @property
+    def trace_buffers(self) -> Dict[str, TraceSink]:
+        """@brief Selected named trace buffers."""
+        return self._device.trace.trace_buffers
+
+    @property
     def cmsis_pack_device(self) -> CbuildRun:
         return self._device
 
@@ -1288,7 +1474,7 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         if self._debugvars is not None:
             return self._debugvars
 
-        # Populate default debugvars with values from *.cbuild-run.yml file.
+        # Populate default debugvars with values from .cbuild-run.yml file.
         self._debugvars = Scope(name='debugvars')
         debugvars_block = self._cbuild_sequences.variables
         if debugvars_block is not None:
@@ -1298,7 +1484,7 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         # if `device-settings:` is present then an also specified `*.dbgconf` file is ignored.
         device_settings_block = self._cbuild_sequences.device_settings
         if device_settings_block is not None:
-            # Override debugvars with values from the 'device-settings' node in *.cbuild-run.yml
+            # Override debugvars with values from the 'device-settings' node in .cbuild-run.yml
             with context.push(device_settings_block, self._debugvars):
                 device_settings_block.execute(context)
         else:
@@ -1458,8 +1644,10 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         - [2] trace buffer enabled?
         - [21:16] selected parallel trace port size
         """
-        # Set SWO bit depending on the option value.
-        return 1 if self._target.session.options.get('enable_swv') else 0
+        traceout = 1 if self._target.session.options.get('enable_swv') else 0
+        if any(sink.enabled for sink in self._device.trace.trace_buffers.values()):
+            traceout |= 1 << 2
+        return traceout
 
     def get_traceclockin(self) -> int:
         """@brief Return the system clock frequency in Hz for __traceclockin.
