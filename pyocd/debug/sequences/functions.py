@@ -79,6 +79,7 @@ class _SequenceBufferManager:
         if size > len(buffer.data):
             buffer.data.extend(b"\x00" * (size - len(buffer.data)))
 
+
 # Disable warnings for the non-standard methods names we use to match the sequences function
 # names, since introspection is used to look up functions.
 # pylint: disable=invalid_name
@@ -819,14 +820,14 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
         @param path: Constant string value representing the destination to which to stream data to. \
             Refer to character sequences for path/file name place holders.
         @param mode: Specifies how to treat the data source in the specified mode.
-            - Bit 0..3: Format of the data source: 0 - Binary File
+            - Bit 0..3: Format of the data source: 0 - Binary File 1 - Trace Buffer
             - Bit 4..7: Communication options for data sink: 0 - Overwrite 1 - Append
         @param timeout: Timeout in microseconds. If 0, then synchronously wait for the operation to finish.
         @return: Number of bytes streamed to data sink.
         """
         fmt = mode & 0xF
-        if fmt not in (0,):
-            raise DebugSequenceRuntimeError("Only binary file streams (mode 0) are supported")
+        if fmt not in (0, 1):
+            raise DebugSequenceRuntimeError("Unsupported buffer stream output format")
 
         buffer = self._buffer_manager.get(id, create=False)
         available = len(buffer.data) - offset
@@ -835,6 +836,12 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
         write_len = min(length, available)
         data = bytes(buffer.data[offset:offset + write_len])
+
+        if fmt == 1:
+            try:
+                return self.target.write_trace_buffer(path, data)
+            except ValueError as err:
+                raise DebugSequenceRuntimeError(str(err)) from err
 
         file_path = self._expand_path(path)
         append = (mode & 0x10) != 0
@@ -860,6 +867,14 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
             raise exc
 
         return write_len
+
+    def tracebufferselected(self, name: str) -> int:
+        """Return whether a configured trace buffer is selected by name."""
+        trace_buffers = self.context.delegate.trace_buffers
+        if not name and len(trace_buffers) > 1:
+            raise DebugSequenceRuntimeError("Empty trace buffer name is ambiguous")
+        sink = trace_buffers.get(name)
+        return int(sink is not None and sink.enabled)
 
     def runapplication(self, path: str, args: str, workdir: str, timeout: int) -> int:
         """@brief Run an external application.
