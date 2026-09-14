@@ -35,8 +35,8 @@ from . import exceptions
 from .options_manager import OptionsManager
 from .target import Target
 from ..utility.notification import Notifier
-from ..target.pack.cbuild_run import CbuildRun
-from ..trace.ctrace_run import CTraceRun
+from ..target.csolution.cbuild_run import CbuildRun
+from ..target.csolution.ctrace_run import CTraceRun
 
 if TYPE_CHECKING:
     from types import TracebackType

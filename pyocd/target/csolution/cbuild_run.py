@@ -26,7 +26,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import (cast, Optional, Set, Dict, List, Tuple, Any, Literal, TYPE_CHECKING)
 
-from .flash_algo import PackFlashAlgo
+from ..pack.flash_algo import PackFlashAlgo
 from ...flash.flash_dsq import FlashDebugSequence
 from .. import (normalise_target_type_name, TARGET)
 from ...coresight.coresight_target import CoreSightTarget

@@ -26,13 +26,13 @@ from typing import (Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple, TY
 
 import yaml
 
-from ..core import exceptions
+from ...core import exceptions
 
 if TYPE_CHECKING:
-    from ..core.core_target import CoreTarget
-    from ..core.session import Session
-    from ..core.soc_target import SoCTarget
-    from ..utility.notification import Notification
+    from ...core.core_target import CoreTarget
+    from ...core.session import Session
+    from ...core.soc_target import SoCTarget
+    from ...utility.notification import Notification
 
 LOG = logging.getLogger(__name__)
 
