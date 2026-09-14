@@ -306,6 +306,17 @@ class Session(Notifier):
         debugger_options['systemview_auto_start'] = self.cbuild_run.systemview_auto_start
         debugger_options['systemview_auto_stop'] = self.cbuild_run.systemview_auto_stop
 
+        swo_uart = self.cbuild_run.trace.swo_uart
+        if swo_uart is not None and swo_uart.enabled:
+            debugger_options['enable_swv'] = True
+            debugger_options['swv_system_clock'] = swo_uart.input_clock
+            debugger_options['swv_clock'] = swo_uart.output_clock
+            debugger_options['swv_raw_enable'] = True
+            if swo_uart.mode == 'file':
+                debugger_options['swv_raw_file'] = swo_uart.file
+            elif swo_uart.mode == 'server':
+                debugger_options['swv_raw_port'] = swo_uart.server_port
+
         # Set reset types for load operations.
         debugger_options['load.pre_reset'] = self.cbuild_run.pre_reset
         debugger_options['load.post_reset'] = self.cbuild_run.post_reset
