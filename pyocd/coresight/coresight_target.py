@@ -32,11 +32,11 @@ from ..target.pack.flm_region_builder import FlmFlashRegionBuilder
 
 if TYPE_CHECKING:
     from ..core.session import Session
-    from ..core.memory_map import MemoryMap
     from .ap import (APAddressBase, AccessPort)
     from ..debug.svd.model import SVDDevice
 
 LOG = logging.getLogger(__name__)
+
 
 class CoreSightTarget(SoCTarget):
     """@brief Represents an SoC that uses CoreSight debug infrastructure.
@@ -396,11 +396,16 @@ class CoreSightTarget(SoCTarget):
                 delegate.run_sequence(name, pname=seq.pname)
 
     def trace_capture(self) -> None:
+        changed = False
+        if self.session.ctrace_run is not None:
+            changed = self.session.ctrace_run.apply(self)
+
         result = self.call_delegate('trace_capture', target=self, mode=0)
         if not result and self.has_debug_sequence('TraceCapture'):
             assert self.debug_sequence_delegate
             if self.debug_sequence_delegate.trace_setup == TraceSetup.FULL:
                 self.debug_sequence_delegate.run_sequence('TraceCapture')
+        self.session.notify(self.session.Event.TRACE_DATA_CAPTURE, self.session, changed)
 
     def trace_flush(self) -> None:
         result = self.call_delegate('trace_flush', target=self, mode=0)
@@ -408,3 +413,4 @@ class CoreSightTarget(SoCTarget):
             assert self.debug_sequence_delegate
             if self.debug_sequence_delegate.trace_setup == TraceSetup.FULL:
                 self.debug_sequence_delegate.run_sequence('TraceFlush')
+        self.session.notify(self.session.Event.TRACE_DATA_FLUSH, self.session)
