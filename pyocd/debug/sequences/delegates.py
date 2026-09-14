@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
-from typing import (TYPE_CHECKING, Optional, Set)
+from typing import (Any, Mapping, TYPE_CHECKING, Optional, Set)
 
 from .scope import Scope
 
@@ -52,6 +52,11 @@ class DebugSequenceDelegate:
     def trace_enabled(self) -> bool:
         """@brief Whether trace capture and flush handling is enabled."""
         return False
+
+    @property
+    def trace_buffers(self) -> dict[str, Any]:
+        """@brief Selected named trace buffers."""
+        return {}
 
     @property
     def cmsis_pack_device(self) -> CmsisPackDevice:

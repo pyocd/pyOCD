@@ -27,6 +27,7 @@ from ..flash.flash import Flash
 from . import (dap, discovery)
 from ..debug.svd.loader import SVDLoader
 from ..debug.sequences.delegates import TraceSetup
+from ..trace.sink import TraceBufferSinks
 from ..utility.sequencer import CallSequence
 from ..target.pack.flm_region_builder import FlmFlashRegionBuilder
 
@@ -56,6 +57,7 @@ class CoreSightTarget(SoCTarget):
         self._svd_load_thread: Optional[SVDLoader] = None
         self._irq_table: Optional[Dict[int, str]] = None
         self._discoverer: Optional[Callable] = None
+        self._trace_buffer_sinks: Optional[TraceBufferSinks] = None
 
         self.session.context_state.is_performing_pre_reset = False
 
@@ -382,14 +384,28 @@ class CoreSightTarget(SoCTarget):
         return self.session.options.get('enable_swv') or super().trace_enabled
 
     def trace_start(self) -> None:
-        result = self.call_delegate('trace_start', target=self, mode=0)
-        if not result:
-            self._run_trace_sequence('TraceStart')
+        if not self.trace_enabled:
+            return
+
+        self._ensure_trace_buffer_sinks()
+        try:
+            result = self.call_delegate('trace_start', target=self, mode=0)
+            if not result:
+                self._run_trace_sequence('TraceStart')
+        except Exception:
+            self._shutdown_trace_buffer_sinks()
+            raise
 
     def trace_stop(self) -> None:
-        result = self.call_delegate('trace_stop', target=self, mode=0)
-        if not result:
-            self._run_trace_sequence('TraceStop')
+        if not self.trace_enabled:
+            return
+
+        try:
+            result = self.call_delegate('trace_stop', target=self, mode=0)
+            if not result:
+                self._run_trace_sequence('TraceStop')
+        finally:
+            self._shutdown_trace_buffer_sinks()
 
     def _run_trace_sequence(self, name: str) -> None:
         delegate = self.debug_sequence_delegate
@@ -419,3 +435,21 @@ class CoreSightTarget(SoCTarget):
             if self.debug_sequence_delegate.trace_setup == TraceSetup.FULL:
                 self.debug_sequence_delegate.run_sequence('TraceFlush')
         self.session.notify(self.session.Event.TRACE_DATA_FLUSH, self.session)
+
+    def write_trace_buffer(self, name: str, data: bytes) -> int:
+        """Write data to a configured trace buffer output."""
+        if self._trace_buffer_sinks is None:
+            raise ValueError("Trace buffer output is not initialized")
+        return self._trace_buffer_sinks.write(name, data)
+
+    def _ensure_trace_buffer_sinks(self) -> None:
+        delegate = self.debug_sequence_delegate
+        if self._trace_buffer_sinks is None and delegate is not None:
+            trace_buffers = delegate.trace_buffers
+            if trace_buffers:
+                self._trace_buffer_sinks = TraceBufferSinks(self.session, trace_buffers)
+
+    def _shutdown_trace_buffer_sinks(self) -> None:
+        if self._trace_buffer_sinks is not None:
+            self._trace_buffer_sinks.shutdown()
+            self._trace_buffer_sinks = None
