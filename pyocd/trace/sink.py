@@ -16,13 +16,16 @@
 # limitations under the License.
 
 import collections.abc
+import logging
 from pathlib import Path
-from typing import (BinaryIO, TYPE_CHECKING, Iterable, List, Optional, Sequence, Union)
+from typing import (Any, BinaryIO, Dict, Mapping, TYPE_CHECKING, Iterable, List, Optional, Sequence, Union)
 
 from ..utility.server import StreamServer
 
 if TYPE_CHECKING:
     from .events import TraceEvent
+
+LOG = logging.getLogger(__name__)
 
 
 class TraceDataSink:
@@ -108,6 +111,68 @@ class _TraceServerSink(TraceDataSink):
 
     def shutdown(self) -> None:
         self._server.stop()
+
+
+class TraceBufferSinks:
+    """Routes named raw trace streams to configured sinks."""
+
+    def __init__(self, session: Any, trace_buffers: Mapping[str, Any]) -> None:
+        self._session = session
+        self._trace_buffers = trace_buffers
+        self._outputs: Dict[str, TraceDataSink] = {}
+        self._capture_changed = True
+        for name, sink in trace_buffers.items():
+            if not sink.enabled:
+                continue
+            try:
+                self._outputs[name] = self._create_output(sink)
+            except OSError as err:
+                LOG.warning("Failed to initialize TB '%s' output: %s", name, err)
+        session.subscribe(self._trace_data_handler, session.Event.TRACE_DATA_CAPTURE, session)
+        session.subscribe(self._trace_data_handler, session.Event.TRACE_DATA_FLUSH, session)
+
+    def shutdown(self) -> None:
+        self._session.unsubscribe(self._trace_data_handler, self._session.Event.TRACE_DATA_CAPTURE)
+        self._session.unsubscribe(self._trace_data_handler, self._session.Event.TRACE_DATA_FLUSH)
+        for output in self._outputs.values():
+            output.shutdown()
+        self._outputs.clear()
+
+    def _trace_data_handler(self, notification: Any) -> None:
+        if notification.event == self._session.Event.TRACE_DATA_CAPTURE:
+            self._capture_changed = bool(notification.data)
+            for name, output in tuple(self._outputs.items()):
+                try:
+                    output.start(self._capture_changed)
+                except OSError as err:
+                    LOG.warning("Failed to start TB '%s' output: %s", name, err)
+                    del self._outputs[name]
+        else:
+            for output in self._outputs.values():
+                output.flush()
+
+    def write(self, name: str, data: bytes) -> int:
+        sink = self._trace_buffers.get(name)
+        if sink is None or not sink.enabled:
+            raise ValueError(f"TB '{name}' is not selected")
+
+        output = self._outputs.get(name)
+        try:
+            if output is None:
+                output = self._create_output(sink)
+                output.start(self._capture_changed)
+                self._outputs[name] = output
+            return output.write(data)
+        except OSError as err:
+            raise ValueError(f"failed to write TB '{name}': {err}") from err
+
+    def _create_output(self, trace_buffer: Any) -> TraceDataSink:
+        if trace_buffer.mode == 'file' and trace_buffer.file is not None:
+            return TraceDataSink.file(Path(trace_buffer.file))
+        if trace_buffer.mode == 'server' and trace_buffer.server_port is not None:
+            return TraceDataSink.server(trace_buffer.server_port, self._session.options.get('serve_local_only'),
+                                        f"TB {trace_buffer.name or 'default'} raw")
+        raise ValueError(f"TB '{trace_buffer.name}' has no output destination")
 
 
 class TraceEventSink:
