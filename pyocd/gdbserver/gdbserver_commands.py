@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020 Arm Limited
+# Copyright (c) 2020,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -126,6 +126,33 @@ class GdbserverMonitorExitCommand(CommandBase):
     def execute(self):
         for server in self.context.session.gdbservers.values():
             server.stop(wait=False)
+
+class CTraceRunCommand(CommandBase):
+    INFO = {
+            'names': ['ctrace'],
+            'group': 'gdbserver',
+            'category': 'trace',
+            'nargs': 1,
+            'usage': "reload",
+            'help': "Reload and immediately apply the ctrace-run configuration.",
+            }
+
+    def parse(self, args):
+        if args[0] != 'reload':
+            raise exceptions.CommandError("invalid action")
+
+    def execute(self):
+        ctrace_run = self.context.session.ctrace_run
+        if ctrace_run is None:
+            raise exceptions.CommandError("ctrace-run support is not enabled")
+        if not self.context.target.is_halted():
+            raise exceptions.CommandError("target must be halted to reload and apply ctrace-run configuration")
+
+        reloaded = ctrace_run.reload(self.context.target)
+        if reloaded:
+            self.context.write("ctrace-run configuration reloaded and applied")
+        else:
+            self.context.write("ctrace-run configuration could not be reloaded or applied")
 
 class RTTCommand(CommandBase):
     INFO = {
