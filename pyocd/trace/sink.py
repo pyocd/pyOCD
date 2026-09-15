@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2019 Arm Limited
+# Copyright (c) 2017-2019,2026 Arm Limited
 # COpyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -16,10 +16,99 @@
 # limitations under the License.
 
 import collections.abc
-from typing import (TYPE_CHECKING, Iterable, List, Optional, Sequence, Union)
+from pathlib import Path
+from typing import (BinaryIO, TYPE_CHECKING, Iterable, List, Optional, Sequence, Union)
+
+from ..utility.server import StreamServer
 
 if TYPE_CHECKING:
     from .events import TraceEvent
+
+
+class TraceDataSink:
+    """Base interface for a raw trace output destination."""
+
+    @staticmethod
+    def file(path: Path) -> "TraceDataSink":
+        """Create a raw trace file destination."""
+        return _TraceFileSink(path)
+
+    @staticmethod
+    def server(port: int, serve_local_only: bool, name: str) -> "TraceDataSink":
+        """Create a raw trace TCP server destination."""
+        return _TraceServerSink(port, serve_local_only, name)
+
+    def start(self, changed: bool) -> None:
+        """Start a trace capture, resetting output if the configuration changed."""
+        raise NotImplementedError()
+
+    def write(self, data: bytes) -> int:
+        """Write raw trace data."""
+        raise NotImplementedError()
+
+    def flush(self) -> None:
+        """Flush data at the end of a capture."""
+        raise NotImplementedError()
+
+    def shutdown(self) -> None:
+        """Release the output destination."""
+        raise NotImplementedError()
+
+
+class _TraceFileSink(TraceDataSink):
+    """Raw trace data written to a file from capture through flush."""
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+        self._file: Optional[BinaryIO] = None
+        self._started = False
+
+    def start(self, changed: bool) -> None:
+        self.flush()
+        if self._path.parent.name == '.trace':
+            self._path.parent.mkdir(exist_ok=True)
+        self._file = self._path.open('wb' if changed or not self._started else 'ab')
+        self._started = True
+
+    def write(self, data: bytes) -> int:
+        if self._file is None:
+            return 0
+        self._file.write(data)
+        return len(data)
+
+    def flush(self) -> None:
+        if self._file is not None:
+            self._file.flush()
+            self._file.close()
+            self._file = None
+
+    def shutdown(self) -> None:
+        self.flush()
+
+
+class _TraceServerSink(TraceDataSink):
+    """Raw trace data delivered to a TCP client by a StreamServer."""
+
+    def __init__(self, port: int, serve_local_only: bool, name: str) -> None:
+        self._server = StreamServer(
+            port,
+            serve_local_only=serve_local_only,
+            name=name,
+            is_read_only=True,
+        )
+
+    def start(self, changed: bool) -> None:
+        pass
+
+    def write(self, data: bytes) -> int:
+        return self._server.write(data)
+
+    def flush(self) -> None:
+        pass
+
+    def shutdown(self) -> None:
+        self._server.stop()
+
 
 class TraceEventSink:
     """@brief Abstract interface for a trace event sink."""
@@ -93,4 +182,3 @@ class TraceEventTee(TraceEventSink):
         """
         for sink in self._sinks:
             sink.receive(event)
-
