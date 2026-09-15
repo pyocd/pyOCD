@@ -492,6 +492,16 @@ Show the target's current state.
 Control thread awareness.
 </td></tr>
 
+<tr><td colspan="3"><b>Trace</b></td></tr>
+
+<tr><td>
+<a href="#ctrace"><tt>ctrace</tt></a>
+</td><td>
+reload
+</td><td>
+Reload and immediately apply the ctrace-run configuration.
+</td></tr>
+
 <tr><td colspan="3"><b>Utility</b></td></tr>
 
 <tr><td>
@@ -1104,6 +1114,14 @@ Show the target's current state.
 Control thread awareness.
 
 
+### Trace
+
+##### `ctrace`
+
+**Usage**: ctrace reload \
+Reload and immediately apply the ctrace-run configuration.
+
+
 ### Utility
 
 ##### `sleep`
@@ -1185,8 +1203,8 @@ The current HNONSEC attribute value used by the selected MEM-AP. This value cont
 **Usage**: show hprot, set hprot VALUE \
 The current memory transfer attributes value used by the selected MEM-AP. This integer value controls attributes of memory transfers. It is a direct mapping of the AHB
 or AXI attribute settings, depending on the type of MEM-AP. For AHB-APs, the value is HPROT[4:0].
-For AXI-APs, the value is {AxPROT[2:0}, AxCACHE[3:0]}, e.g. AxPROT in bits 6-4 and AxCACHE in
-its 3-0. Not all MEM-AP implementations support all attributes. See the Arm Technical Reference
+For AXI-APs, the value is {AxPROT[2:0], AxCACHE[3:0]}, e.g. AxPROT in bits 6-4 and AxCACHE in
+bits 3-0. Not all MEM-AP implementations support all attributes. See the Arm Technical Reference
 Manual for your device's MEM-AP for details.
 
 ##### `locked`
