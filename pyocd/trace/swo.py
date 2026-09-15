@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2019 Arm Limited
+# Copyright (c) 2017-2019,2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -93,13 +93,14 @@ class SWOParser:
                 # queue separately.
                 if event.comparator == self._pending_data_trace.comparator:
                     # Merge the two data trace events.
+                    pending = self._pending_data_trace
                     ev = events.TraceDataTraceEvent(cmpn=event.comparator,
-                        pc=(event.pc or self._pending_data_trace.pc),
-                        addr=(event.address or self._pending_data_trace.address),
-                        value=(event.value or self._pending_data_trace.value),
-                        rnw=(event.is_read or self._pending_data_trace.is_read),
-                        sz=(event.transfer_size or self._pending_data_trace.transfer_size),
-                        ts=self._pending_data_trace.timestamp)
+                        pc=(event.pc if event.pc is not None else pending.pc),
+                        addr=(event.address if event.address is not None else pending.address),
+                        value=(event.value if event.value is not None else pending.value),
+                        rnw=(event.is_read if event.is_read is not None else pending.is_read),
+                        sz=(event.transfer_size if event.transfer_size is not None else pending.transfer_size),
+                        ts=pending.timestamp)
                 else:
                     ev = self._pending_data_trace
                 self._pending_events.append(ev)
