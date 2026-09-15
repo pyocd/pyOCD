@@ -378,21 +378,22 @@ class CoreSightTarget(SoCTarget):
 
     def trace_start(self) -> None:
         result = self.call_delegate('trace_start', target=self, mode=0)
-        if not result and self.has_debug_sequence('TraceStart', pname=self.selected_core_or_raise.node_name):
-            assert self.debug_sequence_delegate
-            self.debug_sequence_delegate.run_sequence('TraceStart',
-                    pname=self.selected_core_or_raise.node_name)
-            result = True
-        return result
+        if not result:
+            self._run_trace_sequence('TraceStart')
 
     def trace_stop(self) -> None:
         result = self.call_delegate('trace_stop', target=self, mode=0)
-        if not result and self.has_debug_sequence('TraceStop', pname=self.selected_core_or_raise.node_name):
-            assert self.debug_sequence_delegate
-            self.debug_sequence_delegate.run_sequence('TraceStop',
-                    pname=self.selected_core_or_raise.node_name)
-            result = True
-        return result
+        if not result:
+            self._run_trace_sequence('TraceStop')
+
+    def _run_trace_sequence(self, name: str) -> None:
+        delegate = self.debug_sequence_delegate
+        if delegate is None:
+            return
+
+        for seq in delegate.all_sequences:
+            if seq.name == name:
+                delegate.run_sequence(name, pname=seq.pname)
 
     def trace_capture(self) -> None:
         result = self.call_delegate('trace_capture', target=self, mode=0)
