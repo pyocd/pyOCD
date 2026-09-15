@@ -376,6 +376,11 @@ class CoreSightTarget(SoCTarget):
             return None
         return sorted(self.aps.values(), key=lambda v: v.address)[0]
 
+    @property
+    def trace_enabled(self) -> bool:
+        """@brief Whether trace capture and flush handling is enabled."""
+        return self.session.options.get('enable_swv') or super().trace_enabled
+
     def trace_start(self) -> None:
         result = self.call_delegate('trace_start', target=self, mode=0)
         if not result:

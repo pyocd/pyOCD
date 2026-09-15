@@ -221,7 +221,7 @@ class Session(Notifier):
                 self._cbuild_run = CbuildRun(self.options.get('cbuild_run'))
                 cbuild_run_config = self._get_cbuild_run_config(command)
                 self._options.add_back(cbuild_run_config)
-                if cbuild_run_config.get('enable_swv'):
+                if self.cbuild_run is not None and self.cbuild_run.trace.enabled:
                     try:
                         self._ctrace_run = CTraceRun(self)
                     except (exceptions.Error, OSError) as err:
@@ -631,7 +631,7 @@ class Session(Notifier):
         if self._trace_started:
             return
 
-        if self.target is not None:
+        if self.target is not None and self.target.trace_enabled:
             self.target.trace_start()
             self._trace_started = True
             self.subscribe(self._reset_handler, Target.Event.POST_RESET)
@@ -688,8 +688,7 @@ class Session(Notifier):
             if init_board:
                 self._board.init()
                 self._inited = True
-                if self.options.get('enable_swv'):
-                    self._trace_start()
+                self._trace_start()
 
     def disconnect(self) -> None:
         """@brief Disconnect the session without closing the probe.
