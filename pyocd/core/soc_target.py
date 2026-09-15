@@ -314,6 +314,12 @@ class SoCTarget(TargetGraphNode):
             core_obj = self.selected_core_or_raise
         return core_obj.get_target_context()
 
+    @property
+    def trace_enabled(self) -> bool:
+        """@brief Whether trace capture and flush handling is enabled."""
+        delegate = self.debug_sequence_delegate
+        return delegate is not None and delegate.trace_enabled
+
     def trace_start(self):
         self.call_delegate('trace_start', target=self, mode=0)
 

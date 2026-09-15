@@ -154,6 +154,10 @@ class RunSubcommand(SubcommandBase):
                 for run_server in self._run_servers:
                     run_server.start()
 
+                # Trace Capture
+                if session.board.target.trace_enabled:
+                    session.board.target.trace_capture()
+
                 # Wait for all servers to complete or timelimit to expire
                 start_time = time()
                 timelimit = self._args.timelimit
@@ -177,6 +181,8 @@ class RunSubcommand(SubcommandBase):
                 self.shutdown()
                 return 1
             finally:
+                if session.board.target.trace_enabled:
+                    session.board.target.trace_flush()
                 if swv_reader:
                     swv_reader.stop()
 

@@ -49,6 +49,11 @@ class DebugSequenceDelegate:
         return TraceSetup.LEGACY
 
     @property
+    def trace_enabled(self) -> bool:
+        """@brief Whether trace capture and flush handling is enabled."""
+        return False
+
+    @property
     def cmsis_pack_device(self) -> CmsisPackDevice:
         """@brief Accessor for the pack device that contains the sequences."""
         raise NotImplementedError()
