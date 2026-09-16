@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2020,2025 Arm Limited
+# Copyright (c) 2015-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2022 Clay McClure
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
@@ -723,7 +723,6 @@ class DebugPort(DelegateHavingMixIn):
 
         # Update the SELECT register and cache.
         self.write_dp(DP_SELECT, select)
-        self._cached_dp_select = select
 
     def _set_dpbanksel(self, addr: int, is_write: bool) -> bool:
         """@brief Updates the DPBANKSEL field of the SELECT register as required.
@@ -836,6 +835,9 @@ class DebugPort(DelegateHavingMixIn):
         try:
             TRACE.debug("write_dp:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.probe.write_dp(addr & DPADDR_MASK, data)
+            # Update cached DP SELECT if writing to it.
+            if (addr & DPADDR_MASK) == DP_SELECT:
+                self._cached_dp_select = data
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
