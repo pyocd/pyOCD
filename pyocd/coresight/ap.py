@@ -45,11 +45,7 @@ AP_IDR = 0xFC
 ## Offset of IDR register in an APv2.
 APv2_IDR = 0xDFC
 
-A32 = 0x0c
 APSEL_SHIFT = 24
-APSEL = 0xff000000
-APBANKSEL = 0x000000f0
-APSEL_APBANKSEL = APSEL | APBANKSEL
 
 ## @brief Mask for register address within the AP address space.
 #
@@ -606,6 +602,10 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
         ## Cached current CSW value.
         self._cached_csw: int = -1
 
+        # Register the CSW cache with the DP so direct AP accesses can update it.
+        csw_address = self.address.address + self._reg_offset + MEM_AP_CSW
+        self.dp._cached_ap_cb[csw_address] = self._update_cache
+
         ## Original CSW value read during init().
         self.original_csw: Optional[int] = None
 
@@ -1047,8 +1047,6 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
                     TRACE.debug("write_ap:%06d cached (ap=0x%x; addr=0x%08x) = 0x%08x",
                         num, self.address.nominal_address, addr, data)
                 return
-            self._cached_csw = data
-
         try:
             self.dp.write_ap(self.address.address + addr, data)
         except exceptions.ProbeError:
@@ -1067,11 +1065,14 @@ class MEM_AP(AccessPort, memory_interface.MemoryInterface):
             return
         if self._cached_csw != -1 and self._cached_csw != self.original_csw:
             self.write_reg(self._reg_offset + MEM_AP_CSW, self.original_csw)
-            self._cached_csw = self.original_csw
 
     def _invalidate_cache(self) -> None:
         """@brief Invalidate cached registers associated with this AP."""
         self._cached_csw = -1
+
+    def _update_cache(self, value: int) -> None:
+        """@brief Update cached value after an AP register access."""
+        self._cached_csw = value
 
     def _reset_did_occur(self, notification: Notification) -> None:
         """@brief Handles reset notifications to invalidate CSW cache."""

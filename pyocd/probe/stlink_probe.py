@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2018-2020,2022 Arm Limited
+# Copyright (c) 2018-2020,2022,2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -24,7 +24,7 @@ from .debug_probe import DebugProbe
 from ..core.memory_interface import MemoryInterface
 from ..core.plugin import Plugin
 from ..core.options import OptionInfo
-from ..coresight.ap import (APVersion, APSEL, APSEL_SHIFT, APv1Address)
+from ..coresight.ap import (APVersion, APv1Address)
 from .stlink.usb import STLinkUSBInterface
 from .stlink.stlink import STLink
 from .stlink.detect.factory import create_mbed_detector
@@ -37,6 +37,9 @@ if TYPE_CHECKING:
 
 class StlinkProbe(DebugProbe):
     """@brief Wraps an STLink as a DebugProbe."""
+
+    APSEL_SHIFT = 24
+    APSEL_MASK = 0xff000000
 
     _board_id: Optional[str]
 
@@ -228,7 +231,7 @@ class StlinkProbe(DebugProbe):
         self._link.write_dap_register(STLink.DP_PORT, addr, data)
 
     def read_ap(self, addr, now=True):
-        apsel = (addr & APSEL) >> APSEL_SHIFT
+        apsel = (addr & self.APSEL_MASK) >> self.APSEL_SHIFT
         result = self._link.read_dap_register(apsel, addr & 0xffff)
 
         def read_ap_result_callback():
@@ -237,7 +240,7 @@ class StlinkProbe(DebugProbe):
         return result if now else read_ap_result_callback
 
     def write_ap(self, addr, data):
-        apsel = (addr & APSEL) >> APSEL_SHIFT
+        apsel = (addr & self.APSEL_MASK) >> self.APSEL_SHIFT
         self._link.write_dap_register(apsel, addr & 0xffff, data)
 
     def read_ap_multiple(self, addr, count=1, now=True):

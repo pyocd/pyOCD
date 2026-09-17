@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2020,2025 Arm Limited
+# Copyright (c) 2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2023 Marian Muller Rebeyrol
 # Copyright (c) 2026 Christophe Dufaza
@@ -50,9 +50,6 @@ class JLinkProbe(DebugProbe):
 
     # Bitmasks for AP register address fields.
     A32 = 0x0000000c
-    APBANKSEL = 0x000000f0
-    APSEL = 0xff000000
-    APSEL_APBANKSEL = APSEL | APBANKSEL
 
     @classmethod
     def _get_jlink(cls) -> Optional[pylink.JLink]:

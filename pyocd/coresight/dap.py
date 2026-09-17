@@ -29,7 +29,6 @@ from ..core.target import Target
 from ..core.target_delegate import DelegateHavingMixIn
 from ..probe.debug_probe import DebugProbe
 from ..probe.swj import SWJSequenceSender
-from .ap import APSEL_APBANKSEL
 from ..utility.sequencer import CallSequence
 from ..utility.timeout import Timeout
 
@@ -86,6 +85,11 @@ CTRLSTAT_WDATAERR = 0x00000080
 
 # DP SELECT register fields.
 SELECT_DPBANKSEL_MASK = 0x0000000f
+# ADIv5 AP SELECT register fields.
+SELECT_APSEL_MASK = 0xff000000
+SELECT_APBANKSEL_MASK = 0x000000f0
+SELECT_AP_MASK = SELECT_APSEL_MASK | SELECT_APBANKSEL_MASK
+# ADIv6 AP SELECT register fields.
 SELECT_APADDR_MASK = 0xfffffff0
 
 DPIDR_REVISION_MASK = 0xf0000000
@@ -316,6 +320,7 @@ class DebugPort(DelegateHavingMixIn):
         self.aps: Dict[APAddressBase, AccessPort] = {}
         self._access_number: int = 0
         self._cached_dp_select: Optional[int] = None
+        self._cached_ap_cb: Dict[int, Callable[[int], None]] = {}
         self._protocol: Optional[DebugProbe.Protocol] = None
         self._probe_managed_ap_select: bool = False
         self._probe_managed_dpbanksel: bool = False
@@ -845,6 +850,10 @@ class DebugPort(DelegateHavingMixIn):
             if did_lock:
                 self.unlock()
 
+    def _update_ap_cache(self, addr: int, value: int) -> None:
+        if (cb := self._cached_ap_cb.get(addr)) is not None:
+            cb(value)
+
     def _select_ap(self, addr: int) -> bool:
         """@brief Write DP_SELECT to choose the given AP.
 
@@ -860,7 +869,7 @@ class DebugPort(DelegateHavingMixIn):
         # Write DP SELECT to select the probe.
         self.lock()
         if self.adi_version == ADIVersion.ADIv5:
-            self._write_dp_select(APSEL_APBANKSEL, addr & APSEL_APBANKSEL)
+            self._write_dp_select(SELECT_AP_MASK, addr & SELECT_AP_MASK)
         elif self.adi_version == ADIVersion.ADIv6:
             self._write_dp_select(SELECT_APADDR_MASK, addr & SELECT_APADDR_MASK)
         else:
@@ -877,6 +886,7 @@ class DebugPort(DelegateHavingMixIn):
             did_lock = self._select_ap(addr)
             TRACE.debug("write_ap:%06d (addr=0x%08x) = 0x%08x", num, addr, data)
             self.probe.write_ap(addr, data)
+            self._update_ap_cache(addr, data)
         except exceptions.TargetError as error:
             self._handle_error(error, num)
             raise
@@ -922,6 +932,7 @@ class DebugPort(DelegateHavingMixIn):
         def read_ap_cb() -> int:
             try:
                 result = result_cb()
+                self._update_ap_cache(addr, result)
                 TRACE.debug("read_ap:%06d %s(addr=0x%08x) -> 0x%08x", num, "" if now else "...", addr, result)
                 return result
             except exceptions.TargetError as error:
