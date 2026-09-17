@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2023 Huada Semiconductor Corporation
+# Copyright (c) 2026 Huada Semiconductor Corporation
 # Copyright (c) 2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -33,7 +33,7 @@ class DBGMCU:
 FLASH_ALGO = {
     'load_address' : 0x20000000,
 
-    # Flash algorithm as a hex string. HDSC.HC32F334.1.1.0.pack 12589
+    # Flash algorithm as a hex string. HDSC.HC32F336.1.0.0.pack 12477
     'instructions': [
     0xE00ABE00,
     0x4770ba40, 0x4770ba40, 0x4770ba40, 0x4770bac0, 0x4770bac0, 0x4770bac0, 0x0030ea4f, 0x00004770,
@@ -122,7 +122,7 @@ FLASH_ALGO = {
 FLASH_ALGO_OTP = {
     'load_address' : 0x20000000,
 
-    # Flash algorithm as a hex string. HDSC.HC32F334.1.1.0.pack 12589
+    # Flash algorithm as a hex string. HDSC.HC32F336.1.0.0.pack 12477
     'instructions': [
     0xE00ABE00,
     0x4770ba40, 0x4770ba40, 0x4770ba40, 0x4770bac0, 0x4770bac0, 0x4770bac0, 0x0030ea4f, 0x00004770,
@@ -196,7 +196,7 @@ FLASH_ALGO_OTP = {
 }
 
 
-class HC32F334xA(CoreSightTarget):
+class HC32F336xA(CoreSightTarget):
 
     VENDOR = "HDSC"
 
@@ -213,8 +213,8 @@ class HC32F334xA(CoreSightTarget):
         )
 
     def __init__(self, session):
-        super(HC32F334xA, self).__init__(session, self.MEMORY_MAP)
-        self._svd_location = SVDFile.from_builtin("HC32F334.svd")
+        super(HC32F336xA, self).__init__(session, self.MEMORY_MAP)
+        self._svd_location = SVDFile.from_builtin("HC32F336.svd")
 
     def post_connect_hook(self):
         self.write32(DBGMCU.STPCTL, DBGMCU.STPCTL_VALUE)
@@ -222,7 +222,7 @@ class HC32F334xA(CoreSightTarget):
         self.write32(DBGMCU.TRACECTL, DBGMCU.TRACECTL_VALUE)
 
 
-class HC32F334x8(CoreSightTarget):
+class HC32F336x8(CoreSightTarget):
 
     VENDOR = "HDSC"
 
@@ -239,8 +239,8 @@ class HC32F334x8(CoreSightTarget):
         )
 
     def __init__(self, session):
-        super(HC32F334x8, self).__init__(session, self.MEMORY_MAP)
-        self._svd_location = SVDFile.from_builtin("HC32F334.svd")
+        super(HC32F336x8, self).__init__(session, self.MEMORY_MAP)
+        self._svd_location = SVDFile.from_builtin("HC32F336.svd")
 
     def post_connect_hook(self):
         self.write32(DBGMCU.STPCTL, DBGMCU.STPCTL_VALUE)
