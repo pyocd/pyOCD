@@ -279,6 +279,7 @@ class CTraceRun:
     def __init__(self, session: "Session") -> None:
         self._lock = threading.RLock()
         self._last_applied_digest: Optional[bytes] = None
+        self._last_capture_digest: Optional[bytes] = None
         self._last_error: Optional[str] = None
 
         cbuild_run = session.cbuild_run
@@ -302,7 +303,7 @@ class CTraceRun:
         session.subscribe(self._trace_restart_handler, session.Event.TRACE_RESTART, session)
 
     def apply(self, target: "SoCTarget", force: bool = False) -> bool:
-        """Apply new or explicitly reloaded configuration and return whether it was applied."""
+        """Apply configuration and report success or whether it changed for this capture."""
         with self._lock:
             try:
                 loaded = self._parser.load(force=force)
@@ -312,13 +313,17 @@ class CTraceRun:
                     return False
 
                 digest, data = loaded
-                if not force and digest == self._last_applied_digest:
-                    return False
+                if force or digest != self._last_applied_digest:
+                    self._apply_to_target(target, data)
+                    self._last_applied_digest = digest
+                    self._last_error = None
 
-                self._apply_to_target(target, data)
-                self._last_applied_digest = digest
-                self._last_error = None
-                return True
+                if force:
+                    return True
+
+                changed = digest != self._last_capture_digest
+                self._last_capture_digest = digest
+                return changed
             except exceptions.Error as err:
                 self._report_error(err)
                 return False
