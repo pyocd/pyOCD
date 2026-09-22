@@ -120,7 +120,6 @@ class TraceBufferSinks:
         self._session = session
         self._trace_buffers = trace_buffers
         self._outputs: Dict[str, TraceDataSink] = {}
-        self._capture_changed = True
         for name, sink in trace_buffers.items():
             if not sink.enabled:
                 continue
@@ -140,10 +139,9 @@ class TraceBufferSinks:
 
     def _trace_data_handler(self, notification: Any) -> None:
         if notification.event == self._session.Event.TRACE_DATA_CAPTURE:
-            self._capture_changed = bool(notification.data)
             for name, output in tuple(self._outputs.items()):
                 try:
-                    output.start(self._capture_changed)
+                    output.start(changed=True)
                 except OSError as err:
                     LOG.warning("Failed to start TB '%s' output: %s", name, err)
                     del self._outputs[name]
@@ -160,7 +158,7 @@ class TraceBufferSinks:
         try:
             if output is None:
                 output = self._create_output(sink)
-                output.start(self._capture_changed)
+                output.start(changed=True)
                 self._outputs[name] = output
             return output.write(data)
         except OSError as err:
