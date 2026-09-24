@@ -667,7 +667,9 @@ class DebugPort(DelegateHavingMixIn):
             self.session.notify(Target.Event.PRE_RESET, self)
 
         self.probe.reset()
-        self.post_reset_recovery()
+        # Check if we are performing a pre-reset; only do post-reset recovery if not.
+        if not self.session.context_state.is_performing_pre_reset:
+            self.post_reset_recovery()
 
         if send_notifications:
             self.session.notify(Target.Event.POST_RESET, self)
