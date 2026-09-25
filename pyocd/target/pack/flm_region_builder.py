@@ -157,6 +157,11 @@ class FlmFlashRegionBuilder:
             region._start = pack_algo.flash_start
             region._end = pack_algo.flash_start + pack_algo.flash_size - 1
 
+        # The erased value comes from the FLM whether or not subregions get created. Without it
+        # the region keeps the 0xff default, and the flash builder pads pages with the wrong byte
+        # on flash that erases to something else.
+        region.attributes['erased_byte_value'] = pack_algo.flash_info.value_empty
+
         # Don't need to create subregions if there is a single sector size and its range
         # starts at the same address and is equal or larger than the parent flash region.
         sector_sizes = list(pack_algo.iter_sector_size_ranges())
