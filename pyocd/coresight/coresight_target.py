@@ -417,15 +417,16 @@ class CoreSightTarget(SoCTarget):
                 delegate.run_sequence(name, pname=seq.pname)
 
     def trace_capture(self) -> None:
-        changed = False
-        if self.session.ctrace_run is not None:
-            changed = self.session.ctrace_run.apply(self)
-
         result = self.call_delegate('trace_capture', target=self, mode=0)
         if not result and self.has_debug_sequence('TraceCapture'):
             assert self.debug_sequence_delegate
             if self.debug_sequence_delegate.trace_setup == TraceSetup.FULL:
                 self.debug_sequence_delegate.run_sequence('TraceCapture')
+
+        changed = False
+        if self.session.ctrace_run is not None:
+            changed = self.session.ctrace_run.apply(self)
+
         self.session.notify(self.session.Event.TRACE_DATA_CAPTURE, self.session, changed)
 
     def trace_flush(self) -> None:
@@ -434,6 +435,7 @@ class CoreSightTarget(SoCTarget):
             assert self.debug_sequence_delegate
             if self.debug_sequence_delegate.trace_setup == TraceSetup.FULL:
                 self.debug_sequence_delegate.run_sequence('TraceFlush')
+
         self.session.notify(self.session.Event.TRACE_DATA_FLUSH, self.session)
 
     def write_trace_buffer(self, name: str, data: bytes) -> int:
