@@ -32,6 +32,7 @@ from ..utility.sequencer import CallSequence
 from ..target.pack.flm_region_builder import FlmFlashRegionBuilder
 
 if TYPE_CHECKING:
+    from ..core.core_target import CoreTarget
     from ..core.session import Session
     from .ap import (APAddressBase, AccessPort)
     from ..debug.svd.model import SVDDevice
@@ -416,25 +417,30 @@ class CoreSightTarget(SoCTarget):
             if seq.name == name:
                 delegate.run_sequence(name, pname=seq.pname)
 
-    def trace_capture(self) -> None:
+    def trace_capture(self, core: Optional["CoreTarget"] = None) -> None:
+        pname = core.node_name if core else None
+        ctrace_run = self.session.ctrace_run
+        changed = False
+
         result = self.call_delegate('trace_capture', target=self, mode=0)
-        if not result and self.has_debug_sequence('TraceCapture'):
+        if not result and self.has_debug_sequence('TraceCapture', pname=pname):
             assert self.debug_sequence_delegate
             if self.debug_sequence_delegate.trace_setup == TraceSetup.FULL:
-                self.debug_sequence_delegate.run_sequence('TraceCapture')
+                self.debug_sequence_delegate.run_sequence('TraceCapture', pname=pname)
 
-        changed = False
-        if self.session.ctrace_run is not None:
-            changed = self.session.ctrace_run.apply(self)
+        if ctrace_run is not None:
+            changed = ctrace_run.apply(self)
 
         self.session.notify(self.session.Event.TRACE_DATA_CAPTURE, self.session, changed)
 
-    def trace_flush(self) -> None:
+    def trace_flush(self, core: Optional["CoreTarget"] = None) -> None:
+        pname = core.node_name if core else None
+
         result = self.call_delegate('trace_flush', target=self, mode=0)
-        if not result and self.has_debug_sequence('TraceFlush'):
+        if not result and self.has_debug_sequence('TraceFlush', pname=pname):
             assert self.debug_sequence_delegate
             if self.debug_sequence_delegate.trace_setup == TraceSetup.FULL:
-                self.debug_sequence_delegate.run_sequence('TraceFlush')
+                self.debug_sequence_delegate.run_sequence('TraceFlush', pname=pname)
 
         self.session.notify(self.session.Event.TRACE_DATA_FLUSH, self.session)
 

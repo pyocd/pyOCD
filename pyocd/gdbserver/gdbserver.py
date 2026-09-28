@@ -426,11 +426,11 @@ class GDBServer(threading.Thread):
 
     def trace_flush(self) -> None:
         if self.board.target.trace_enabled:
-            self.board.target.trace_flush()
+            self.board.target.trace_flush(self.target)
 
     def trace_capture(self) -> None:
         if self.board.target.trace_enabled:
-            self.board.target.trace_capture()
+            self.board.target.trace_capture(self.target)
 
     def _init_remote_commands(self):
         """@brief Initialize the remote command processor infrastructure."""

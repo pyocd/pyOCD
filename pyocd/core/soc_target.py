@@ -326,10 +326,10 @@ class SoCTarget(TargetGraphNode):
     def trace_stop(self):
         self.call_delegate('trace_stop', target=self, mode=0)
 
-    def trace_capture(self):
+    def trace_capture(self, core: Optional[CoreTarget] = None):
         self.call_delegate('trace_capture', target=self, mode=0)
 
-    def trace_flush(self):
+    def trace_flush(self, core: Optional[CoreTarget] = None):
         self.call_delegate('trace_flush', target=self, mode=0)
 
     def add_target_command_groups(self, command_set: CommandSet):
