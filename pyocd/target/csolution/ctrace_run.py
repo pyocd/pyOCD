@@ -188,9 +188,9 @@ class _CTraceRunParser:
         if not isinstance(ref, dict):
             raise CTraceRunError(f"ctrace-run reference entry {ref_index} must be a dictionary")
 
-        ref_name = ref.get('ctrace-ref')
+        ref_name = ref.get('ref')
         if not isinstance(ref_name, str) or not ref_name:
-            raise CTraceRunError(f"ctrace-run reference entry {ref_index} requires a non-empty 'ctrace-ref'")
+            raise CTraceRunError(f"ctrace-run reference entry {ref_index} requires a non-empty 'ref'")
 
         regs = ref.get('regs')
         if regs is None:
