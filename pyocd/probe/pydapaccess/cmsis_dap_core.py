@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2013,2018-2021,2025 Arm Limited
+# Copyright (c) 2006-2013,2018-2021,2025,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # Copyright (c) 2025 Norbert Hipfl
@@ -486,7 +486,8 @@ class CMSISDAPProtocol(object):
             raise DAPAccessIntf.CommandError("DAP_JTAG_SEQUENCE failed")
 
         if len(resp) > 2:
-            return resp[2:]
+            return int.from_bytes(bytes(resp[2:]), byteorder="little")
+        return None
 
     def jtag_configure(self, devices_irlen=None):
         # Default to a single device with an IRLEN of 4.
