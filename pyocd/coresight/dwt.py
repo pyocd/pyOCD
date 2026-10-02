@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2019,2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,6 +55,7 @@ class DWT(CoreSightComponent):
 
     DWT_CTRL_NUM_COMP_MASK = (0xF << 28)
     DWT_CTRL_NUM_COMP_SHIFT = 28
+    DWT_CTRL_NOCYCCNT_MASK = (1 << 25)
     DWT_CTRL_CYCEVTENA_MASK = (1 << 22)
     DWT_CTRL_FOLDEVTENA_MASK = (1 << 21)
     DWT_CTRL_LSUEVTENA_MASK = (1 << 20)
@@ -73,13 +74,13 @@ class DWT(CoreSightComponent):
     DWT_CTRL_CYCCNTENA_MASK = (1 << 0)
 
     WATCH_TYPE_TO_FUNCT = {
-                            Target.WatchpointType.READ: 5,
-                            Target.WatchpointType.WRITE: 6,
-                            Target.WatchpointType.READ_WRITE: 7,
-                            5: Target.WatchpointType.READ,
-                            6: Target.WatchpointType.WRITE,
-                            7: Target.WatchpointType.READ_WRITE,
-                            }
+        Target.WatchpointType.READ: 5,
+        Target.WatchpointType.WRITE: 6,
+        Target.WatchpointType.READ_WRITE: 7,
+        5: Target.WatchpointType.READ,
+        6: Target.WatchpointType.WRITE,
+        7: Target.WatchpointType.READ_WRITE,
+    }
 
     # Only sizes that are powers of 2 are supported
     # Breakpoint size = MASK**2
@@ -90,6 +91,7 @@ class DWT(CoreSightComponent):
         self.watchpoints = []
         self.watchpoint_used = 0
         self.dwt_configured = False
+        self._has_cycle_counter = False
 
     @property
     def watchpoint_count(self):
@@ -108,6 +110,7 @@ class DWT(CoreSightComponent):
             self.ap.write_memory(DEMCR, demcr)
 
         dwt_ctrl = self.ap.read_memory(self.address + self.DWT_CTRL)
+        self._has_cycle_counter = not bool(dwt_ctrl & self.DWT_CTRL_NOCYCCNT_MASK)
         watchpoint_count = (dwt_ctrl & self.DWT_CTRL_NUM_COMP_MASK) >> self.DWT_CTRL_NUM_COMP_SHIFT
         LOG.info("%d hardware watchpoints", watchpoint_count)
         for i in range(watchpoint_count):
@@ -116,7 +119,10 @@ class DWT(CoreSightComponent):
             self.ap.write_memory(comparatorAddress + self.DWT_FUNCTION_OFFSET, 0)
 
         # Enable cycle counter.
-        self.ap.write32(self.address + self.DWT_CTRL, self.DWT_CTRL_CYCCNTENA_MASK)
+        if self._has_cycle_counter:
+            self.ap.write32(self.address + self.DWT_CTRL, self.DWT_CTRL_CYCCNTENA_MASK)
+        else:
+            self.ap.write32(self.address + self.DWT_CTRL, 0x0)
         self.dwt_configured = True
 
     def find_watchpoint(self, addr, size, type):
@@ -185,6 +191,10 @@ class DWT(CoreSightComponent):
         return [watch for watch in self.watchpoints if watch.func != 0]
 
     @property
+    def has_cycle_counter(self) -> bool:
+        return self._has_cycle_counter
+
+    @property
     def cycle_count(self):
         return self.ap.read32(self.address + self.DWT_CYCCNT)
 
@@ -205,20 +215,20 @@ class DWTv2(DWT):
 
     ## Map from watchpoint type to FUNCTIONn.MATCH field value.
     WATCH_TYPE_TO_FUNCT = {
-                            Target.WatchpointType.READ: 0b0110,
-                            Target.WatchpointType.WRITE: 0b0101,
-                            Target.WatchpointType.READ_WRITE: 0b0100,
-                            0b0110: Target.WatchpointType.READ,
-                            0b0101: Target.WatchpointType.WRITE,
-                            0b0100: Target.WatchpointType.READ_WRITE,
-                            }
+        Target.WatchpointType.READ: 0b0110,
+        Target.WatchpointType.WRITE: 0b0101,
+        Target.WatchpointType.READ_WRITE: 0b0100,
+        0b0110: Target.WatchpointType.READ,
+        0b0101: Target.WatchpointType.WRITE,
+        0b0100: Target.WatchpointType.READ_WRITE,
+    }
 
     ## Map from data access size to pre-shifted DATAVSIZE field value.
     DATAVSIZE_MAP = {
-                        1: (0 << 10),
-                        2: (1 << 10),
-                        4: (2 << 10),
-                    }
+        1: (0 << 10),
+        2: (1 << 10),
+        4: (2 << 10),
+    }
 
     def set_watchpoint(self, addr, size, type):
         """@brief Set a hardware watchpoint."""
@@ -254,6 +264,3 @@ class DWTv2(DWT):
 
         LOG.error('No more watchpoints are available, dropped watchpoint at 0x%08x', addr)
         return False
-
-
-
