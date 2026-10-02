@@ -16,13 +16,14 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 import hashlib
 import logging
 from pathlib import Path
 import re
 import threading
-from typing import (Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple, TYPE_CHECKING, Union)
+from typing import (Any, Dict, Iterable, Iterator, List, Mapping, Optional, Set, Tuple, TYPE_CHECKING, Union)
 
 import yaml
 
@@ -69,11 +70,12 @@ class _CTraceRunData:
     """Immutable parsed ctrace-run configuration."""
 
     references: Tuple[Tuple[str, Optional[str]], ...]
+    disable_register_access: Tuple[_CTraceRunRegister, ...]
     register_access: Tuple[_CTraceRunRegister, ...]
 
 
 class _CTraceRunParser:
-    """Cached parser for a .ctrace-run.yml file."""
+    """Parser for a .ctrace-run.yml file."""
 
     _DEFAULT_BASE_ADDRESSES: Dict[str, int] = {
         'ITM': 0xE0000000,
@@ -129,29 +131,22 @@ class _CTraceRunParser:
     def __init__(self, yml_path: Union[str, Path]) -> None:
         """Create a ctrace-run processor for a YAML file."""
         self._path = Path(yml_path).expanduser().resolve()
-        self._digest: Optional[bytes] = None
-        self._data: Optional[_CTraceRunData] = None
+        self.digest: Optional[bytes] = None
 
-    def load(self, force: bool = False) -> Optional[Tuple[bytes, _CTraceRunData]]:
-        """Read and parse the file if its content has changed."""
+    def load(self, last_digest: Optional[bytes] = None) -> Optional[Tuple[bool, Optional[_CTraceRunData]]]:
+        """Read the file and return whether it changed, together with any parsed configuration."""
+        self.digest = None
         try:
             yml_content = self._path.read_bytes()
         except FileNotFoundError:
             LOG.debug("No ctrace-run file found at '%s'", self._path)
-            self._digest = None
-            self._data = None
             return None
         except OSError as err:
             raise CTraceRunError(f"cannot access file: {err.strerror}") from err
 
-        digest = hashlib.sha256(yml_content).digest()
-        if not force and digest == self._digest and self._data is not None:
-            return digest, self._data
-
-        data = self._parse(yml_content)
-        self._digest = digest
-        self._data = data
-        return digest, data
+        self.digest = hashlib.sha256(yml_content).digest()
+        changed = self.digest != last_digest
+        return changed, self._parse(yml_content) if changed else None
 
     def _parse(self, yml_content: bytes) -> _CTraceRunData:
         try:
@@ -166,15 +161,40 @@ class _CTraceRunParser:
         if not isinstance(data, dict):
             raise CTraceRunError("'ctrace-run' must be a dictionary")
 
+        disable = data.get('ctrace-disable')
+        if disable is None:
+            disable = []
+        if not isinstance(disable, list):
+            raise CTraceRunError("'ctrace-disable' must be a list")
+
         refs = data.get('ctrace-refs')
+        if refs is None:
+            refs = []
         if not isinstance(refs, list):
             raise CTraceRunError("'ctrace-refs' must be a list")
 
         references: List[Tuple[str, Optional[str]]] = []
+        disable_register_access: List[_CTraceRunRegister] = []
         register_access: List[_CTraceRunRegister] = []
-        for ref_index, ref in enumerate(refs, start=1):
+
+        for idx, ref in enumerate(disable, start=1):
+            reference, reg_access = self._parse_register_entry(ref, f"ctrace-disable#{idx}")
+            if reg_access:
+                references.append(reference)
+            disable_register_access.extend(reg_access)
+
+        for idx, ref in enumerate(refs, start=1):
+            if isinstance(ref, dict) and ref.get('regs') is None:
+                continue
             try:
-                reference, ref_access = self._parse_reference(ref, ref_index)
+                if not isinstance(ref, dict):
+                    raise CTraceRunError(f"reference entry {idx} must be a dictionary")
+                ref_name = ref.get('ref')
+                if not isinstance(ref_name, str) or not ref_name:
+                    raise CTraceRunError(f"reference entry {idx} requires 'ref'")
+                if not isinstance(ref.get('type'), str) or not ref['type']:
+                    raise CTraceRunError(f"reference '{ref_name}' requires 'type'")
+                reference, ref_access = self._parse_register_entry(ref, ref_name)
             except CTraceRunError as err:
                 LOG.warning("Ignoring invalid ctrace-run reference in '%s': %s", self._path, err)
                 continue
@@ -183,26 +203,17 @@ class _CTraceRunParser:
             register_access.extend(ref_access)
 
         LOG.debug("Parsed ctrace-run configuration from '%s'", self._path)
-        return _CTraceRunData(tuple(references), tuple(register_access))
+        return _CTraceRunData(tuple(references), tuple(disable_register_access), tuple(register_access))
 
-    def _parse_reference(self, ref: Any, ref_index: int) -> Tuple[Tuple[str, Optional[str]], List[_CTraceRunRegister]]:
-        if not isinstance(ref, dict):
-            raise CTraceRunError(f"ctrace-run reference entry {ref_index} must be a dictionary")
-
-        ref_name = ref.get('ref')
-        if not isinstance(ref_name, str) or not ref_name:
-            raise CTraceRunError(f"ctrace-run reference entry {ref_index} requires a non-empty 'ref'")
-
-        regs = ref.get('regs')
-        if regs is None:
-            regs = []
+    def _parse_register_entry(self, entry: Any, ref_name: str) -> Tuple[Tuple[str, Optional[str]], List[_CTraceRunRegister]]:
+        if not isinstance(entry, dict):
+            raise CTraceRunError(f"ctrace-run entry '{ref_name}' must be a dictionary")
+        pname = entry.get('pname')
+        if pname is not None and (not isinstance(pname, str) or not pname):
+            raise CTraceRunError(f"'pname' in ctrace-run entry '{ref_name}' must be a non-empty string")
+        regs = entry.get('regs')
         if not isinstance(regs, list):
-            raise CTraceRunError(f"'regs' in ctrace-run reference '{ref_name}' must be a list")
-
-        pname = ref.get('pname')
-        if regs and pname is not None and (not isinstance(pname, str) or not pname):
-            raise CTraceRunError(f"'pname' in ctrace-run reference '{ref_name}' must be a non-empty string")
-
+            raise CTraceRunError(f"'regs' in ctrace-run entry '{ref_name}' must be a list")
         return ((ref_name, pname), self._parse_regs(regs, pname, ref_name))
 
     def _parse_regs(self, regs: Iterable[Mapping[str, Any]], pname: Optional[str], ref_name: str) -> List[_CTraceRunRegister]:
@@ -279,9 +290,10 @@ class CTraceRun:
 
     def __init__(self, session: "Session") -> None:
         self._lock = threading.RLock()
-        self._last_applied_digest: Optional[bytes] = None
-        self._last_capture_digest: Optional[bytes] = None
+        self._last_digest: Optional[bytes] = None
+        self._pending_config: Optional[Tuple[bool, Optional[_CTraceRunData]]] = None
         self._last_error: Optional[str] = None
+        self._reloaded: bool = False
 
         cbuild_run = session.cbuild_run
         if cbuild_run is None or not cbuild_run.trace.enabled:
@@ -303,40 +315,76 @@ class CTraceRun:
         self._parser = _CTraceRunParser(self._path)
         session.subscribe(self._trace_restart_handler, session.Event.TRACE_RESTART, session)
 
-    def apply(self, target: "SoCTarget", force: bool = False) -> bool:
-        """Apply configuration and report success or whether it changed for this capture."""
+    @property
+    def reloaded(self) -> bool:
+        """Whether the configuration was reloaded during the last update context."""
+        return self._reloaded
+
+    @contextmanager
+    def update(self, reload: bool = False) -> Iterator[None]:
+        """Serialize the three configuration stages and discard any abandoned pending data."""
         with self._lock:
             try:
-                loaded = self._parser.load(force=force)
-                if loaded is None:
-                    self._last_applied_digest = None
+                yield
+                self._last_digest = self._parser.digest
+                self._last_error = None
+            finally:
+                self._reloaded = reload
+                self._pending_config = None
+
+    def load(self, force: bool = False) -> bool:
+        """Prepare pending configuration and report whether it differs from the last call."""
+        with self._lock:
+            try:
+                self._pending_config = self._parser.load(last_digest=None if force else self._last_digest)
+                if self._pending_config is None:
                     self._last_error = None
                     return False
 
-                digest, data = loaded
-                if force or digest != self._last_applied_digest:
-                    self._apply_to_target(target, data)
-                    self._last_applied_digest = digest
-                    self._last_error = None
+                changed, data = self._pending_config
 
-                if force:
-                    return True
-
-                changed = digest != self._last_capture_digest
-                self._last_capture_digest = digest
+                self._reloaded = self._reloaded or changed
                 return changed
             except exceptions.Error as err:
+                self.invalidate()
                 self._report_error(err)
                 return False
 
+    def apply_disable(self, target: "SoCTarget") -> bool:
+        """Apply pending disable registers, if reapplication is needed."""
+        with self._lock:
+            if self._pending_config is None:
+                return False
+            _, data = self._pending_config
+            if data is None:
+                return True
+            return self._apply_to_target(target, data, data.disable_register_access)
+
+    def apply_refs(self, target: "SoCTarget") -> bool:
+        """Apply pending active registers, if reapplication is needed."""
+        with self._lock:
+            if self._pending_config is None:
+                return False
+            _, data = self._pending_config
+            if data is None:
+                return False
+            return self._apply_to_target(target, data, data.register_access)
+
     def reload(self, target: "SoCTarget") -> bool:
         """Reload and apply the file even if it has not changed."""
-        return self.apply(target, force=True)
+        with self.update(reload=True):
+            self.load(force=True)
+            if not self.apply_disable(target):
+                return False
+            if not self.apply_refs(target):
+                return False
+        return True
 
     def invalidate(self) -> None:
-        """Invalidate the last applied configuration, so that it will be reapplied on the next call to apply()."""
+        """Invalidate the applied configuration."""
         with self._lock:
-            self._last_applied_digest = None
+            self._last_digest = None
+            self._pending_config = None
 
     def _trace_restart_handler(self, notification: "Notification") -> None:
         """Invalidate the applied configuration after target trace support restarts."""
@@ -353,30 +401,37 @@ class CTraceRun:
                 LOG.warning("Ignoring invalid ctrace-run configuration '%s': %s", self._path, error)
             self._last_error = error_message
 
-    def _apply_to_target(self, target: "SoCTarget", data: _CTraceRunData) -> None:
-        if not data.register_access:
-            LOG.debug("No ctrace-run register access to apply")
-            return
-        access_targets = self._resolve_access_targets(target, data.references)
+    def _apply_to_target(self, target: "SoCTarget", data: _CTraceRunData, register_access: Tuple[_CTraceRunRegister, ...]) -> bool:
+        """Apply register writes and invalidate the update on failure."""
+        try:
+            if not register_access:
+                LOG.debug("No ctrace-run register access to apply")
+                return True
+            access_targets = self._resolve_access_targets(target, data.references)
 
-        enabled_targets: Set[int] = set()
-        unlocked_components: Set[Tuple[int, int]] = set()
+            enabled_targets: Set[int] = set()
+            unlocked_components: Set[Tuple[int, int]] = set()
 
-        for reg in data.register_access:
-            access_target = access_targets[reg.pname]
-            target_key = id(access_target)
+            for reg in register_access:
+                access_target = access_targets[reg.pname]
+                target_key = id(access_target)
 
-            if target_key not in enabled_targets:
-                self._enable_trace_access(access_target)
-                enabled_targets.add(target_key)
+                if target_key not in enabled_targets:
+                    self._enable_trace_access(access_target)
+                    enabled_targets.add(target_key)
 
-            if reg.component in ('DWT', 'ITM'):
-                component_key = (target_key, reg.base_address)
-                if component_key not in unlocked_components:
-                    self._unlock_component(access_target, reg.component, reg.base_address)
-                    unlocked_components.add(component_key)
+                if reg.component in ('DWT', 'ITM'):
+                    component_key = (target_key, reg.base_address)
+                    if component_key not in unlocked_components:
+                        self._unlock_component(access_target, reg.component, reg.base_address)
+                        unlocked_components.add(component_key)
 
-            self._modify_register(access_target, reg)
+                self._modify_register(access_target, reg)
+            return True
+        except exceptions.Error as err:
+            self.invalidate()
+            self._report_error(err)
+            return False
 
     def _resolve_access_targets(self, target: "SoCTarget", references: Iterable[Tuple[str, Optional[str]]]) -> Dict[Optional[str], "CoreTarget"]:
         cores_by_pname = {core.node_name: core for core in target.cores.values()}
