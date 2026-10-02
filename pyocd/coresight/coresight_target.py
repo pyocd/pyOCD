@@ -434,6 +434,7 @@ class CoreSightTarget(SoCTarget):
                 self.session.notify(self.session.Event.TRACE_DATA_CAPTURE, self.session, ctrace_run.reloaded)
                 if changed:
                     ctrace_run.apply_refs(self)
+                ctrace_run.itm_force_sync(core if core is not None else self.primary_core)
         else:
             self.session.notify(self.session.Event.TRACE_DATA_CAPTURE, self.session, False)
 
