@@ -118,6 +118,7 @@ class _CTraceRunParser:
             (re.compile(r'^DWT_COMP(\d+)$'), 0x020, 0x10),
             (re.compile(r'^DWT_MASK(\d+)$'), 0x024, 0x10),
             (re.compile(r'^DWT_FUNCTION(\d+)$'), 0x028, 0x10),
+            (re.compile(r'^DWT_VMASK(\d+)$'), 0x02C, 0x10),
         ),
         'PMU': (
             (re.compile(r'^PMU_EVCNTR(\d+)$'), 0x000, 4),
