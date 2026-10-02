@@ -17,6 +17,7 @@
 
 import collections.abc
 import logging
+import threading
 from pathlib import Path
 from typing import (Any, BinaryIO, Dict, Mapping, TYPE_CHECKING, Iterable, List, Optional, Sequence, Union)
 
@@ -65,25 +66,29 @@ class _TraceFileSink(TraceDataSink):
         self._path = path
         self._file: Optional[BinaryIO] = None
         self._started = False
+        self._lock = threading.RLock()
 
     def start(self, changed: bool) -> None:
-        self.flush()
-        if self._path.parent.name == '.trace':
-            self._path.parent.mkdir(exist_ok=True)
-        self._file = self._path.open('wb' if changed or not self._started else 'ab')
-        self._started = True
+        with self._lock:
+            self.flush()
+            if self._path.parent.name == '.trace':
+                self._path.parent.mkdir(exist_ok=True)
+            self._file = self._path.open('wb' if changed or not self._started else 'ab')
+            self._started = True
 
     def write(self, data: bytes) -> int:
-        if self._file is None:
-            return 0
-        self._file.write(data)
-        return len(data)
+        with self._lock:
+            if self._file is None:
+                return 0
+            self._file.write(data)
+            return len(data)
 
     def flush(self) -> None:
-        if self._file is not None:
-            self._file.flush()
-            self._file.close()
-            self._file = None
+        with self._lock:
+            if self._file is not None:
+                self._file.flush()
+                self._file.close()
+                self._file = None
 
     def shutdown(self) -> None:
         self.flush()
