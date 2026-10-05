@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2019 Arm Limited
+# Copyright (c) 2015-2019,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -76,7 +76,7 @@ class FPB(BreakpointProvider, CoreSightComponent):
         if self.fpb_rev not in (1, 2):
             LOG.warning("Unknown FPB version %d", self.fpb_rev)
         self.nb_code = ((fpcr >> 8) & 0x70) | ((fpcr >> 4) & 0xF)
-        self.nb_lit = (fpcr >> 7) & 0xf
+        self.nb_lit = (fpcr >> 8) & 0xf
         LOG.info("%d hardware breakpoints, %d literal comparators", self.nb_code, self.nb_lit)
         for i in range(self.nb_code):
             self.hw_breakpoints.append(HardwareBreakpoint(self.address + FPB.FP_COMP0 + 4*i, self))
@@ -157,4 +157,3 @@ class FPB(BreakpointProvider, CoreSightComponent):
                 self.ap.write_memory(hwbp.comp_register_addr, 0)
                 self.num_hw_breakpoint_used -= 1
                 return
-
