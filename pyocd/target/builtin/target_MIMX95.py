@@ -21,46 +21,64 @@ from ...core.memory_map import (FlashRegion, RomRegion, RamRegion, MemoryMap)
 from ...coresight.ap import AccessPort, APv1Address
 from ...coresight.cortex_m import CortexM
 from pyocd.flash.flash import Flash
+from pyocd.flash.builder import FlashBuilder
 from pyocd.core.options import add_option_set, OptionInfo
-from pyocd.core.exceptions import TransferError
+from pyocd.core.exceptions import TransferError, FlashEraseFailure, FlashProgramFailure
+from pyocd.core.target import Target
 import time
 
 LOG = logging.getLogger(__name__)
 
-# Register custom option 'vtor' properly
 add_option_set({
-    OptionInfo("vtor", str, None, "Manual VTOR address override")
+    OptionInfo("vtor", str, None, "CM7 app vector table address for the core restart"),
+    OptionInfo("imx95.stop_dma", bool, True, "Stop the CM7's eDMA channels before a CM7 core restart"),
 })
-
-AP_SEL = 3
-
-SRC_M7MIX_SLICE_SW_CTRL = 0x54464820
-SRC_M7MIX_SLICE_SW_CTRL_RSTR_0_MASK = 0x100000
-
-SRC_M7MIX_SLICE_RSTR_STAT = 0x544648B8
-SRC_M7MIX_SLICE_RSTR_STAT_RSTR_0_MASK = 0x1
 
 # SRC register holding the CM7 initial vector table (boot VTOR).
 SRC_M7_INIT_VTOR = 0x544F0108
 
-# CM7 SCS registers, accessed via the CM7 MEM-AP.
-CM7_DHCSR = 0xE000EDF0
-CM7_DHCSR_S_LOCKUP_MASK = 0x00080000
-CM7_VTOR = 0xE000ED08
+# GPC CM7 CM_MISC register and its SLEEP_HOLD_EN bit, cleared on connect.
+GPC_CM7_CM_MISC = 0x4447080C
+GPC_CM_MISC_SLEEP_HOLD_EN = 1 << 1
+
+# CM7 SCS registers that CortexM does not define, accessed via the CM7 MEM-AP.
+MPU_CTRL = 0xE000ED94
+CM7_CFSR = 0xE000ED28
+CM7_HFSR = 0xE000ED2C
+# FPCCR reset value: automatic and lazy FP state saving on exception entry (ASPEN, LSPEN).
+CM7_FPCCR_RESET = 0xC0000000
+
+# eDMA channel page registers (CH_CSR, CH_ES, CH_INT) and the CH_CSR bits used to stop a channel.
+EDMA_CH_CSR_ERQ = 1 << 0
+EDMA_CH_CSR_DONE = 1 << 30
+EDMA_CH_CSR_ACTIVE = 1 << 31
+EDMA_CH_INT = 0x8
+# First channel page and page step of eDMA2 (0x42000000) and eDMA3 (0x44000000, SM name EDMA1).
+EDMA2_CH0, EDMA2_CH_STEP = 0x42010000, 0x8000
+EDMA3_CH0, EDMA3_CH_STEP = 0x44010000, 0x10000
+EDMA_CH_INT_INT = 1 << 0
+# Seconds to wait for stopped eDMA channels to finish their current minor loop.
+EDMA_STOP_TIMEOUT = 0.1
+
+# Seconds to try parking a CM7 that the SM keeps resetting, and the stack top for the parking loop.
+M7_PARK_TIMEOUT = 1.0
+# Seconds to wait on connect for a CM7 that the System Manager is still bringing out of reset.
+M7_RESET_TIMEOUT = 2.0
+M7_PARK_SP = 0x20040000
+
+# WDOG2 (the System Manager's watchdog) counter register and its 32-bit refresh word.
+WDOG2_CNT = 0x542E0004
+WDOG_REFRESH_KEY = 0xB480A602
 
 # FlexSPI XIP base, used as the app VTOR fallback when nothing better is known.
 FLEXSPI_BASE = 0x28000000
 
-# OCRAM scratch to park the CM7 in a known-good loop; OCRAM survives the M7-mix
-# slice reset (it is shared system RAM, outside the M7 mix).
-OCRAM_BASE = 0x20480000
-OCRAM_SIZE = 0x58000
-SAFE_LOOP_VTOR = OCRAM_BASE                # VTOR-aligned (bits[6:0] == 0)
-SAFE_LOOP_SP = OCRAM_BASE + OCRAM_SIZE
-# Reset handler at SAFE_LOOP_VTOR+0x08: LE halfwords 0xB672 (cpsid i), 0xE7FE (b .).
+# Parking loop code: LE halfwords 0xB672 (cpsid i), 0xE7FE (b .).
 SAFE_LOOP_CODE = 0xE7FEB672
 
-FLASH_ALGO_CM7 = {
+# One flash algorithm serves both cores: the same load address, FlexSPI registers and flash
+# window, and ProgramPage sends a write enable per 256-byte page, so it takes multi-page calls.
+FLASH_ALGO = {
     'load_address' : 0x20000000,
 
     # Flash algorithm as a hex string
@@ -136,19 +154,21 @@ FLASH_ALGO_CM7 = {
     'pc_unInit': 0x200002b5,
     'pc_program_page': 0x200004ed,
     'pc_erase_sector': 0x2000040d,
-    'pc_eraseAll': 0x200002c5,
+    # No pc_eraseAll: the blob's chip erase is a plain-SPI command (0xC4) that never waits for the erase.
 
     'static_base' : 0x20000000 + 0x00000004 + 0x000007e8,
     'begin_stack' : 0x200019f0,
     'end_stack' : 0x200009f0,
     'begin_data' : 0x20000000 + 0x1000,
-    'page_size' : 0x1000,
-    'analyzer_supported' : False,
-    'analyzer_address' : 0x00000000,
-    # Double buffers relocated above the algo stack for the multi-page ProgramPage loop.
+    # ProgramPage writes any multiple of 256 bytes, one write enable per 256-byte page.
+    'page_size' : 0x4000,
+    # pyocd's CRC32 analyzer; it encodes page address / page size in 16 bits, so pages
+    # must be at least 16 KB for the 0x28000000 flash window.
+    'analyzer_supported' : True,
+    'analyzer_address' : 0x2000C000,
     'page_buffers' : [
-        0x20002000,
-        0x20003000
+        0x20004000,
+        0x20008000
     ],
     'min_program_length' : 0x100,
 
@@ -169,214 +189,200 @@ FLASH_ALGO_CM7 = {
 }
 
 
-FLASH_ALGO_CM33 = {
-    'load_address' : 0x20000000,
 
-    # Flash algorithm as a hex string
-    'instructions': [
-    0xe7fdbe00,
-    0xf644b081, 0xf2c40120, 0x68084146, 0x98009000, 0x1080f440, 0x98009000, 0xb0016008, 0xbf004770,
-    0xf644b081, 0xf2c40120, 0x68084146, 0x98009000, 0x1080f420, 0x98009000, 0xb0016008, 0xbf004770,
-    0xb092b580, 0x910e900f, 0x2000920d, 0x900c9001, 0x8110f3ef, 0x9111b672, 0xf2c52200, 0xf242422e,
-    0x60115122, 0x5194f64e, 0x0100f2ce, 0xf7ff6008, 0x9801ffc7, 0x1194f240, 0x413cf2c4, 0xf2406008,
-    0xf2c441f4, 0x2201413c, 0x600a9202, 0x3398f240, 0x433cf2c4, 0x6019217e, 0x1398f240, 0x433cf2c4,
-    0xf2406018, 0xf2c43c9c, 0xf2404c3c, 0xf8cc33fe, 0xf2403000, 0xf2c41c9c, 0xf8cc4c3c, 0xf2400000,
-    0xf2c43ca0, 0xf8cc4c3c, 0xf2403000, 0xf2c41390, 0x6018433c, 0x43d0f240, 0x433cf2c4, 0xf240601a,
-    0xf2c43394, 0x6019433c, 0x1170f240, 0x413cf2c4, 0xf2406008, 0xf2c441d4, 0x600a413c, 0x3374f240,
-    0x433cf2c4, 0x91032102, 0xf2406019, 0xf2c41374, 0x6018433c, 0x43d8f240, 0x433cf2c4, 0xf240601a,
-    0xf2c43378, 0x6019433c, 0x1378f240, 0x433cf2c4, 0xf2406018, 0xf2c443dc, 0x601a433c, 0x337cf240,
-    0x433cf2c4, 0xf2406019, 0xf2c4137c, 0x6018433c, 0x43e0f240, 0x433cf2c4, 0xf240601a, 0xf2c43380,
-    0x6019433c, 0x1380f240, 0x433cf2c4, 0xf2406018, 0xf2c443e4, 0x601a433c, 0x3384f240, 0x433cf2c4,
-    0xf2406019, 0xf2c41384, 0x6018433c, 0x43e8f240, 0x433cf2c4, 0xf240601a, 0xf2c43388, 0x6019433c,
-    0x1388f240, 0x433cf2c4, 0xf2406018, 0xf2c443ec, 0x601a433c, 0x338cf240, 0x433cf2c4, 0xf2406019,
-    0xf2c4138c, 0x6018433c, 0x43f0f240, 0x433cf2c4, 0xf240601a, 0xf2c43290, 0x6011423c, 0xf2c42100,
-    0x60084140, 0x0100f640, 0x4140f2c4, 0xf6426008, 0xf2c42180, 0xf2404145, 0x60082003, 0xf6c221e4,
-    0xf04f0103, 0x60084010, 0x2803980d, 0xe7ffd109, 0xf2c42100, 0xf243215e, 0xf6cf1012, 0x600870ff,
-    0x2100e008, 0x215ef2c4, 0x0032f243, 0x70fff6cf, 0xe7ff6008, 0xf2c42104, 0xf04f215e, 0x600830ff,
-    0xf2c42108, 0xf244215e, 0xf2c210f7, 0x60080000, 0xf2c4210c, 0x2038215e, 0x21206008, 0x215ef2c4,
-    0xf2c82000, 0x6008000f, 0xf2c42124, 0x6008215e, 0xf2c42128, 0x6008215e, 0xf2c4212c, 0x6008215e,
-    0xf2c42130, 0x6008215e, 0xf2c42134, 0x6008215e, 0xf2c42138, 0x6008215e, 0xf2c4213c, 0x2080215e,
-    0x0000f2c8, 0x21606008, 0x215ef2c4, 0x3000f44f, 0x21646008, 0x215ef2c4, 0x60082000, 0xf2c42168,
-    0x6008215e, 0xf2c4216c, 0x6008215e, 0xf2c42270, 0x2163225e, 0x0102f2c0, 0x22746011, 0x225ef2c4,
-    0x60112163, 0xf2c42278, 0x6011225e, 0xf2c4227c, 0x6011225e, 0xf2c42280, 0xf44f225e, 0x60116110,
-    0xf2c42184, 0x6008215e, 0xf2c42188, 0x6008215e, 0xf2c4218c, 0x6008215e, 0xf2c42194, 0x20c3215e,
-    0x980d6008, 0xd1032803, 0xf000e7ff, 0xe009fa11, 0xf2c421c0, 0x2079215e, 0x21c46008, 0x215ef2c4,
-    0xe7ff6008, 0xf2c42100, 0x9100215e, 0xf0206808, 0x60080002, 0xf820f000, 0x68089900, 0x0001f040,
-    0xe7ff6008, 0xf2c42000, 0x6800205e, 0xb10807c0, 0xe7f7e7ff, 0xf848f000, 0x980c900c, 0xe7ffb118,
-    0x9010980c, 0x980ce002, 0xe7ff9010, 0xb0129810, 0xbf00bd80, 0xbf00bf00, 0x2118b081, 0x215ef2c4,
-    0x20f0f645, 0x20f0f6c5, 0x211c6008, 0x215ef2c4, 0x60082002, 0x90002000, 0x9800e7ff, 0xd813283b,
-    0x9a00e7ff, 0x40e0f240, 0x0000f2c0, 0xf8504478, 0xf2400022, 0xf2c42100, 0xf841215e, 0xe7ff0022,
-    0x30019800, 0xe7e89000, 0xf2c42118, 0xf645215e, 0xf6c520f0, 0x600820f0, 0xf2c4211c, 0x2001215e,
-    0xb0016008, 0xbf004770, 0xb084b580, 0x93012300, 0x90002002, 0x461a4619, 0xf84ef000, 0x98029002,
-    0xe7ffb118, 0x90039802, 0x2008e019, 0x466a2100, 0xf0002301, 0x9002f841, 0xb1189802, 0x9802e7ff,
-    0xe00c9003, 0xf0002001, 0x9002f8f7, 0xb1189802, 0x9802e7ff, 0xe0029003, 0x90039802, 0x9803e7ff,
-    0xbd80b004, 0xbf00bf00, 0x9000b081, 0xb0012000, 0xbf004770, 0xbf00bf00, 0xb082b580, 0x93002300,
-    0x46192004, 0xf000461a, 0x9000f817, 0xb1189800, 0x9800e7ff, 0xe0099001, 0x2300200b, 0x461a4619,
-    0xf80af000, 0x98009000, 0xe7ff9001, 0xb0029801, 0xbf00bd80, 0xbf00bf00, 0x9007b088, 0x92059106,
-    0x3012f8ad, 0x90032000, 0xf2c42180, 0x6808215e, 0x4000f040, 0x21146008, 0x215ef2c4, 0x703ff640,
-    0x98066008, 0xf2c421a0, 0x6008215e, 0xf8bd9907, 0xea400012, 0x21a44001, 0x215ef2c4, 0x21bc6008,
-    0x215ef2c4, 0x60082001, 0xf2c421b0, 0x6008215e, 0xf8bde7ff, 0xb3d00012, 0xf8bde7ff, 0x28070012,
-    0xe7ffd804, 0x0012f8bd, 0xe0029000, 0x90002008, 0x9800e7ff, 0xf2409001, 0xf2c41080, 0x9002205e,
-    0x2014e7ff, 0x205ef2c4, 0x06406800, 0xd4012800, 0xe7f6e7ff, 0xf1019905, 0x90050008, 0x68496808,
-    0xe9c29a02, 0x20140100, 0x205ef2c4, 0x60012140, 0xf8bd9a01, 0x1a891012, 0x1012f8ad, 0xf0106800,
-    0xd0030f0a, 0x2001e7ff, 0xe0009003, 0xe7ffe7c1, 0xf2c420e0, 0x6800205e, 0x28000780, 0xe7ffd401,
-    0x2014e7f6, 0x205ef2c4, 0xf0106800, 0xd0030f0a, 0x2001e7ff, 0xe7ff9003, 0xb0089803, 0xbf004770,
-    0xb084b580, 0x98029002, 0x4058f100, 0x23009001, 0x20049300, 0x461a4619, 0xff6ef7ff, 0x98009000,
-    0xe7ffb118, 0x90039800, 0x9901e023, 0x23002005, 0xf7ff461a, 0x9000ff61, 0xb1189800, 0x9800e7ff,
-    0xe0169003, 0xf0002001, 0x9000f817, 0xf2c42100, 0x6808215e, 0x0001f040, 0xe7ff6008, 0xf2c42000,
-    0x6800205e, 0xb10807c0, 0xe7f7e7ff, 0x90039800, 0x9803e7ff, 0xbd80b004, 0xb086b580, 0x0013f88d,
-    0x0013f89d, 0x200107c1, 0xbf182900, 0x9000200a, 0x9800e7ff, 0xaa022100, 0xf0002301, 0x9001f8a5,
-    0xb1189801, 0x9801e7ff, 0xe0169005, 0x0008f89d, 0xb12007c0, 0x2001e7ff, 0x0012f88d, 0x2000e003,
-    0x0012f88d, 0xe7ffe7ff, 0x0012f89d, 0x280007c0, 0xe7ffd1df, 0x90059801, 0x9805e7ff, 0xbd80b006,
-    0xb088b580, 0x91059006, 0x98069204, 0x4058f100, 0x23009003, 0xf44f9302, 0x90017080, 0x46192004,
-    0xf7ff461a, 0x9002fef9, 0xb1189802, 0x9802e7ff, 0xe03a9007, 0x90002000, 0x9800e7ff, 0x42889905,
-    0xe7ffd230, 0x9a049903, 0x3004f8bd, 0xf7ff2007, 0x9002fee3, 0xb1189802, 0x9802e7ff, 0xe0249007,
-    0xf7ff2001, 0x9002ff99, 0xf2c42100, 0x6808215e, 0x0001f040, 0xe7ff6008, 0xf2c42000, 0x6800205e,
-    0xb10807c0, 0xe7f7e7ff, 0x9901e7ff, 0x44089800, 0x99019000, 0x44089804, 0x99019004, 0x44089803,
-    0xe7ca9003, 0x90079802, 0x9807e7ff, 0xbd80b008, 0x23c0b081, 0x235ef2c4, 0x60182002, 0xf2c422c4,
-    0x6010225e, 0x60182000, 0x21796010, 0x60116019, 0xe7ff9000, 0xf2489800, 0xf2c0619f, 0x42880101,
-    0xe7ffdc10, 0xf2c420e8, 0x6800205e, 0x1003f000, 0x1f03f1b0, 0xe7ffd101, 0xe7ffe004, 0x30019800,
-    0xe7e79000, 0x4770b001, 0x9007b088, 0x92059106, 0x3012f8ad, 0x90032000, 0xf2c42180, 0xf640215e,
-    0xf2c81000, 0x60080000, 0xf2c42114, 0xf640215e, 0x6008703f, 0x21a09806, 0x215ef2c4, 0x99076008,
-    0x0012f8bd, 0x4001ea40, 0xf2c421a4, 0x6008215e, 0xf2c421b8, 0x2001215e, 0x21b06008, 0x215ef2c4,
-    0xe7ff6008, 0x0012f8bd, 0xe7ffb3d0, 0x0012f8bd, 0xd8042807, 0xf8bde7ff, 0x90000012, 0x2008e002,
-    0xe7ff9000, 0x90019800, 0x1000f240, 0x205ef2c4, 0xe7ff9002, 0xf2c42014, 0x6800205e, 0x28000680,
-    0xe7ffd401, 0x9802e7f6, 0x0200e9d0, 0xf1019905, 0x93050308, 0x6008604a, 0xf2c42014, 0x2120205e,
-    0x9a016001, 0x1012f8bd, 0xf8ad1a89, 0x68001012, 0x0f0af010, 0xe7ffd003, 0x90032001, 0xe7c1e000,
-    0x20e0e7ff, 0x205ef2c4, 0x07806800, 0xd4012800, 0xe7f6e7ff, 0xf2c42014, 0x6800205e, 0x0f0af010,
-    0xe7ffd003, 0x90032001, 0x9803e7ff, 0x4770b008, 0x871187ee, 0xb3288b20, 0x0000a704, 0x00000000,
-    0x24040405, 0x00000000, 0x00000000, 0x00000000, 0x00000406, 0x00000000, 0x00000000, 0x00000000,
-    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x87f98706, 0x00000000, 0x00000000, 0x00000000,
-    0x87de8721, 0x00008b20, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-    0x87ed8712, 0xa3048b20, 0x00000000, 0x00000000, 0x04000472, 0x04000400, 0x20010400, 0x00000000,
-    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x87fa8705, 0xb3048b20, 0x0000a704, 0x00000000,
-    0x8b2007c4, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-    0x000007b7, 0x00000000, 0x00000000, 0x00000000, 0xa7010770, 0x00000000, 0x00000000, 0x00000000,
-    0x00000000
-    ],
+# XSPI1 pad mux, daisy select and pad control writes for the FlexSPI1 port A octal NOR.
+XSPI1_PAD_WRITES = (
+    # IOMUXC_PAD_XSPI1_SCLK__FLEXSPI1_A_SCLK
+    (0x443C0194, 0x0), (0x443C04F4, 0x1), (0x443C0398, 0x7e),
+    # IOMUXC_PAD_XSPI1_SS0_B__FLEXSPI1_A_SS0_B
+    (0x443C0198, 0x0), (0x443C039C, 0x3fe),
+    # IOMUXC_PAD_XSPI1_SS1_B__FLEXSPI1_A_SS1_B
+    (0x443C019C, 0x0), (0x443C03A0, 0x3fe),
+    # IOMUXC_PAD_XSPI1_DQS__FLEXSPI1_A_DQS
+    (0x443C0190, 0x0), (0x443C04D0, 0x1), (0x443C0394, 0x7e),
+    # IOMUXC_PAD_XSPI1_DATA0__FLEXSPI1_A_DATA_BIT0
+    (0x443C0170, 0x0), (0x443C04D4, 0x1), (0x443C0374, 0x2),
+    # IOMUXC_PAD_XSPI1_DATA1__FLEXSPI1_A_DATA_BIT1
+    (0x443C0174, 0x0), (0x443C04D8, 0x1), (0x443C0378, 0x2),
+    # IOMUXC_PAD_XSPI1_DATA2__FLEXSPI1_A_DATA_BIT2
+    (0x443C0178, 0x0), (0x443C04DC, 0x1), (0x443C037C, 0x2),
+    # IOMUXC_PAD_XSPI1_DATA3__FLEXSPI1_A_DATA_BIT3
+    (0x443C017C, 0x0), (0x443C04E0, 0x1), (0x443C0380, 0x2),
+    # IOMUXC_PAD_XSPI1_DATA4__FLEXSPI1_A_DATA_BIT4
+    (0x443C0180, 0x0), (0x443C04E4, 0x1), (0x443C0384, 0x2),
+    # IOMUXC_PAD_XSPI1_DATA5__FLEXSPI1_A_DATA_BIT5
+    (0x443C0184, 0x0), (0x443C04E8, 0x1), (0x443C0388, 0x2),
+    # IOMUXC_PAD_XSPI1_DATA6__FLEXSPI1_A_DATA_BIT6
+    (0x443C0188, 0x0), (0x443C04EC, 0x1), (0x443C038C, 0x2),
+    # IOMUXC_PAD_XSPI1_DATA7__FLEXSPI1_A_DATA_BIT7
+    (0x443C018C, 0x0), (0x443C04F0, 0x1), (0x443C0390, 0x2),
+)
 
-    # Relative function addresses
-    'pc_init': 0x20000045,
-    'pc_unInit': 0x2000046d,
-    'pc_program_page': 0x200006a5,
-    'pc_erase_sector': 0x200005c5,
-    'pc_eraseAll': 0x2000047d,
+class FlexSpiFlashBuilder(FlashBuilder):
+    """Erases each sector while the host loads the sector's first page, then programs the sector.
 
-    'static_base' : 0x20000000 + 0x00000004 + 0x000009a0,
-    'begin_stack' : 0x20001bb0,
-    'end_stack' : 0x20000bb0,
-    'begin_data' : 0x20000000 + 0x1000,
-    'page_size' : 0x100,
-    'analyzer_supported' : False,
-    'analyzer_address' : 0x00000000,
-    # Enable double buffering
-    'page_buffers' : [
-        0x200009b0,
-        0x20000ab0
-    ],
-    'min_program_length' : 0x100,
+    The algo's Init sets FlexSPI up the same way for ERASE and PROGRAM (only VERIFY differs), so the
+    whole erase and program sequence runs under one PROGRAM init.
+    """
 
-    # Relative region addresses and sizes
-    'ro_start': 0x4,
-    'ro_size': 0x9a0,
-    'rw_start': 0x9a4,
-    'rw_size': 0x4,
-    'zi_start': 0x9a8,
-    'zi_size': 0x0,
+    def _erase_sectors(self, progress_cb=None):
+        # Deferred to program(), which erases each sector right before programming it.
+        if not (self.flash.is_double_buffering_supported and self.enable_double_buffering):
+            super()._erase_sectors(progress_cb)
 
-    # Flash information
-    'flash_start': 0x28000000,
-    'flash_size': 0x4000000,
-    'sector_sizes': (
-        (0x0, 0x1000),
-    )
-}
+    def _program_double_buffer(self, progress_cb=lambda _: None):
+        flash = self.flash
+        options = flash.target.session.options
+        sectors = [s for s in self.sector_list if s.are_any_pages_not_same()]
+        if not sectors:
+            return
+        flash.init(flash.Operation.PROGRAM)
+        buf = 0
+        for done, sector in enumerate(sectors, 1):
+            first = sector.page_list[0]
+            addrs = list(sector.addrs) if self.region.is_erasable else []
+            step = -(-len(first.data) // max(len(addrs), 1))
+            for n, addr in enumerate(addrs):
+                flash._call_function(flash.flash_algo['pc_erase_sector'], addr)
+                flash.target.write_memory_block8(flash.page_buffers[buf] + n * step,
+                                                 first.data[n * step:(n + 1) * step])
+                result = flash.wait_for_completion(timeout=options.get('flash.timeout.erase_sector'))
+                if result != 0:
+                    raise FlashEraseFailure('flash erase sector failure', address=addr, result_code=result)
+            if not addrs:
+                flash.load_page_buffer(buf, first.addr, first.data)
+            for i, page in enumerate(sector.page_list):
+                flash.start_program_page_with_buffer(buf, page.addr)
+                if i + 1 < len(sector.page_list):
+                    nxt = sector.page_list[i + 1]
+                    flash.load_page_buffer(1 - buf, nxt.addr, nxt.data)
+                result = flash.wait_for_completion(timeout=options.get('flash.timeout.program'))
+                if result != 0:
+                    raise FlashProgramFailure('flash program page failure', address=page.addr, result_code=result)
+                buf = 1 - buf
+            progress_cb(done / len(sectors))
+        flash.uninit()
+
 
 class FlexSpiFlash(Flash):
+    _restore_read = False
 
-    def init(self, operation, address=None, clock=0, reset=True):
-        # The FlexSPI/IOMUX bring-up below only needs to run once per prepare cycle
-        was_prepared = self._did_prepare_target
-        super().init(operation, address, clock, reset)
-        if was_prepared:
-            return
+    def get_flash_builder(self):
+        return FlexSpiFlashBuilder(self)
 
-        LOG.debug(f"FlexSPI Init {self.target.ap3}")
+    def uninit(self):
+        # FlashBuilder uninits before cleanup, so remember that FlexSPI is left in a write setup.
+        self._restore_read |= self._active_operation in (self.Operation.ERASE, self.Operation.PROGRAM)
+        super().uninit()
 
-        # IOMUXC_PAD_XSPI1_SCLK__FLEXSPI1_A_SCLK
-        self.target.ap3.write32(0x443C0194, 0x0)
-        self.target.ap3.write32(0x443C04F4, 0x1)
-        self.target.ap3.write32(0x443C0398, 0x7E)
+    def cleanup(self):
+        # Init for VERIFY puts FlexSPI back in its read setup and clears the AHB read buffers; without
+        # it, reads and the app's XIP fetches can see stale data from the erase or program setup.
+        try:
+            if self._restore_read or self._active_operation in (self.Operation.ERASE, self.Operation.PROGRAM):
+                self._restore_read = False
+                self.init(self.Operation.VERIFY)
+        finally:
+            super().cleanup()
 
-        # IOMUXC_PAD_XSPI1_SS0_B__FLEXSPI1_A_SS0_B
-        self.target.ap3.write32(0x443C0198, 0x0)
-        self.target.ap3.write32(0x443C039C, 0x3fe)
+    def prepare_target(self):
+        # Runs once per prepare, with the CM7 halted and before the algo is loaded.
+        for addr, value in XSPI1_PAD_WRITES:
+            self.target.ap3.write32(addr, value)
 
-        # IOMUXC_PAD_XSPI1_SS1_B__FLEXSPI1_A_SS1_B
-        self.target.ap3.write32(0x443C019C, 0x0)
-        self.target.ap3.write32(0x443C03A0, 0x3fe)
-
-        # IOMUXC_PAD_XSPI1_DQS__FLEXSPI1_A_DQS
-        self.target.ap3.write32(0x443C0190, 0x0)
-        self.target.ap3.write32(0x443C04D0, 0x1)
-        self.target.ap3.write32(0x443C0394, 0x7E)
-
-        # IOMUXC_PAD_XSPI1_DATA0__FLEXSPI1_A_DATA_BIT0
-        self.target.ap3.write32(0x443C0170, 0x0)
-        self.target.ap3.write32(0x443C04D4, 0x1)
-        self.target.ap3.write32(0x443C0374, 0x002)
-
-        # IOMUXC_PAD_XSPI1_DATA1__FLEXSPI1_A_DATA_BIT1
-        self.target.ap3.write32(0x443C0174, 0x0)
-        self.target.ap3.write32(0x443C04D8, 0x1)
-        self.target.ap3.write32(0x443C0378, 0x002)
-
-        # IOMUXC_PAD_XSPI1_DATA2__FLEXSPI1_A_DATA_BIT2
-        self.target.ap3.write32(0x443C0178, 0x0)
-        self.target.ap3.write32(0x443C04DC, 0x1)
-        self.target.ap3.write32(0x443C037C, 0x002)
-
-        # IOMUXC_PAD_XSPI1_DATA3__FLEXSPI1_A_DATA_BIT3
-        self.target.ap3.write32(0x443C017C, 0x0)
-        self.target.ap3.write32(0x443C04E0, 0x1)
-        self.target.ap3.write32(0x443C0380, 0x002)
-
-        # IOMUXC_PAD_XSPI1_DATA4__FLEXSPI1_A_DATA_BIT4
-        self.target.ap3.write32(0x443C0180, 0x0)
-        self.target.ap3.write32(0x443C04E4, 0x1)
-        self.target.ap3.write32(0x443C0384, 0x002)
-
-        # IOMUXC_PAD_XSPI1_DATA5__FLEXSPI1_A_DATA_BIT5
-        self.target.ap3.write32(0x443C0184, 0x0)
-        self.target.ap3.write32(0x443C04E8, 0x1)
-        self.target.ap3.write32(0x443C0388, 0x002)
-
-        # IOMUXC_PAD_XSPI1_DATA6__FLEXSPI1_A_DATA_BIT6
-        self.target.ap3.write32(0x443C0188, 0x0)
-        self.target.ap3.write32(0x443C04EC, 0x1)
-        self.target.ap3.write32(0x443C038C, 0x002)
-
-        # IOMUXC_PAD_XSPI1_DATA7__FLEXSPI1_A_DATA_BIT7
-        self.target.ap3.write32(0x443C018C, 0x0)
-        self.target.ap3.write32(0x443C04F0, 0x1)
-        self.target.ap3.write32(0x443C0390, 0x002)
-
-        # Disable cache
-        self.target.ap3.write32(0x44400000, 0x0)
-        self.target.ap3.write32(0x44400800, 0x0)
-
-        # Set FlexSPI0 clock to 200MHz
+        # flexspi1_clk_root (CCM root 85) = SYS_PLL1_DFS1 / 4 = 200 MHz
         self.target.ap3.write32(0x44452A80, 0x203)
 
-class MyCortexM(CortexM):
-    def reset(self, reset_type=None):
-        self.target.reset(reset_type)
+class FlexSpiFlashCm33(FlexSpiFlash):
+    # The algo replaces System Manager code, so a CM33 flash ends with the SoC reset (SYSRESETREQ).
 
-    def reset_and_halt(self, reset_type=None):
-        self.target.reset_and_halt(reset_type)
+    def prepare_target(self):
+        # A running CM7 fetches code from the same NOR through FlexSPI, and the algo then hangs now
+        # and then until WDOG2 resets the SoC. Halt the CM7; the SoC reset after the flash restarts it.
+        try:
+            AccessPort.create(self.target.dp, APv1Address(2)).write32(
+                    CortexM.DHCSR, CortexM.DBGKEY | CortexM.C_DEBUGEN | CortexM.C_HALT)
+        except TransferError:
+            self.target.dp.clear_sticky_err()
+        super().prepare_target()
+        # Disable the CM33 code and system caches, which sit between the algo and the flash.
+        self.target.ap3.write32(0x44400000, 0x0)
+        self.target.ap3.write32(0x44400800, 0x0)
+        # MPU off, so the System Manager's regions do not cover the algo, its buffers or FlexSPI.
+        self.target.ap3.write32(MPU_CTRL, 0x0)
 
-    def set_target(self, target):
-        self.target = target
+    def _call_function(self, pc, *args, **kwargs):
+        # WDOG2 stops only while the CM33 is halted, so it counts while the algo runs; one call
+        # must finish within its 2 s timeout.
+        # ponytail: a chip erase runs longer than that in one call; refresh from the wait loop if needed.
+        self.target.ap3.write32(WDOG2_CNT, WDOG_REFRESH_KEY)
+        super()._call_function(pc, *args, **kwargs)
+
+class CM7Core(CortexM):
+    # The CM7 next to a running System Manager: core-only restart into the application, parking
+    # of a core the System Manager keeps resetting, and its own eDMA channels quiesced first.
+    def _get_actual_reset_type(self, reset_type):
+        # SYSRESETREQ asks the System Manager to reset the M7 logical machine. Every other type,
+        # DEFAULT from the CLI and gdbserver included, is the core-only restart: a probe or SRC
+        # reset would hit the SoC or the M7 behind the System Manager's back.
+        reset_type = super()._get_actual_reset_type(reset_type)
+        return reset_type if reset_type is Target.ResetType.SYSRESETREQ else Target.ResetType.EMULATED
+
+    def _perform_emulated_reset(self):
+        # Restart from the app vector table instead of the boot region, with the MPU off.
+        vtor = self._app_vtor()
+        demcr = self.read32(CortexM.DEMCR)
+        self.write32(CortexM.DEMCR, demcr | CortexM.DEMCR_VC_CORERESET)
+        try:
+            super()._perform_emulated_reset()
+        finally:
+            self.write32(CortexM.DEMCR, demcr)
+        if self.session.options.get("imx95.stop_dma"):
+            self._stop_dma(self.session.target.m7_dma_channels())
+        self.write32(MPU_CTRL, 0)
+        # Fault status bits are write-one-to-clear; the stock reset writes 0 and leaves them set.
+        self.write_memory_block32(CM7_CFSR, [0xFFFFFFFF, 0xFFFFFFFF])
+        self.write32(CortexM.FPCCR, CM7_FPCCR_RESET)
+        self.write32(CortexM.VTOR, vtor)
+        self.write_core_registers_raw(['msp', 'pc'], [self.read32(vtor), self.read32(vtor + 4) & ~1])
+        LOG.debug(f"CM7 restart from VTOR 0x{vtor:08X}")
+        if (demcr & CortexM.DEMCR_VC_CORERESET) == 0:
+            self.resume()
+
+    def _stop_dma(self, channels):
+        # The old image's eDMA channels keep running through a core restart and write into the next
+        # image. Clear ERQ, wait for ACTIVE to drop, then clear DONE and INT (both write-one-to-clear).
+        for page in channels:
+            csr = self.read32(page)
+            if csr & EDMA_CH_CSR_ERQ:
+                self.write32(page, csr & ~(EDMA_CH_CSR_ERQ | EDMA_CH_CSR_DONE))
+        deadline = time.monotonic() + EDMA_STOP_TIMEOUT
+        for page in channels:
+            while self.read32(page) & EDMA_CH_CSR_ACTIVE:
+                if time.monotonic() > deadline:
+                    LOG.warning(f"eDMA channel at 0x{page:08X} still active after the stop")
+                    break
+        for page in channels:
+            csr = self.read32(page)
+            if csr & EDMA_CH_CSR_DONE:
+                self.write32(page, csr & ~EDMA_CH_CSR_ERQ)
+            self.write32(page + EDMA_CH_INT, EDMA_CH_INT_INT)
+
+    def _app_vtor(self):
+        # Priority: -O vtor, else the live VTOR when it holds an app table, else the flash base.
+        # A table whose reset handler directly follows it is a parking loop, not an app.
+        opt = self.session.options.get("vtor")
+        if opt:
+            return int(opt, 0)
+        try:
+            if not self.read32(CortexM.DHCSR) & CortexM.S_LOCKUP:
+                vtor = self.read32(CortexM.VTOR)
+                if not (vtor & 0x7F) and self.memory_map.is_valid_address(vtor) \
+                        and (self.read32(vtor + 4) & ~1) != vtor + 8:
+                    return vtor
+        except TransferError:
+            pass
+        return FLEXSPI_BASE
 
 
 class MIMX95_CM7(CoreSightTarget):
@@ -396,19 +402,75 @@ class MIMX95_CM7(CoreSightTarget):
         )
 
     def __init__(self, session):
-        self.AP_NUM = 0
-        self._app_vtor = None  # app VTOR captured before parking in the safe loop
         super(MIMX95_CM7, self).__init__(session, self.memoryMap)
+        self._dma_channels = None
 
     def power_up_m7mix(self):
-        self._discoverer._create_1_ap(3)
-        self.ap3 = self.dp.aps[3]  # CM33 MEM‑AP
-        self.ap3.write32(SRC_M7MIX_SLICE_SW_CTRL, 0x00000000)
+        # CM33 MEM-AP, used only as a bus master for the SRC, IOMUXC and CCM. It is kept out of
+        # dp.aps so that discovery does not set up the System Manager core's DWT, ITM and breakpoint
+        # unit. The M7 slice reset line is the System Manager's; never write SLICE_SW_CTRL.
+        self.ap3 = AccessPort.create(self.dp, APv1Address(3))
         self._discoverer._create_1_ap(2)
         self.ap2 = self.dp.aps[2]  # CM7 MEM‑AP
+        self.connect_dhcsr = self._read_connect_dhcsr()
+        if self._wait_m7_out_of_reset():
+            self._park_m7_reset_loop()
 
-        cpu_sleep_hold = self.ap2.read32(0x4447080c)
-        self.ap2.write32(0x4447080c, cpu_sleep_hold & ~(1 << 1))
+        misc = self.ap2.read32(GPC_CM7_CM_MISC)
+        self.ap2.write32(GPC_CM7_CM_MISC, misc & ~GPC_CM_MISC_SLEEP_HOLD_EN)
+
+    def _read_connect_dhcsr(self):
+        # Reading DHCSR clears S_RESET_ST, so the first read is kept and logged for scripts.
+        try:
+            dhcsr = self.ap2.read32(CortexM.DHCSR)
+        except TransferError:
+            self.dp.clear_sticky_err()
+            LOG.info("CM7 DHCSR at connect: read faulted")
+            return None
+        reset = " (reset since the last read)" if dhcsr & CortexM.S_RESET_ST else ""
+        LOG.info(f"CM7 DHCSR at connect 0x{dhcsr:08X}{reset}")
+        return dhcsr
+
+    def _wait_m7_out_of_reset(self):
+        # After a system reset the System Manager releases the M7 later than the debug port comes
+        # up, and the ROM table and SCB reads of discovery fault until then. Wait until a DHCSR read
+        # answers without S_RESET_ST (no reset since the previous read), or shows a lockup.
+        # Returns True on a lockup. In a lockup-reset loop only some reads catch S_LOCKUP.
+        deadline = time.monotonic() + M7_RESET_TIMEOUT
+        while time.monotonic() < deadline:
+            try:
+                dhcsr = self.ap2.read32(CortexM.DHCSR)
+                if dhcsr & CortexM.S_LOCKUP:
+                    return True
+                if not dhcsr & CortexM.S_RESET_ST:
+                    return False
+            except TransferError:
+                self.dp.clear_sticky_err()
+            time.sleep(0.01)
+        LOG.warning("CM7 did not come out of reset on connect")
+        return False
+
+    def _park_m7_reset_loop(self):
+        # On a CM7 lockup the SM resets the M7 and boots it from the boot vector (INITVTOR). If that
+        # image is broken, the M7 locks up again within a millisecond, forever, and its debug
+        # registers fault while it is in reset. Replace the broken boot vector with a parking loop.
+        boot = self.ap3.read32(SRC_M7_INIT_VTOR)
+        stub = [M7_PARK_SP, (boot + 8) | 1, SAFE_LOOP_CODE]
+        deadline = time.monotonic() + M7_PARK_TIMEOUT
+        # Each M7 reset also resets the AP2 CSW (address increment off) behind pyOCD's cached copy.
+        while time.monotonic() < deadline:
+            self.ap2._invalidate_cache()
+            try:
+                self.ap2.write_memory_block32(boot, stub)
+                if self.ap2.read_memory_block32(boot, len(stub)) == stub:
+                    LOG.warning(f"CM7 boot image at 0x{boot:08X} locks up; replaced its vectors with a "
+                                f"parking loop (a power cycle restores the boot image)")
+                    time.sleep(0.1)
+                    self.ap2._invalidate_cache()
+                    return
+            except TransferError:
+                self.dp.clear_sticky_err()
+        LOG.warning("CM7 keeps locking up and its boot vector could not be replaced")
 
     def create_init_sequence(self):
         seq = super(MIMX95_CM7, self).create_init_sequence()
@@ -421,82 +483,30 @@ class MIMX95_CM7(CoreSightTarget):
             )
         return seq
 
-    def _read_valid_live_vtor(self):
-        try:
-            if self.ap2.read32(CM7_DHCSR) & CM7_DHCSR_S_LOCKUP_MASK:
-                LOG.debug("CM7 is locked up; ignoring live VTOR")
-                return None
-            vtor = self.ap2.read32(CM7_VTOR)
-        except TransferError as err:
-            LOG.debug(f"could not read live VTOR: {err}")
-            return None
-        if (vtor & 0x7F) or vtor == SAFE_LOOP_VTOR or not self.memory_map.is_valid_address(vtor):
-            LOG.debug(f"live VTOR 0x{vtor:08X} is not a valid app vector table")
-            return None
-        return vtor
-
-    def _determine_app_vtor(self):
-        # Priority: -O vtor override, else a healthy live VTOR, else flash base.
-        opt = self.session.options.get("vtor")
-        if opt:
-            return int(opt, 0)
-        live = self._read_valid_live_vtor()
-        return live if live is not None else FLEXSPI_BASE
-
-    def _write_safe_loop_stub(self):
-        # Minimal vector table + "cpsid i; b ." loop in OCRAM to park the CM7.
-        self.ap2.write32(SAFE_LOOP_VTOR + 0x0, SAFE_LOOP_SP)
-        self.ap2.write32(SAFE_LOOP_VTOR + 0x4, (SAFE_LOOP_VTOR + 0x8) | 1)
-        self.ap2.write32(SAFE_LOOP_VTOR + 0x8, SAFE_LOOP_CODE)
-
-    def reset_and_halt(self, reset_type=None, map_to_user=True):
-        if self._app_vtor is None:
-            self._app_vtor = self._determine_app_vtor()
-        LOG.debug(f"captured app VTOR = 0x{self._app_vtor:08X}")
-        self._write_safe_loop_stub()
-        self.reset(reset_type, vtor=SAFE_LOOP_VTOR)
-        self.halt()
-
-        self._discoverer._create_1_ap(2)
-        self.ap2 = self.dp.aps[2]  # CM7 MEM‑AP
-        self.create_cores()
-
-    def reset(self, reset_type=None, vtor=None):
-        if vtor is None:
-            vtor = self._app_vtor
-
-        LOG.debug(f"TYPE = {reset_type}")
-        self.ap3.write32(SRC_M7_INIT_VTOR, vtor)
-        val = self.ap3.read32(SRC_M7_INIT_VTOR)
-        LOG.debug(f"ENTRY = 0x{val:08X}")
-        
-        rb = self.ap3.read32(SRC_M7MIX_SLICE_SW_CTRL)
-        val = self.ap3.read32(SRC_M7MIX_SLICE_RSTR_STAT)
-        LOG.debug(f"SRC_M7MIX_SLICE_RSTR_STAT = 0x{val:08X} RB = 0x{rb:08X}")
-
-        rb = self.ap3.read32(SRC_M7MIX_SLICE_SW_CTRL)
-        self.ap3.write32(SRC_M7MIX_SLICE_SW_CTRL, rb | SRC_M7MIX_SLICE_SW_CTRL_RSTR_0_MASK)
-        time.sleep(4 / 1000.0)
-        val = self.ap3.read32(SRC_M7MIX_SLICE_RSTR_STAT)
-        LOG.debug(f"SRC_M7MIX_SLICE_RSTR_STAT = 0x{val:08X} RB = 0x{rb:08X}")
-
-        rb = self.ap3.read32(SRC_M7MIX_SLICE_SW_CTRL)
-        self.ap3.write32(SRC_M7MIX_SLICE_SW_CTRL, rb & ~SRC_M7MIX_SLICE_SW_CTRL_RSTR_0_MASK)
-
-        val = self.ap3.read32(SRC_M7MIX_SLICE_RSTR_STAT)
-        LOG.debug(f"SRC_M7MIX_SLICE_RSTR_STAT = 0x{val:08X} RB = 0x{rb:08X}")
+    def m7_dma_channels(self):
+        # CH_CSR addresses of the eDMA channels the CM7 may access. The System Manager's TRDC
+        # config decides that, so each channel page is read once through the CM7 MEM-AP: pages of
+        # other domains fault. eDMA2 channel pairs share one TRDC block, so one read covers two.
+        if self._dma_channels is None:
+            groups = [[EDMA2_CH0 + (n + i) * EDMA2_CH_STEP for i in (0, 1)] for n in range(0, 64, 2)]
+            groups += [[EDMA3_CH0 + n * EDMA3_CH_STEP] for n in range(32)]
+            self._dma_channels = []
+            for group in groups:
+                try:
+                    self.ap2.read32(group[0])
+                    self._dma_channels += group
+                except TransferError:
+                    self.dp.clear_sticky_err()
+            LOG.debug(f"CM7 owns {len(self._dma_channels)} eDMA channels")
+        return self._dma_channels
 
     def find_aps(self):
-        if self.dp.valid_aps is not None:
-            return
-        self.dp.read_ap(0xFC)
-        self.dp.valid_aps = [2]
-        AccessPort.create(self.dp, APv1Address(0))
+        if self.dp.valid_aps is None:
+            self.dp.valid_aps = [2]
 
     def create_cores(self):
-        core0 = MyCortexM(self.session, self.aps[2], self.memory_map, 0)
-        core0.default_reset_type = self.ResetType.DEFAULT
-        core0.set_target(self)
+        core0 = CM7Core(self.session, self.aps[2], self.memory_map, 0)
+        core0.default_reset_type = self.ResetType.EMULATED
 
         self.aps[2].core = core0
 
@@ -505,12 +515,6 @@ class MIMX95_CM7(CoreSightTarget):
         self.add_core(core0)
 
 class MIMX95_CM7_MX25UM(MIMX95_CM7):
-    VENDOR = "NXP"
-
-    # Note: itcm, dtcm share a single 512 KB block of RAM that can be configurably
-    # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
-    # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and
-    # will not actually be available in all regions simultaneously.
     memoryMap = MemoryMap(
         RamRegion(name="itcm",              start=0x00000000, length=0x80000), # 512 KB
         RomRegion(name="romcp",             start=0x00100000, length=0x40000), # 256 KB
@@ -518,34 +522,24 @@ class MIMX95_CM7_MX25UM(MIMX95_CM7):
         RamRegion(name="ocram",             start=0x20480000, length=0x58000), # 352 KB
         RamRegion(name="aips",              start=0x40000000, length=0x10000000),
         FlashRegion(name="flexspi",         start=0x28000000, length=0x7FFFFFF, blocksize=0x1000,
-            is_boot_memory=True, algo=FLASH_ALGO_CM7, page_size=0x1000, flash_class=FlexSpiFlash),
+            is_boot_memory=True, algo=FLASH_ALGO, page_size=0x4000, flash_class=FlexSpiFlash),
         RamRegion(name="ddr",              start=0x80000000, end=0xdfffffff, is_external=True)
         )
-
-    def __init__(self, session):
-        self.AP_NUM = 0
-        self._app_vtor = None  # app VTOR captured before parking in the safe loop
-        super(MIMX95_CM7, self).__init__(session, self.memoryMap)
 
 class MIMX95_CM33(CoreSightTarget):
 
     VENDOR = "NXP"
 
-    # Note: itcm, dtcm share a single 512 KB block of RAM that can be configurably
-    # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
-    # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and
-    # will not actually be available in all regions simultaneously.
     memoryMap = MemoryMap(
-        RamRegion(name="codetcm",           start=0x0ff80000, length=0x80000, is_boot_memory=True), # 512 KB
+        RamRegion(name="codetcm",           start=0x1ffc0000, length=0x40000, is_boot_memory=True), # 256 KB
         RomRegion(name="romcp",             start=0x00000000, length=0x40000), # 256 KB
-        RamRegion(name="systemtcm",         start=0x20000000, length=0x80000), # 512 KB
+        RamRegion(name="systemtcm",         start=0x20000000, length=0x40000), # 256 KB
         RamRegion(name="ocram",             start=0x20480000, length=0x58000), # 352 KB
         RamRegion(name="aips",              start=0x40000000, length=0x10000000),
         RamRegion(name="ddr",              start=0x80000000, end=0xdfffffff, is_external=True)
         )
 
     def __init__(self, link):
-        self.AP_NUM = 1
         super(MIMX95_CM33, self).__init__(link, self.memoryMap)
 
     def create_init_sequence(self):
@@ -558,12 +552,14 @@ class MIMX95_CM33(CoreSightTarget):
             )
         return seq
 
-    def disconnect(self, resume: bool):
-        # Force no-resume during teardown
-        super().disconnect(False)
+    def disconnect(self, resume: bool = True):
+        # The CM33 runs the System Manager, which must not stay halted or under debug control.
+        super().disconnect(True)
 
     def reset_and_halt(self, reset_type=None, map_to_user=True):
-        super(MIMX95_CM33, self).reset_and_halt(self.ResetType.EMULATED)
+        # A CM33 reset is a SoC reset, and an emulated reset points VTOR at the flash, so an
+        # exception taken while the algo runs locks the core up. Halt only.
+        self.halt()
 
     def find_aps(self):
         if self.dp.valid_aps is not None:
@@ -583,25 +579,18 @@ class MIMX95_CM33(CoreSightTarget):
         self.add_core(core0)
 
         self.ap3 = self.aps[3]
-        
-        # Disable watchdog
-        self.ap3.write32(0x542E0000, 0x2522)
 
 class MIMX95_CM33_MX25UM(MIMX95_CM33):
 
     VENDOR = "NXP"
 
-    # Note: itcm, dtcm share a single 512 KB block of RAM that can be configurably
-    # divided between those regions (this is called FlexRAM). Thus, the memory map regions for
-    # each of these RAMs allocate the maximum possible of 512 KB, but that is the maximum and
-    # will not actually be available in all regions simultaneously.
     memoryMap = MemoryMap(
-        RamRegion(name="codetcm",           start=0x0ff80000, length=0x80000), # 512 KB
+        RamRegion(name="codetcm",           start=0x1ffc0000, length=0x40000), # 256 KB
         RomRegion(name="romcp",             start=0x00000000, length=0x40000), # 256 KB
-        RamRegion(name="systemtcm",         start=0x20000000, length=0x80000), # 512 KB
+        RamRegion(name="systemtcm",         start=0x20000000, length=0x40000), # 256 KB
         RamRegion(name="ocram",             start=0x20480000, length=0x58000), # 352 KB
         RamRegion(name="aips",              start=0x40000000, length=0x10000000),
         FlashRegion(name="flexspi",         start=0x28000000, length=0x7FFFFFF, blocksize=0x1000,
-            is_boot_memory=True, algo=FLASH_ALGO_CM33, page_size=0x100, flash_class=FlexSpiFlash),
+            is_boot_memory=True, algo=FLASH_ALGO, page_size=0x4000, flash_class=FlexSpiFlashCm33),
         RamRegion(name="ddr",              start=0x80000000, end=0xdfffffff, is_external=True)
         )
