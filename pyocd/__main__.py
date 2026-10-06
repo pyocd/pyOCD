@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # pyOCD debugger
-# Copyright (c) 2018-2020 Arm Limited
+# Copyright (c) 2018-2020,2026 Arm Limited
 # Copyright (c) 2020 Cypress Semiconductor Corporation
 # Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
@@ -36,6 +36,7 @@ from .subcommands.base import SubcommandBase
 from .subcommands.commander_cmd import CommanderSubcommand
 from .subcommands.erase_cmd import EraseSubcommand
 from .subcommands.gdbserver_cmd import GdbserverSubcommand
+from .subcommands.info_cmd import InfoSubcommand
 from .subcommands.json_cmd import JsonSubcommand
 from .subcommands.list_cmd import ListSubcommand
 from .subcommands.load_cmd import LoadSubcommand
@@ -60,6 +61,7 @@ class PyOCDTool(SubcommandBase):
         EraseSubcommand,
         LoadSubcommand,
         GdbserverSubcommand,
+        InfoSubcommand,
         JsonSubcommand,
         ListSubcommand,
         PackSubcommand,
