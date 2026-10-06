@@ -29,14 +29,15 @@ The `pyocd` command line tool gives you total control over your device with thes
     [several GUI debugger options](https://pyocd.io/docs/gdb_setup).
 - `load`: Program files of various formats into flash or RAM.
 - `erase`: Erase part or all of an MCU's flash memory.
+- `run`: Load and run the target.
+- `reset`: Hardware or software reset of a device.
+- `info`: Display information about the connected target.
 - `pack`: Manage [CMSIS Device Family Packs](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/index.html)
     that provide additional target device support.
 - `commander`: Interactive REPL control and inspection of the MCU.
 - `server`: Share a debug probe with a TCP/IP server.
-- `reset`: Hardware or software reset of a device.
 - `rtt`: Stream Segger RTT IO with _any_ debug probe.
 - `list`: Show connected devices.
-- `run`: Load and run the target.
 
 The API and tools provide these features:
 

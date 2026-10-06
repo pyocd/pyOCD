@@ -16,11 +16,11 @@
 
 import argparse
 import logging
-from typing import (Any, List)
+from typing import List
 
 from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
-from ..coresight.core_ids import CortexMExtension
+from ..core.core_target import CoreTarget
 from ..utility.cmdline import convert_session_options
 
 LOG = logging.getLogger(__name__)
@@ -40,12 +40,12 @@ class InfoSubcommand(SubcommandBase):
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, info_parser]
 
     @staticmethod
-    def _print_core(core: Any, show_core_number: bool) -> None:
+    def _print_core(core: CoreTarget, show_core_number: bool) -> None:
         """@brief Display the information and detected features of a core."""
         core_label = "CPU core"
         if show_core_number:
             core_label += f" #{core.core_number}"
-        core_info = f"{core_label}: {getattr(core, 'name', 'Unknown')}"
+        core_info = f"{core_label}: {core.name}"
         revision = getattr(core, 'cpu_revision', None)
         patch = getattr(core, 'cpu_patch', None)
         if revision is not None and patch is not None:
@@ -83,8 +83,7 @@ class InfoSubcommand(SubcommandBase):
                             blocking=False,
                             connect_mode=self._args.connect_mode,
                             command=self._args.cmd,
-                            options=convert_session_options(
-                                self._args.options),
+                            options=convert_session_options(self._args.options),
                             option_defaults=self._modified_option_defaults(),
                             )
         if session is None:
@@ -98,9 +97,7 @@ class InfoSubcommand(SubcommandBase):
             assert session.probe
             assert session.target
 
-            print(
-                f"Debug Probe: {session.probe.description} "
-                f"[{session.probe.unique_id}]")
+            print(f"Debug Probe: {session.probe.description} [{session.probe.unique_id}]")
 
             protocol = session.probe.wire_protocol
             frequency = session.options.get('frequency')
