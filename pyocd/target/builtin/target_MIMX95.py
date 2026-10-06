@@ -286,6 +286,10 @@ class FlexSpiFlash(Flash):
             super().cleanup()
 
     def prepare_target(self):
+        # Any path that programs the NOR (gdb load included) rewrites code under a core that may be
+        # running the old image: restart it first so caches are off, NVIC, SysTick and eDMA are quiet
+        # and VTOR, MSP and PC hold the app table before the algo is loaded.
+        self.target.reset_and_halt()
         # Runs once per prepare, with the CM7 halted and before the algo is loaded.
         for addr, value in XSPI1_PAD_WRITES:
             self.target.ap3.write32(addr, value)

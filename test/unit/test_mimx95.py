@@ -134,6 +134,7 @@ def test_prepare_target_writes(flash_class, cm33_caches_off):
     f.target = mock.Mock()
     with mock.patch.object(imx95.AccessPort, 'create') as create:
         f.prepare_target()
+    assert f.target.mock_calls[0] == mock.call.reset_and_halt()
     writes = [c.args for c in f.target.ap3.write32.call_args_list]
     caches = [(0x44400000, 0), (0x44400800, 0), (imx95.MPU_CTRL, 0)] if cm33_caches_off else []
     assert writes == list(imx95.XSPI1_PAD_WRITES) + [(0x44452A80, 0x203)] + caches
