@@ -337,7 +337,6 @@ class TestFlmRegionBuilder:
         assert submap[4].sector_size == 0x10000
         assert submap[5].sector_size == 0x20000
 
-    # Both test FLMs erase to 0xff, which is also the region default, so pretend they erase to 0.
     def test_single_sector_size_erased_value(self, builder: FlmFlashRegionBuilder, nrf5340appflm, monkeypatch):
         monkeypatch.setattr(nrf5340appflm.flash_info, 'value_empty', 0x00)
         flash = memory_map.FlashRegion(0, length=0x200000, flm=nrf5340appflm)
