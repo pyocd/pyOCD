@@ -426,11 +426,17 @@ class GDBServer(threading.Thread):
 
     def trace_flush(self) -> None:
         if self.board.target.trace_enabled:
-            self.board.target.trace_flush(self.target)
+            try:
+                self.board.target.trace_flush(self.target)
+            except Exception as error:
+                LOG.debug("Trace flush failed for core %d: %s", self.core, error, exc_info=self.session.log_tracebacks)
 
     def trace_capture(self) -> None:
         if self.board.target.trace_enabled:
-            self.board.target.trace_capture(self.target)
+            try:
+                self.board.target.trace_capture(self.target)
+            except Exception as error:
+                LOG.debug("Trace capture failed for core %d: %s", self.core, error, exc_info=self.session.log_tracebacks)
 
     def _init_remote_commands(self):
         """@brief Initialize the remote command processor infrastructure."""
