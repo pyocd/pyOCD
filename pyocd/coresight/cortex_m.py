@@ -1206,6 +1206,27 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
     def find_breakpoint(self, addr: int) -> Optional[Breakpoint]:
         return self.bp_manager.find_breakpoint(addr)
 
+    def skip_breakpoint_instruction(self, exclude_semihosting: bool = False) -> bool:
+        """@brief Skip an BKPT instruction.
+
+        @return True if a BKPT instruction was skipped, otherwise False.
+        """
+
+        pc = self.read_core_register('pc')
+
+        instruction = self.read16(pc)
+        if (instruction & 0xff00) != 0xbe00:
+            return False
+
+        if exclude_semihosting and instruction == 0xbeab:
+            return False
+
+        self.write_core_register('pc', pc + 2)
+        LOG.debug("Skipped breakpoint at 0x%08x", pc)
+        self._run_token += 1
+
+        return True
+
     def check_reg_list(self, reg_list: Sequence[CoreRegisterNameOrNumberType]) -> None:
         """@brief Sanity check register values and raise helpful errors."""
         for reg in reg_list:
