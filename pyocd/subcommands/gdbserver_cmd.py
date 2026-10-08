@@ -35,6 +35,8 @@ from ..trace.swv import SWVReader
 from ..probe.tcp_probe_server import DebugProbeServer
 from ..coresight.generic_mem_ap import GenericMemAPTarget
 from ..utility.notification import Notification
+from ..utility.rtt_manager import RTTConfig
+from ..utility.systemview import SystemViewConfig
 
 LOG = logging.getLogger(__name__)
 
@@ -221,6 +223,13 @@ class GdbserverSubcommand(SubcommandBase):
                     session.probeserver = probe_server
                     probe_server.start()
 
+                rtt_config_list = {
+                    core_number: RTTConfig(_session=session, _target=core, _core=core_number)
+                    for core_number, core in session.board.target.cores.items()
+                    if core_number in core_list and not isinstance(core, GenericMemAPTarget)
+                }
+                systemview_config = SystemViewConfig(_session=session)
+
                 # Initialize SWV reader before any GDB activity.
                 if session.options.get("enable_swv"):
                     if "swv_system_clock" not in session.options:
@@ -245,7 +254,11 @@ class GdbserverSubcommand(SubcommandBase):
                     # Don't create a server if this core is not listed by the user.
                     if core_number not in core_list:
                         continue
-                    gdb = GDBServer(session=session, core=core_number, target_running=target_running)
+                    gdb = GDBServer(session=session,
+                                    core=core_number,
+                                    target_running=target_running,
+                                    rtt_config=rtt_config_list[core_number],
+                                    systemview_config=systemview_config)
                     # Only subscribe to the server for the first core, so echo messages aren't printed
                     # multiple times.
                     if not gdbs:
