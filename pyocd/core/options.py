@@ -165,6 +165,10 @@ BUILTIN_OPTIONS = [
         "Duration in seconds that a failed target status check will be retried before an error is raised. "
         "Only applies while the target is running after a resume operation in the debugger and pyOCD is waiting "
         "for it to halt again."),
+    OptionInfo('live.status_fault_retry_timeout', float, None,
+        "Timeout in seconds for retrying target status reads that fail with a transfer error while a server "
+        "monitors a core. A successful read clears the retry period. If the timeout expires, the server "
+        "instance for that core exits. If the option is omitted, retries continue indefinitely."),
     OptionInfo('gdbserver_port', (int, tuple), 3333,
         "Base TCP port for the gdbserver."),
     OptionInfo('persist', bool, False,
