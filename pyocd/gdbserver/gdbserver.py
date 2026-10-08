@@ -148,21 +148,15 @@ class GDBClientSession(threading.Thread):
         self._cleanup_lock = threading.Lock()
         self._did_cleanup = False
 
+    def start_packet_io(self) -> None:
+        """@brief Start packet processing before attaching this client to the target."""
+        self._packet_io = GDBServerPacketIOThread(self._connected_socket, self.index)
 
     def run(self) -> None:
         # Set the log filter to include the client index in messages from this thread.
         _client_log_filter.set_client(self.index)
 
         LOG.debug("Thread started")
-        try:
-            self._packet_io = GDBServerPacketIOThread(self._connected_socket, self.index)
-        except Exception as e:
-            LOG.error("Error starting packet I/O thread: %s", e, exc_info=self._server.session.log_tracebacks)
-            return
-
-        self.shutdown_event.clear()
-        self.is_attached_to_target = True
-
         try:
             while not self.shutdown_event.is_set() and not self._server.shutdown_event.is_set():
                 try:
@@ -229,8 +223,8 @@ class GDBClientSession(threading.Thread):
             LOG.info("Client %d disconnected from port %d", self.index, self._server.port)
 
     # packet_io wrapper methods
-    def send(self, data):
-        return self._packet_io.send(data)
+    def send(self, data) -> None:
+        self._packet_io.send(data)
 
     def receive(self, block=True):
         return self._packet_io.receive(block)
@@ -528,15 +522,21 @@ class GDBServer(threading.Thread):
                         index = self.client_last_index
                     # Open client session
                     client = GDBClientSession(self, connected_socket, index)
-                    with self.client_sessions_lock:
-                        self.client_sessions.append(client)
+                    client.start_packet_io()
+                    with self.lock:
+                        if self.shutdown_event.is_set():
+                            raise RuntimeError("GDB server is shutting down")
 
-                    # Make sure the target is halted. Otherwise gdb gets easily confused.
-                    self.target.halt()
-                    self.is_target_running = False
-                    self.trace_flush()
+                        client.is_attached_to_target = True
+                        with self.client_sessions_lock:
+                            self.client_sessions.append(client)
 
-                    # Start the per-client handler thread (server.run_session() will be invoked there).
+                        # Make sure the target is halted. Otherwise gdb gets easily confused.
+                        self.target.halt()
+                        self.is_target_running = False
+                        self.trace_flush()
+
+                    # Start the client command loop after target attachment.
                     client.start()
                     if remote_address:
                         LOG.info("Client %d connected on port %d from remote address %s", index, self.port, remote_address)
