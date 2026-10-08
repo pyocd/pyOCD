@@ -362,6 +362,8 @@ class GDBServer(threading.Thread):
 
         # Coarse grain lock to synchronize activity
         self.lock = threading.RLock()
+        self._cleanup_lock = threading.RLock()
+        self._did_cleanup = False
 
         self.session.subscribe(self.event_handler, Target.Event.POST_RESET)
 
@@ -454,39 +456,79 @@ class GDBServer(threading.Thread):
         self._command_context.command_set.add_command_group('gdbserver')
 
     def stop(self, wait=True):
+        self.shutdown_event.set()
         if self.is_alive():
-            self.shutdown_event.set()
             if wait:
                 LOG.debug("GDB server on port %d shutdown event; waiting for thread exit", self.port)
                 self.join()
             else:
                 LOG.debug("GDB server on port %d shutdown event", self.port)
             LOG.info("GDB server on port %d stopped", self.port)
-
+        else:
+            self._cleanup()
 
     def _cleanup_client_sessions(self):
         # Stop and clean client sessions
         with self.client_sessions_lock:
             clients = list(self.client_sessions)
         for client in clients:
-            client.stop()
-            with self.client_sessions_lock:
-                if client in self.client_sessions:
-                    self.client_sessions.remove(client)
+            try:
+                client.stop()
+            except Exception as e:
+                LOG.debug("Error stopping client %d: %s", client.index, e, exc_info=self.session.log_tracebacks)
+
+            # stop() normally performs cleanup; call it again in case stop() failed before closing the connection.
+            try:
+                client.cleanup()
+            except Exception as e:
+                LOG.debug("Error cleaning up client %d: %s", client.index, e, exc_info=self.session.log_tracebacks)
+            finally:
+                with self.client_sessions_lock:
+                    if client in self.client_sessions:
+                        self.client_sessions.remove(client)
 
     def _cleanup(self):
-        LOG.debug("GDB server on port %d cleaning up", self.port)
-        self._cleanup_client_sessions()
-        if self.semihost:
-            self.semihost.cleanup()
-            self.semihost = None
-        if self.stdio_handler:
-            self.stdio_handler.shutdown()
-            self.stdio_handler = None
-        if self.rtt_server:
-            self.rtt_server.stop()
-            self.rtt_server = None
-        self.listen_socket.close()
+        self.shutdown_event.set()
+        # stop() and the server thread can both request cleanup, so release resources only once.
+        with self._cleanup_lock:
+            if self._did_cleanup:
+                return
+            self._did_cleanup = True
+
+            LOG.debug("GDB server on port %d cleaning up", self.port)
+            try:
+                self._cleanup_client_sessions()
+            except Exception as e:
+                LOG.debug("Error cleaning up client sessions on port %d: %s", self.port, e, exc_info=self.session.log_tracebacks)
+
+            if self.rtt_server is not None:
+                try:
+                    self.rtt_server.stop()
+                except Exception as e:
+                    LOG.debug("Error stopping RTT server for core %d: %s", self.core, e, exc_info=self.session.log_tracebacks)
+                finally:
+                    self.rtt_server = None
+
+            if self.semihost is not None:
+                try:
+                    self.semihost.cleanup()
+                except Exception as e:
+                    LOG.debug("Error cleaning up semihosting for core %d: %s", self.core, e, exc_info=self.session.log_tracebacks)
+                finally:
+                    self.semihost = None
+
+            if self.stdio_handler is not None:
+                try:
+                    self.stdio_handler.shutdown()
+                except Exception as e:
+                    LOG.debug("Error shutting down stdio for core %d: %s", self.core, e, exc_info=self.session.log_tracebacks)
+                finally:
+                    self.stdio_handler = None
+
+            try:
+                self.listen_socket.close()
+            except Exception as e:
+                LOG.debug("Error closing listener socket on port %d: %s", self.port, e, exc_info=self.session.log_tracebacks)
 
     def run(self):
         LOG.info("GDB server listening on port %d (core %d)", self.port, self.core)
