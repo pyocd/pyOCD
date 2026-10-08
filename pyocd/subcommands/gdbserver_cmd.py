@@ -25,10 +25,7 @@ from time import sleep
 from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
 from ..core.session import Session
-from ..utility.cmdline import (
-    convert_session_options,
-    split_command_line,
-    )
+from ..utility.cmdline import (convert_session_options, split_command_line)
 from ..probe.shared_probe_proxy import SharedDebugProbeProxy
 from ..gdbserver import GDBServer
 from ..trace.swv import SWVReader
@@ -142,34 +139,35 @@ class GdbserverSubcommand(SubcommandBase):
         swv_reader = None
         systemview = None
         gdbs = []
+
+        # Build dict of session options.
+        sessionOptions = convert_session_options(self._args.options)
+        modifiable_options = {
+            'gdbserver_port' : self._args.port_number,
+            'telnet_port' : self._args.telnet_port,
+            'persist' : self._args.persist,
+            'step_into_interrupt' : self._args.step_into_interrupt,
+            'chip_erase': self._args.erase,
+            'fast_program' : self._args.trust_crc,
+            'enable_semihosting' : self._args.enable_semihosting,
+            'serve_local_only' : self._args.serve_local_only,
+            'vector_catch' : self._args.vector_catch,
+            'soft_bkpt_as_hard' : self._args.soft_bkpt_as_hard,
+            }
+        modified_options = {k: v for k, v in modifiable_options.items() if v is not None}
+        sessionOptions.update(modified_options)
+
+        # Split list of cores to serve.
+        if self._args.core is not None:
+            try:
+                core_list = {int(x) for x in self._args.core.split(',')}
+            except ValueError as err:
+                LOG.error("Invalid value passed to --core")
+                return 1
+        else:
+            core_list = None
+
         try:
-            # Build dict of session options.
-            sessionOptions = convert_session_options(self._args.options)
-            modifiable_options = {
-                'gdbserver_port' : self._args.port_number,
-                'telnet_port' : self._args.telnet_port,
-                'persist' : self._args.persist,
-                'step_into_interrupt' : self._args.step_into_interrupt,
-                'chip_erase': self._args.erase,
-                'fast_program' : self._args.trust_crc,
-                'enable_semihosting' : self._args.enable_semihosting,
-                'serve_local_only' : self._args.serve_local_only,
-                'vector_catch' : self._args.vector_catch,
-                'soft_bkpt_as_hard' : self._args.soft_bkpt_as_hard,
-                }
-            modified_options = {k: v for k, v in modifiable_options.items() if v is not None}
-            sessionOptions.update(modified_options)
-
-            # Split list of cores to serve.
-            if self._args.core is not None:
-                try:
-                    core_list = {int(x) for x in self._args.core.split(',')}
-                except ValueError as err:
-                    LOG.error("Invalid value passed to --core")
-                    return 1
-            else:
-                core_list = None
-
             # Get the probe.
             probe = ConnectHelper.choose_probe(
                         blocking=(not self._args.no_wait),
@@ -201,22 +199,50 @@ class GdbserverSubcommand(SubcommandBase):
             if session is None:
                 LOG.error("No probe selected.")
                 return 1
-            with session:
-                # Validate the core selection.
-                all_cores = set(session.target.cores.keys())
-                if core_list is None:
-                    core_list = all_cores
-                bad_cores = core_list.difference(all_cores)
-                if len(bad_cores):
-                    LOG.error("Invalid core number%s: %s",
-                        "s" if len(bad_cores) > 1 else "",
-                        ", ".join(str(x) for x in bad_cores))
-                    return 1
 
-                # Set ELF if provided.
-                if self._args.elf:
-                    session.board.target.elf = os.path.expanduser(self._args.elf)
+        except Exception as e:
+            LOG.error("Exception occurred while creating session: %s", e)
+            return 1
 
+        with session:
+            # Validate the core selection.
+            all_cores = set(session.target.cores.keys())
+            if core_list is None:
+                core_list = all_cores
+            bad_cores = core_list.difference(all_cores)
+            if len(bad_cores):
+                LOG.error("Invalid core number%s: %s",
+                    "s" if len(bad_cores) > 1 else "",
+                    ", ".join(str(x) for x in bad_cores))
+                return 1
+
+            # Set ELF if provided.
+            if self._args.elf:
+                session.board.target.elf = os.path.expanduser(self._args.elf)
+
+            try:
+                # Process RTT configuration
+                rtt_config_list = {
+                    core_number: RTTConfig(_session=session, _target=core, _core=core_number)
+                    for core_number, core in session.board.target.cores.items()
+                    if core_number in core_list and not isinstance(core, GenericMemAPTarget)
+                }
+            except Exception as e:
+                LOG.warning("Exception occurred while processing RTT configuration: %s", e)
+
+            try:
+                # Process SystemView configuration
+                systemview_config = SystemViewConfig(_session=session)
+                if any(cfg.has_rtt_config and cfg.num_systemview_channels > 0 for cfg in rtt_config_list.values()):
+                    systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list,
+                                                    systemview_config=systemview_config)
+            except Exception as e:
+                LOG.warning("Exception occurred while processing SystemView configuration: %s", e)
+
+            # Check whether we are using the attach mode
+            attached = session.options.get("connect_mode") == 'attach'
+
+            try:
                 # Run the probe server is requested.
                 if self._args.enable_probe_server:
                     probe_server = DebugProbeServer(session, session.probe,
@@ -224,15 +250,10 @@ class GdbserverSubcommand(SubcommandBase):
                     session.probeserver = probe_server
                     probe_server.start()
 
-                rtt_config_list = {
-                    core_number: RTTConfig(_session=session, _target=core, _core=core_number)
-                    for core_number, core in session.board.target.cores.items()
-                    if core_number in core_list and not isinstance(core, GenericMemAPTarget)
-                }
-                systemview_config = SystemViewConfig(_session=session)
-                if any(cfg.has_rtt_config and cfg.num_systemview_channels > 0 for cfg in rtt_config_list.values()):
-                    systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list,
-                                                systemview_config=systemview_config)
+                # Halt all cores if required
+                if attached and (self._args.reset_run or session.board.target.trace_enabled):
+                    for core in session.board.target.cores.values():
+                        core.halt()
 
                 # Initialize SWV reader before any GDB activity.
                 if session.options.get("enable_swv"):
@@ -244,11 +265,25 @@ class GdbserverSubcommand(SubcommandBase):
                         swv_reader = SWVReader(session)
                         swv_reader.init(sys_clock, swo_clock, sys.stdout)
 
-                target_running = None
-                # Reset and run the target
+                # Reset the cores if requested before starting the GDB servers.
                 if self._args.reset_run:
+                    for core in session.board.target.cores.values():
+                        core.set_reset_catch()
                     session.board.target.reset()
-                    target_running = True
+                    for core in session.board.target.cores.values():
+                        core.clear_reset_catch()
+
+                # Start trace capture before running the target
+                if session.board.target.trace_enabled:
+                    session.board.target.trace_capture()
+
+                # Resume target if it was previously attached or if a reset_run was requested.
+                if attached and (self._args.reset_run or session.board.target.trace_enabled):
+                    for core in session.board.target.cores.values():
+                        core.resume()
+
+                # Determine if the target is running based on attach mode or reset_run argument
+                target_running = attached or self._args.reset_run
 
                 # Start up the gdbservers.
                 for core_number, core in session.board.target.cores.items():
@@ -273,20 +308,25 @@ class GdbserverSubcommand(SubcommandBase):
 
                 while any(g.is_alive() for g in gdbs):
                     sleep(0.1)
+
+            except KeyboardInterrupt:
+                LOG.info("KeyboardInterrupt received; shutting down GDB servers")
+                for server in gdbs:
+                    server.stop()
+                return 0
+            except Exception:
+                LOG.exception("Unhandled exception in 'gdbserver' subcommand")
+                for server in gdbs:
+                    server.stop()
+                raise
+            finally:
                 if probe_server:
                     probe_server.stop()
                 if swv_reader:
                     swv_reader.stop()
-        except (KeyboardInterrupt, Exception):
-            for server in gdbs:
-                server.stop()
-            if swv_reader:
-                swv_reader.stop()
-            if probe_server:
-                probe_server.stop()
-            raise
-        finally:
-            if systemview is not None:
-                systemview.assemble_file()
+                if session.board.target.trace_enabled:
+                    session.board.target.trace_flush()
+                if systemview:
+                    systemview.assemble_file()
 
         return 0
