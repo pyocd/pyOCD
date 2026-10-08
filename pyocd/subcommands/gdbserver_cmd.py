@@ -231,9 +231,11 @@ class GdbserverSubcommand(SubcommandBase):
                         swv_reader = SWVReader(session)
                         swv_reader.init(sys_clock, swo_clock, sys.stdout)
 
+                target_running = None
                 # Reset and run the target
                 if self._args.reset_run:
                     session.board.target.reset()
+                    target_running = True
 
                 # Start up the gdbservers.
                 for core_number, core in session.board.target.cores.items():
@@ -243,7 +245,7 @@ class GdbserverSubcommand(SubcommandBase):
                     # Don't create a server if this core is not listed by the user.
                     if core_number not in core_list:
                         continue
-                    gdb = GDBServer(session, core=core_number)
+                    gdb = GDBServer(session=session, core=core_number, target_running=target_running)
                     # Only subscribe to the server for the first core, so echo messages aren't printed
                     # multiple times.
                     if not gdbs:
