@@ -1621,9 +1621,7 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         @return @ref pyocd.core.target.Target.HaltReason "Target.HaltReason" enumerator or None.
         """
         dfsr = self.read32(CortexM.DFSR)
-        if dfsr & CortexM.DFSR_HALTED:
-            reason = Target.HaltReason.DEBUG
-        elif dfsr & CortexM.DFSR_BKPT:
+        if dfsr & CortexM.DFSR_BKPT:
             reason = Target.HaltReason.BREAKPOINT
         elif dfsr & CortexM.DFSR_DWTTRAP:
             reason = Target.HaltReason.WATCHPOINT
@@ -1631,6 +1629,8 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
             reason = Target.HaltReason.VECTOR_CATCH
         elif dfsr & CortexM.DFSR_EXTERNAL:
             reason = Target.HaltReason.EXTERNAL
+        elif dfsr & CortexM.DFSR_HALTED:
+            reason = Target.HaltReason.DEBUG
         else:
             reason = None
         return reason

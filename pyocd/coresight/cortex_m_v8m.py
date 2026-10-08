@@ -264,9 +264,7 @@ class CortexM_v8M(CortexM):
         @return @ref pyocd.core.target.Target.HaltReason "Target.HaltReason" enumerator or None.
         """
         dfsr = self.read32(self.DFSR)
-        if dfsr & self.DFSR_HALTED:
-            reason = Target.HaltReason.DEBUG
-        elif dfsr & self.DFSR_BKPT:
+        if dfsr & self.DFSR_BKPT:
             reason = Target.HaltReason.BREAKPOINT
         elif dfsr & self.DFSR_DWTTRAP:
             reason = Target.HaltReason.WATCHPOINT
@@ -276,6 +274,8 @@ class CortexM_v8M(CortexM):
             reason = Target.HaltReason.EXTERNAL
         elif dfsr & self.DFSR_PMU:
             reason = Target.HaltReason.PMU
+        elif dfsr & self.DFSR_HALTED:
+            reason = Target.HaltReason.DEBUG
         else:
             reason = None
         return reason
