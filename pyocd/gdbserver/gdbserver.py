@@ -1063,7 +1063,7 @@ class GDBServer(threading.Thread):
             if self.thread_provider is not None:
                 self.thread_provider.read_from_target = True
 
-        val = b''
+        rsp = b''
 
         # Timeout used only if the target starts returning faults. The is_running property of this timeout
         # also serves as a flag that a fault occurred and we're attempting to retry.
@@ -1072,52 +1072,57 @@ class GDBServer(threading.Thread):
         while fault_retry_timeout.check():
             if self.shutdown_event.is_set():
                 client.interrupt_clear()
-                return self.create_rsp_packet(val)
+                return self.create_rsp_packet(rsp)
 
+            # Yield between polls so other clients and RTT can use the target, and wake immediately on Ctrl-C.
             self.lock.release()
+            client.wait_for_interrupt(0.01)
+            self.lock.acquire()
 
-            # Wait for a ctrl-c to be received.
-            if client.wait_for_interrupt(0.01):
-                self.lock.acquire()
+            if client.shutdown_event.is_set() or client.is_connection_closed:
+                return None
+
+            if client.is_interrupted():
                 LOG.debug("Ctrl-C received, halting target")
-                client.interrupt_clear()
 
                 # Be careful about reading the target state. If we previously got a fault (the timeout
                 # is running) then ignore the error. In all cases we still return SIGINT.
                 try:
-                    self._halt_target()
-                    val = self.get_t_response(client, forceSignal=signals.SIGINT)
+                    halted_by_request = self._request_stop(client)
+                    force_signal = signals.SIGINT if halted_by_request else None
+                    rsp = self.get_t_response(client, forceSignal=force_signal)
                 except exceptions.TransferError as e:
                     # Note: if the target is not actually halted, gdb can get confused from this point on.
                     # But there's not much we can do if we're getting faults attempting to control it.
                     if not fault_retry_timeout.is_running:
-                        LOG.error("Error reading target status after halt: %s", e, exc_info=self.session.log_tracebacks)
-                    val = ('S%02x' % signals.SIGINT).encode()
+                        LOG.error("Error halting target: %s", e, exc_info=self.session.log_tracebacks)
+                    rsp = ('S%02x' % signals.SIGINT).encode()
+                finally:
+                    client.interrupt_clear()
                 break
 
-            self.lock.acquire()
-
             try:
-                self._read_and_process_target_state(client=client)
-
-                # A successful target read clears any pending transfer-error retry.
-                if fault_retry_timeout.is_running:
-                    LOG.info("Target control re-established.")
-                    fault_retry_timeout.clear()
-
+                if not self._is_halted:
+                    self._read_and_process_target_state(client=client)
+                if client.shutdown_event.is_set() or client.is_connection_closed:
+                    return None
                 if self._is_halted:
                     pc = self.target_context.read_core_register('pc')
                     LOG.debug("Target halted at pc=0x%08x", pc)
-                    val = self.get_t_response(client)
+                    rsp = self.get_t_response(client)
+                if fault_retry_timeout.is_running:
+                    LOG.info("Target control re-established.")
+                    fault_retry_timeout.clear()
+                if self._is_halted:
                     break
             except exceptions.TransferError as e:
                 # If we get any sort of transfer error or fault while checking target status, then start
-                # a timeout running. Upon a later successful status check, the timeout is cleared. In the event
+                # a timeout running. Upon a later successful target access, the timeout is cleared. In the event
                 # that the timeout expires, this loop is exited and an error raised to gdb.
                 if not fault_retry_timeout.is_running:
                     LOG.warning("Transfer error while checking target status; retrying: %s", e,
                             exc_info=self.session.log_tracebacks)
-                fault_retry_timeout.start()
+                    fault_retry_timeout.start()
             except exceptions.Error as e:
                 if not self._is_halted:
                     try:
@@ -1126,15 +1131,15 @@ class GDBServer(threading.Thread):
                         pass
                 LOG.warning("Error while target running: %s", e, exc_info=self.session.log_tracebacks)
                 # This exception was not a transfer error, so reading the target state should be ok.
-                val = ('S%02x' % client.target_facade.get_signal_value()).encode()
+                rsp = ('S%02x' % client.target_facade.get_signal_value()).encode()
                 break
 
         # Check if we exited the above loop due to a timeout after a fault.
         if fault_retry_timeout.did_time_out:
             LOG.error("Timeout re-establishing target control.")
-            val = ('S%02x' % signals.SIGSEGV).encode()
+            rsp = ('S%02x' % signals.SIGSEGV).encode()
 
-        return self.create_rsp_packet(val)
+        return self.create_rsp_packet(rsp)
 
     def _execute_step(self, client: GDBClientSession, start=0, end=0) -> None:
         """@brief Step once or over a range. Called with self.lock held."""
