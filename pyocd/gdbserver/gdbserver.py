@@ -33,6 +33,8 @@ from ..utility.conversion import (hex_to_byte_list, hex_encode, hex_decode, hex8
 from ..utility.compatibility import (to_bytes_safe, to_str_safe)
 from ..utility.timeout import Timeout
 from ..utility.rtt_server import RTTServer
+from ..utility.rtt_manager import RTTConfig, RTTManager
+from ..utility.systemview import SystemViewConfig
 from ..utility.sockets import ConnectedSocket, ListenerSocket
 from ..utility.stdio import StdioHandler
 from .syscall import GDBSyscallIOHandler
@@ -284,12 +286,15 @@ class GDBServer(threading.Thread):
     ## Timer delay for sending the notification that the server is listening.
     START_LISTENING_NOTIFY_DELAY = 0.03 # 30 ms
 
+    ## Interval for retrying automatic RTT discovery, in seconds.
+    _RTT_DISCOVERY_INTERVAL = 0.010
     ## RTT channel polling interval used by the service thread, in seconds.
     _RTT_POLL_INTERVAL = 0.001
     ## Target state polling interval used by the service thread, in seconds.
     _TARGET_STATE_INTERVAL = 0.010
 
-    def __init__(self, session, core=None, target_running: Optional[bool] = None):
+    def __init__(self, session, core=None, target_running: Optional[bool] = None,
+                 rtt_config: Optional[RTTConfig] = None, systemview_config: Optional[SystemViewConfig] = None):
         super().__init__(daemon=True)
         self.session = session
         self.board = session.board
@@ -362,9 +367,12 @@ class GDBServer(threading.Thread):
 
         # Coarse grain lock to synchronize activity
         self.lock = threading.RLock()
+
         self._active_run_client: Optional[GDBClientSession] = None
         self._cleanup_lock = threading.RLock()
         self._did_cleanup = False
+        self.rtt_server: Optional[RTTServer] = None
+        self._rtt_manager: Optional[RTTManager] = None
 
         self.session.subscribe(self.event_handler, Target.Event.POST_RESET)
 
@@ -381,8 +389,19 @@ class GDBServer(threading.Thread):
         self.semihost = semihost.SemihostAgent(self.target_context, io_handler=semihost_io_handler, console=semihost_console)
         self._semihosting_client = None
 
-        # Start with RTT disabled
-        self.rtt_server: Optional[RTTServer] = None
+        if rtt_config is None:
+            try:
+                rtt_config = RTTConfig(_session=session, _target=self.target, _core=self.core)
+            except Exception as error:
+                LOG.error("RTT configuration failed for core %d: %s", self.core, error, exc_info=self.session.log_tracebacks)
+
+        if rtt_config is not None and rtt_config.channels is not None:
+            try:
+                self._rtt_manager = RTTManager(session=session, core=self.core, rtt_config=rtt_config,
+                                               systemview_config=systemview_config or SystemViewConfig(_session=session))
+            except Exception as error:
+                LOG.error("RTT configuration failed for core %d: %s", self.core, error, exc_info=self.session.log_tracebacks)
+
         self._service_thread = threading.Thread(target=self._run_service_thread, daemon=True, name="gdb-service-%d" % self.core,)
 
         self._init_remote_commands()
@@ -458,6 +477,19 @@ class GDBServer(threading.Thread):
 
         # Add the gdbserver command group.
         self._command_context.command_set.add_command_group('gdbserver')
+
+    def _start_rtt(self) -> None:
+        """@brief Discover and configure RTT."""
+        try:
+            rtt_server = self._rtt_manager.start_server()
+            if rtt_server is not None:
+                if self.shutdown_event.is_set():
+                    rtt_server.stop()
+                    return
+                self.rtt_server = rtt_server
+                self._rtt_manager.configure_channels(stdio_handler=self.stdio_handler)
+        except Exception as error:
+            LOG.debug("RTT discovery failed for core %d: %s", self.core, error, exc_info=self.session.log_tracebacks)
 
     def _claim_active_run_client(self, client: GDBClientSession) -> bool:
         """@brief Claim exclusive run ownership."""
@@ -562,15 +594,28 @@ class GDBServer(threading.Thread):
         self.target.resume()
 
     def _run_service_thread(self) -> None:
-        """@brief Poll the existing RTT server and read target state."""
+        """@brief Poll RTT, retry discovery, and read target state."""
         fault_retry_timeout = Timeout(self.session.options.get('live.status_fault_retry_timeout'))
 
         now = time.monotonic()
-        rtt_poll_time = target_state_time = now
+        if self._rtt_manager is not None and self.rtt_server is None:
+            rtt_discovery_time = now
+        else:
+            rtt_discovery_time = float('inf')
+        rtt_poll_time = now
+        target_state_time = now
 
         while not self.shutdown_event.is_set():
             with self.lock:
                 now = time.monotonic()
+
+                # Discover RTT control block
+                if now >= rtt_discovery_time:
+                    rtt_discovery_time = now + self._RTT_DISCOVERY_INTERVAL
+                    if self._rtt_manager is not None and self.rtt_server is None:
+                        self._start_rtt()
+                        if self.rtt_server is not None:
+                            rtt_discovery_time = float('inf')
 
                 # Poll RTT
                 if now >= rtt_poll_time:
@@ -581,8 +626,8 @@ class GDBServer(threading.Thread):
                         except Exception as error:
                             LOG.debug("RTT poll failed for core %d: %s", self.core, error, exc_info=self.session.log_tracebacks)
                     else:
-                        # Check less often until a monitor command starts RTT.
-                        rtt_poll_time = now + self._TARGET_STATE_INTERVAL
+                        # RTT server might be started by a command; increase the poll interval for discovery.
+                        rtt_poll_time = now + self._RTT_DISCOVERY_INTERVAL
 
                 # Check target and handle target state
                 if now >= target_state_time:
@@ -616,8 +661,7 @@ class GDBServer(threading.Thread):
                         if fault_retry_timeout.is_running:
                             fault_retry_timeout.clear()
 
-            next_wake = min(rtt_poll_time, target_state_time)
-            wait_time = next_wake - time.monotonic()
+            wait_time = min(rtt_discovery_time, rtt_poll_time, target_state_time) - time.monotonic()
             if wait_time > 0.0:
                 self.shutdown_event.wait(wait_time)
 
