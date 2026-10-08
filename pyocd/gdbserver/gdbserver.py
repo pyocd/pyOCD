@@ -55,8 +55,8 @@ LOG = logging.getLogger(__name__)
 TRACE_MEM = LOG.getChild("trace.mem")
 TRACE_MEM.setLevel(logging.CRITICAL)
 
-# When a client thread sets the active index, this filter will
-# prepend "Client<index>: " to log messages emitted on that thread.
+# Prepend the explicit client index supplied by a log record, or fall back to
+# the active index set by a client thread.
 class _ClientLogFilter(logging.Filter):
     def __init__(self):
         super().__init__()
@@ -69,7 +69,9 @@ class _ClientLogFilter(logging.Filter):
         self._tls.client_index = None
 
     def filter(self, record: logging.LogRecord) -> bool:
-        idx = getattr(self._tls, 'client_index', None)
+        idx = getattr(record, 'client_index', None)
+        if idx is None:
+            idx = getattr(self._tls, 'client_index', None)
         if idx is not None:
             try:
                 msg = record.getMessage()
@@ -143,6 +145,8 @@ class GDBClientSession(threading.Thread):
         self.gdb_features = []
         self.target_facade = GDBDebugContextFacade(server.target_context)
         self.shutdown_event = threading.Event()
+        self._cleanup_lock = threading.Lock()
+        self._did_cleanup = False
 
 
     def run(self) -> None:
@@ -252,30 +256,34 @@ class GDBClientSession(threading.Thread):
     # Cleanup resources
     def cleanup(self):
         """
-        Gracefully stop the packet I/O handler and close the connected socket.
+        Gracefully stop the packet I/O handler.
         """
-        try:
-            if  self._packet_io is not None:
-                self._packet_io.stop()
-        except Exception as e:
-            LOG.debug("Error stopping packet I/O thread: %s", e, exc_info=self._server.session.log_tracebacks)
+        # Cleanup can be requested by both the client thread and the server thread.
+        # Serialize these paths and release the connection resources only once.
+        with self._cleanup_lock:
+            if self._did_cleanup:
+                return
+            self._did_cleanup = True
 
-        try:
-            if  self._connected_socket is not None:
+            try:
                 self._connected_socket.close()
-        except Exception as e:
-            LOG.debug("Error closing socket: %s", e, exc_info=self._server.session.log_tracebacks)
-        finally:
-            self.is_socket_connected = False
-
+                if self._packet_io is not None:
+                    self._packet_io._closed = True
+                    self._packet_io.stop()
+            except Exception as e:
+                LOG.debug("Error stopping packet I/O or closing socket: %s", e,
+                        exc_info=self._server.session.log_tracebacks,
+                        extra={'client_index': self.index})
+            finally:
+                self.is_socket_connected = False
 
     def stop(self, timeout: float = 1.0) -> None:
         self.shutdown_event.set()
-
-        # Only attempt to join if not in the same thread
         current_thread = threading.current_thread()
         if current_thread is not self:
-            self.join(timeout)
+            self.cleanup()
+            if self.is_alive():
+                self.join(timeout)
 
 class GDBServer(threading.Thread):
     """@brief GDB remote server thread.
