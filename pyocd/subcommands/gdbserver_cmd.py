@@ -36,7 +36,7 @@ from ..probe.tcp_probe_server import DebugProbeServer
 from ..coresight.generic_mem_ap import GenericMemAPTarget
 from ..utility.notification import Notification
 from ..utility.rtt_manager import RTTConfig
-from ..utility.systemview import SystemViewConfig
+from ..utility.systemview import SystemViewConfig, SystemViewSVDat
 
 LOG = logging.getLogger(__name__)
 
@@ -140,6 +140,7 @@ class GdbserverSubcommand(SubcommandBase):
 
         probe_server = None
         swv_reader = None
+        systemview = None
         gdbs = []
         try:
             # Build dict of session options.
@@ -229,6 +230,9 @@ class GdbserverSubcommand(SubcommandBase):
                     if core_number in core_list and not isinstance(core, GenericMemAPTarget)
                 }
                 systemview_config = SystemViewConfig(_session=session)
+                if any(cfg.has_rtt_config and cfg.num_systemview_channels > 0 for cfg in rtt_config_list.values()):
+                    systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list,
+                                                systemview_config=systemview_config)
 
                 # Initialize SWV reader before any GDB activity.
                 if session.options.get("enable_swv"):
@@ -281,5 +285,8 @@ class GdbserverSubcommand(SubcommandBase):
             if probe_server:
                 probe_server.stop()
             raise
+        finally:
+            if systemview is not None:
+                systemview.assemble_file()
 
         return 0
