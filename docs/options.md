@@ -632,6 +632,15 @@ applies while the target is running after a resume operation in the debugger and
 it to halt again.
 </td></tr>
 
+<tr><td>live.status_fault_retry_timeout</td>
+<td>float</td>
+<td>No default</td>
+<td>
+Timeout in seconds for retrying target status reads that fail with a transfer error while a server
+monitors a core. A successful read clears the retry period. If the timeout expires, the server
+instance for that core exits. If the option is omitted, retries continue indefinitely.
+</td></tr>
+
 <tr><td>gdbserver_port</td>
 <td>int</td>
 <td>3333</td>
