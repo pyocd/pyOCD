@@ -552,7 +552,9 @@ class GDBServer(threading.Thread):
 
     def _resume_target(self) -> None:
         """@brief Resume the target. Called with self.lock held."""
-        if self._read_target_state() != Target.State.HALTED:
+        try:
+            self.target.skip_breakpoint_instruction(exclude_semihosting=self.enable_semihosting)
+        except Exception:
             return
         self.trace_capture()
         # Clear the cached halt first; resume may raise after the core starts.
@@ -1142,8 +1144,23 @@ class GDBServer(threading.Thread):
         return self.create_rsp_packet(rsp)
 
     def _execute_step(self, client: GDBClientSession, start=0, end=0) -> None:
-        """@brief Step once or over a range. Called with self.lock held."""
-        self.target.step(not self.step_into_interrupt, start, end, hook_cb=client.is_interrupted)
+        """@brief Step until a visible halt or the end of a range. Called with self.lock held."""
+        try:
+            if self.target.skip_breakpoint_instruction(exclude_semihosting=self.enable_semihosting):
+                if start == end or not (start <= self.target.read_core_register('pc') < end):
+                    return
+        except Exception:
+            return
+
+        self.trace_capture()
+        while not (client.is_connection_closed or client.shutdown_event.is_set() or client.is_interrupted()):
+            self.target.step(not self.step_into_interrupt, start, end, hook_cb=client.is_interrupted)
+            if not (self.enable_semihosting and self._handle_semihosting(client=client)):
+                break
+            pc = self.target.read_core_register('pc')
+            if start == end or not (start <= pc < end):
+                break
+        self.trace_flush()
 
     def step(self, client, data):
         if not self._claim_active_run_client(client):
@@ -1156,9 +1173,7 @@ class GDBServer(threading.Thread):
             else:
                 LOG.debug("Command: Step")
 
-            self.trace_capture()
             self._execute_step(client)
-            self.trace_flush()
 
             if client.is_interrupted():
                 LOG.debug("Ctrl-C received during step")
@@ -1284,9 +1299,7 @@ class GDBServer(threading.Thread):
                 return self.create_rsp_packet(b'E01')
             release_run_client = True
             try:
-                self.trace_capture()
                 self._execute_step(client, start, end)
-                self.trace_flush()
 
                 if client.is_interrupted():
                     force_signal = signals.SIGINT
