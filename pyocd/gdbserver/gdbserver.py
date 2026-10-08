@@ -293,7 +293,7 @@ class GDBServer(threading.Thread):
     ## Timer delay for sending the notification that the server is listening.
     START_LISTENING_NOTIFY_DELAY = 0.03 # 30 ms
 
-    def __init__(self, session, core=None):
+    def __init__(self, session, core=None, target_running: Optional[bool] = None):
         super().__init__(daemon=True)
         self.session = session
         self.board = session.board
@@ -341,7 +341,10 @@ class GDBServer(threading.Thread):
                 ])
 
         self.packet_size = 2048
-        self._is_halted = self.target.get_state() == Target.State.HALTED
+        if target_running is None:
+            self._is_halted = self.target.get_state() == Target.State.HALTED
+        else:
+            self._is_halted = not target_running
         self.flash_loader = None
         self.shutdown_event = threading.Event()
         if core is None:
