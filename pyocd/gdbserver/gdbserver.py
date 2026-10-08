@@ -16,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from errno import ENOTCONN
 import logging
 import threading
 from time import sleep
@@ -173,10 +174,9 @@ class GDBClientSession(threading.Thread):
                     if self.non_stop and not self._server._is_halted:
                         try:
                             with self._server.lock:
-                                if self._server._read_target_state() == Target.State.HALTED:
+                                self._server._read_and_process_target_state(client=self)
+                                if self._server._is_halted:
                                     LOG.debug("Target halted")
-                                    self._server._is_halted = True
-                                    self._server.trace_flush()
                                     self._server.send_stop_notification(self)
                         except Exception as e:
                             LOG.error("Unexpected exception: %s", e, exc_info=self._server.session.log_tracebacks)
@@ -229,6 +229,11 @@ class GDBClientSession(threading.Thread):
 
     def receive(self, block=True):
         return self._packet_io.receive(block)
+
+    @property
+    def is_connection_closed(self) -> bool:
+        """@brief Return whether the packet I/O thread detected a closed connection."""
+        return self._packet_io is not None and self._packet_io._closed
 
     def interrupt_clear(self):
         self._packet_io.interrupt_event.clear()
@@ -459,10 +464,36 @@ class GDBServer(threading.Thread):
         # Add the gdbserver command group.
         self._command_context.command_set.add_command_group('gdbserver')
 
+    def _handle_semihosting(self, client: Optional[GDBClientSession] = None) -> bool:
+        """@brief Check for and service a semihost request. Called with self.lock held."""
+        use_gdb_client = self.semihost_use_syscalls and threading.current_thread() is client
+        if use_gdb_client:
+            self._semihosting_client = client
+        try:
+            return self.semihost.check_and_handle_semihost_request()
+        finally:
+            if use_gdb_client:
+                self._semihosting_client = None
+
     def _read_target_state(self) -> Target.State:
         """@brief Read physical state without publishing an unprocessed halt."""
         with self.lock:
             return self.target.get_state()
+
+    def _read_and_process_target_state(self, client: Optional[GDBClientSession] = None) -> None:
+        """@brief Process the observed execution state and transparently resume semihosting.
+        Called with self.lock held.
+        """
+        if not self.target.get_state() == Target.State.HALTED:
+            return
+
+        # Handle semihosting could raise an exception, so we mark the target as halted before.
+        self._is_halted = True
+        if self.enable_semihosting and self._handle_semihosting(client=client):
+            self._is_halted = False
+            self.target.resume()
+        else:
+            self.trace_flush()
 
     def _halt_target(self) -> None:
         """@brief Halt the target, assuming a successful request leaves it halted."""
@@ -919,34 +950,17 @@ class GDBServer(threading.Thread):
             self.lock.acquire()
 
             try:
-                state = self.target.get_state()
-
                 if self.rtt_server:
                     self.rtt_server.poll()
 
-                # If we were able to successfully read the target state after previously receiving a fault,
-                # then clear the timeout.
+                self._read_and_process_target_state(client=client)
+
+                # A successful target read clears any pending transfer-error retry.
                 if fault_retry_timeout.is_running:
                     LOG.info("Target control re-established.")
                     fault_retry_timeout.clear()
 
-                if state == Target.State.HALTED:
-                    # Handle semihosting
-                    if self.enable_semihosting and self._semihosting_client is None:
-                        self._semihosting_client = client
-                        self.lock.release()
-                        try:
-                            was_semihost = self.semihost.check_and_handle_semihost_request()
-                        finally:
-                            self.lock.acquire()
-                            self._semihosting_client = None
-
-                        if was_semihost:
-                            self.target.resume()
-                            continue
-
-                    self._is_halted = True
-                    self.trace_flush()
+                if self._is_halted:
                     pc = self.target_context.read_core_register('pc')
                     LOG.debug("Target halted at pc=0x%08x", pc)
                     val = self.get_t_response(client)
@@ -1501,9 +1515,22 @@ class GDBServer(threading.Thread):
         return resp
 
     def syscall(self, op: str) -> Tuple[int, int]:
+        """@brief Run GDB File-I/O with the server lock held by the caller."""
         client = self._semihosting_client
 
         LOG.debug("Syscall request: %s", op)
+        if client is None:
+            LOG.debug("Skipping GDB syscall because no client is available: %s", op)
+            return -1, ENOTCONN
+
+        self.lock.release()
+        try:
+            return self._exchange_syscall_packets(client, op)
+        finally:
+            self.lock.acquire()
+
+    def _exchange_syscall_packets(self, client: GDBClientSession, op: str) -> Tuple[int, int]:
+        """@brief Exchange File-I/O packets without holding the server lock."""
         request = self.create_rsp_packet(b'F' + op.encode())
         client.send(request)
 
@@ -1514,12 +1541,12 @@ class GDBServer(threading.Thread):
             except ConnectionClosedException:
                 LOG.error("Connection closed during syscall")
                 client.is_socket_connected = False
-                break
+                return -1, ENOTCONN
             if packet is None:
                 sleep(0.1)
                 continue
 
-            # Check for file I/O response.
+            # Check for GDB syscall response.
             if packet[0:1] == b'$' and packet[1:2] == b'F':
                 LOG.debug("Syscall response received: %r", packet)
                 args = packet[2:packet.index(b'#')].split(b',')
@@ -1543,6 +1570,8 @@ class GDBServer(threading.Thread):
                 LOG.warning("Detach received during syscall")
                 break
 
+        if client.is_connection_closed or client.shutdown_event.is_set():
+            return -1, ENOTCONN
         return -1, 0
 
     def get_t_response(self, client, forceSignal=None):

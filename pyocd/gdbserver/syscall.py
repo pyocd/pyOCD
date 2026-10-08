@@ -78,14 +78,14 @@ class GDBSyscallIOHandler(SemihostIOHandler):
     def write(self, fd, ptr, length):
         fd -= FD_OFFSET
         result, self._errno = self._server.syscall('write,%x,%x,%x' % (fd, ptr, length))
-        return length - result
+        return length if result < 0 else length - result
 
     # syscall return: number of bytes read
     # semihost return: 0 is success, length is EOF, number of bytes not read
     def read(self, fd, ptr, length):
         fd -= FD_OFFSET
         result, self._errno = self._server.syscall('read,%x,%x,%x' % (fd, ptr, length))
-        return length - result
+        return length if result < 0 else length - result
 
     def readc(self):
         assert self.agent
