@@ -1193,7 +1193,7 @@ class GDBServer(threading.Thread):
         return self.create_rsp_packet(b"OK")
 
     def handle_query(self, client, msg):
-        query = msg.split(b':')
+        query = msg.split(b'#', 1)[0].split(b':')
 
         if query is None:
             LOG.error("Command: General query: Malformed packet received")
@@ -1204,7 +1204,9 @@ class GDBServer(threading.Thread):
             client.gdb_features = query[1].split(b';')
 
             # Build our list of features.
-            features = [b'qXfer:features:read+', b'QStartNoAckMode+', b'qXfer:threads:read+', b'QNonStop+']
+            features = [b'qXfer:features:read+', b'QStartNoAckMode+', b'qXfer:threads:read+']
+            if not self.semihost_use_syscalls:
+                features.append(b'QNonStop+')
             features.append(b'PacketSize=' + (hex(self.packet_size).encode())[2:])
             if client.target_facade.get_memory_map_xml() is not None:
                 features.append(b'qXfer:memory-map:read+')
@@ -1381,6 +1383,9 @@ class GDBServer(threading.Thread):
 
         elif feature.startswith(b'NonStop'):
             enable = feature.split(b':')[1]
+            if enable == b'1' and self.semihost_use_syscalls:
+                LOG.debug("Command: General set NonStop rejected because GDB File-I/O requires all-stop mode")
+                return self.create_rsp_packet(b"E01")
             client.non_stop = (enable == b'1')
             LOG.debug("Command: General set NonStop=%s", (enable == b'1'))
             return self.create_rsp_packet(b"OK")
