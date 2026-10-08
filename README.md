@@ -157,6 +157,23 @@ See the [target support documentation](https://pyocd.io/docs/target_support) for
 the MCU(s) you are using have built-in support, and how to install support for additional MCUs via
 CMSIS-Packs.
 
+### i.MX95 targets
+
+`mimx95_cm7` and `mimx95_cm7_mx25um` debug the i.MX95 Cortex-M7 while the System Manager keeps running
+on the Cortex-M33; `mimx95_cm33` and `mimx95_cm33_mx25um` debug the Cortex-M33 itself. The Cortex-M33 runs the
+System Manager: a `mimx95_cm33_mx25um` flash halts it and the Cortex-M7, loads the flash algorithm over System
+Manager code and ends with a SoC reset, so Linux reboots; use the cm7 targets to flash without a reboot. Unit tests must not see a probe: `test/unit/test_semihosting.py` opens the first probe
+it finds and halts the cores of whatever board is attached, so run the unit tests with every probe user
+excluded:
+
+    python -m pytest test/unit -q -p no:cacheprovider \
+        --ignore test/unit/test_semihosting.py --deselect test/unit/test_semihosting.py \
+        --ignore test/unit/test_debug_sequences.py --deselect test/unit/test_debug_sequences.py \
+        -k "not semihost"
+
+Before a run, `grep -lE "ConnectHelper|session_with_chosen_probe|DebugProbe" test/unit/*.py` must list
+no other file; add any new one to the exclusions.
+
 
 Using GDB
 ---------
