@@ -744,6 +744,7 @@ class GDBServer(threading.Thread):
                     continue
 
                 client = None
+                resume_on_failure = False
                 try:
                     with self.client_sessions_lock:
                         self.client_last_index += 1
@@ -760,6 +761,8 @@ class GDBServer(threading.Thread):
                             self.client_sessions.append(client)
 
                         # Make sure the target is halted. Otherwise gdb gets easily confused.
+                        if not self._is_halted:
+                            resume_on_failure = True
                         self._halt_target()
 
                     # Start the client command loop after target attachment.
@@ -772,26 +775,31 @@ class GDBServer(threading.Thread):
                 except Exception as e:
                     LOG.error("Error starting client session on port %d: %s", self.port, e, exc_info=self.session.log_tracebacks)
 
-                    try:
-                        if client is not None:
-                            if client.is_alive():
-                                client.stop()
-                            else:
-                                client.cleanup()
-
-                            # Remove from session list if present
+                    if client is not None:
+                        try:
+                            client.stop()
+                        except Exception as cleanup_error:
+                            LOG.error("Error stopping client session on port %d: %s", self.port, cleanup_error, exc_info=self.session.log_tracebacks)
+                        try:
+                            client.cleanup()
+                        except Exception as cleanup_error:
+                            LOG.error("Error cleaning up client session on port %d: %s", self.port, cleanup_error, exc_info=self.session.log_tracebacks)
+                        with self.lock:
+                            if resume_on_failure:
+                                try:
+                                    self._resume_target()
+                                except Exception as cleanup_error:
+                                    LOG.error("Error restoring target after client startup failure on port %d: %s", self.port, cleanup_error, exc_info=self.session.log_tracebacks)
+                            client.is_attached_to_target = False
                             with self.client_sessions_lock:
                                 if client in self.client_sessions:
                                     self.client_sessions.remove(client)
-                        else:
-                            # client not created -> close accepted socket
-                            try:
-                                connected_socket.close()
-                            except Exception:
-                                pass
-
-                    except Exception as e:
-                        LOG.error("Error cleaning up client session on port %d: %s", self.port, e, exc_info=self.session.log_tracebacks)
+                    else:
+                        # Client construction failed, so only the accepted socket needs cleanup.
+                        try:
+                            connected_socket.close()
+                        except Exception:
+                            pass
         finally:
             LOG.debug("GDB server on port %d exiting", self.port)
             self._cleanup()
