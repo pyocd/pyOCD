@@ -19,6 +19,7 @@
 from errno import ENOTCONN
 import logging
 import threading
+import time
 from time import sleep
 import io
 from xml.etree.ElementTree import (Element, SubElement, tostring)
@@ -146,6 +147,8 @@ class GDBClientSession(threading.Thread):
         self.gdb_features = []
         self.target_facade = GDBDebugContextFacade(server.target_context)
         self.shutdown_event = threading.Event()
+        # A non-stop stop reply is awaiting the client's vStopped acknowledgement.
+        self._awaiting_vstopped = False
         self._cleanup_lock = threading.Lock()
         self._did_cleanup = False
 
@@ -161,25 +164,9 @@ class GDBClientSession(threading.Thread):
         try:
             while not self.shutdown_event.is_set() and not self._server.shutdown_event.is_set():
                 try:
-                    if self.is_interrupted():
-                        if self.non_stop:
-                            with self._server.lock:
-                                if not self._server._is_halted:
-                                    self._server._halt_target()
-                                self._server.send_stop_notification(self)
-                        else:
-                            LOG.warning("Unexpected Ctrl-C ignored in all-stop mode")
-                        self.interrupt_clear()
-
-                    if self.non_stop and not self._server._is_halted:
-                        try:
-                            with self._server.lock:
-                                self._server._read_and_process_target_state(client=self)
-                                if self._server._is_halted:
-                                    LOG.debug("Target halted")
-                                    self._server.send_stop_notification(self)
-                        except Exception as e:
-                            LOG.error("Unexpected exception: %s", e, exc_info=self._server.session.log_tracebacks)
+                    # Non-stop clients poll for asynchronous stop notifications, while
+                    if self.non_stop:
+                        self._server.service_non_stop_client(self)
 
                     # read command
                     try:
@@ -192,17 +179,16 @@ class GDBClientSession(threading.Thread):
                         break
 
                     if self.non_stop and packet is None:
-                        sleep(0.1)
+                        self.wait_for_interrupt(0.01)
                         continue
 
-                    if packet is not None and len(packet) != 0:
+                    if packet:
                         # decode and prepare resp
                         resp = self._server.handle_message(self, packet)
 
                         if resp is not None:
                             # send resp
                             self.send(resp)
-
                 except Exception as e:
                     LOG.error("Unexpected exception: %s", e, exc_info=self._server.session.log_tracebacks)
         finally:
@@ -298,6 +284,11 @@ class GDBServer(threading.Thread):
     ## Timer delay for sending the notification that the server is listening.
     START_LISTENING_NOTIFY_DELAY = 0.03 # 30 ms
 
+    ## RTT channel polling interval used by the service thread, in seconds.
+    _RTT_POLL_INTERVAL = 0.001
+    ## Target state polling interval used by the service thread, in seconds.
+    _TARGET_STATE_INTERVAL = 0.010
+
     def __init__(self, session, core=None, target_running: Optional[bool] = None):
         super().__init__(daemon=True)
         self.session = session
@@ -371,6 +362,7 @@ class GDBServer(threading.Thread):
 
         # Coarse grain lock to synchronize activity
         self.lock = threading.RLock()
+        self._active_run_client: Optional[GDBClientSession] = None
         self._cleanup_lock = threading.RLock()
         self._did_cleanup = False
 
@@ -391,6 +383,7 @@ class GDBServer(threading.Thread):
 
         # Start with RTT disabled
         self.rtt_server: Optional[RTTServer] = None
+        self._service_thread = threading.Thread(target=self._run_service_thread, daemon=True, name="gdb-service-%d" % self.core,)
 
         self._init_remote_commands()
 
@@ -435,6 +428,8 @@ class GDBServer(threading.Thread):
                 b'Z' : (self.breakpoint,         1   ), # Remove breakpoint/watchpoint.
             }
 
+        self._service_thread.start()
+
         # pylint: enable=invalid-name
 
     def trace_flush(self) -> None:
@@ -463,6 +458,21 @@ class GDBServer(threading.Thread):
 
         # Add the gdbserver command group.
         self._command_context.command_set.add_command_group('gdbserver')
+
+    def _claim_active_run_client(self, client: GDBClientSession) -> bool:
+        """@brief Claim exclusive run ownership."""
+        with self.lock:
+            if self._active_run_client is not None:
+                LOG.warning("Cannot start execution while client %d has an active run", self._active_run_client.index)
+                return False
+            self._active_run_client = client
+            return True
+
+    def _release_active_run_client(self, client: GDBClientSession) -> None:
+        """@brief Release the client's run ownership."""
+        with self.lock:
+            if self._active_run_client is client:
+                self._active_run_client = None
 
     def _handle_semihosting(self, client: Optional[GDBClientSession] = None) -> bool:
         """@brief Check for and service a semihost request. Called with self.lock held."""
@@ -503,6 +513,43 @@ class GDBServer(threading.Thread):
             self._is_halted = True
             self.trace_flush()
 
+    def _request_stop(self, client: GDBClientSession) -> bool:
+        """@brief Halt and classify its halt reason.
+
+        Called with self.lock held.
+        """
+        self._halt_target()
+        halt_reason = self.target.get_halt_reason()
+        return halt_reason == Target.HaltReason.DEBUG
+
+    def service_non_stop_client(self, client: GDBClientSession) -> None:
+        """@brief Handle a non-stop client's interrupt and pending stop notification."""
+        with self.lock:
+            if self._active_run_client is not client:
+                # Client is not the active run client; drop the interrupt request.
+                client.interrupt_clear()
+                return
+
+            force_signal = None
+            stop_reply = None
+            if client.is_interrupted():
+                try:
+                    if not self._is_halted:
+                        halted_by_request = self._request_stop(client)
+                        force_signal = signals.SIGINT if halted_by_request else None
+                except exceptions.TransferError as error:
+                    LOG.error("Error halting target: %s", error, exc_info=self.session.log_tracebacks)
+                    # The target may still be running; report SIGINT to complete GDB's Ctrl-C.
+                    stop_reply = ('S%02x' % signals.SIGINT).encode()
+                finally:
+                    client.interrupt_clear()
+
+            if (self._is_halted or stop_reply is not None) and not client._awaiting_vstopped:
+                try:
+                    self._send_stop_notification(client, forceSignal=force_signal, data=stop_reply)
+                except Exception as error:
+                    LOG.error("Unexpected exception: %s", error, exc_info=self.session.log_tracebacks)
+
     def _resume_target(self) -> None:
         """@brief Resume the target. Called with self.lock held."""
         if self._read_target_state() != Target.State.HALTED:
@@ -511,6 +558,81 @@ class GDBServer(threading.Thread):
         # Clear the cached halt first; resume may raise after the core starts.
         self._is_halted = False
         self.target.resume()
+
+    def _run_service_thread(self) -> None:
+        """@brief Poll the existing RTT server and read target state."""
+        fault_retry_timeout = Timeout(self.session.options.get('live.status_fault_retry_timeout'))
+
+        now = time.monotonic()
+        rtt_poll_time = target_state_time = now
+
+        while not self.shutdown_event.is_set():
+            with self.lock:
+                now = time.monotonic()
+
+                # Poll RTT
+                if now >= rtt_poll_time:
+                    if self.rtt_server is not None and self.rtt_server.running:
+                        rtt_poll_time = now + self._RTT_POLL_INTERVAL
+                        try:
+                            self.rtt_server.poll()
+                        except Exception as error:
+                            LOG.debug("RTT poll failed for core %d: %s", self.core, error, exc_info=self.session.log_tracebacks)
+                    else:
+                        # Check less often until a monitor command starts RTT.
+                        rtt_poll_time = now + self._TARGET_STATE_INTERVAL
+
+                # Check target and handle target state
+                if now >= target_state_time:
+                    target_state_time = now + self._TARGET_STATE_INTERVAL
+                    client = self._active_run_client
+
+                    # Active All-Stop clients are polling target state in their run loops.
+                    # The service thread is polling target state for active Non-Stop clients or when no client is active.
+                    if not self._is_halted and (client is None or client.non_stop):
+                        if fault_retry_timeout.did_time_out:
+                            # Transfer error persisted beyond the retry timeout.
+                            # Shut down the GDB server instance for this core.
+                            LOG.error("Timeout expired after repeated transfer errors for core %d", self.core)
+                            self.shutdown_event.set()
+                            return
+                        try:
+                            self._read_and_process_target_state(client=client)
+                            if fault_retry_timeout.is_running:
+                                # Target state read succeeded after a transfer error; clear the fault retry timeout.
+                                LOG.info("Recovered after transfer error for core %d.", self.core)
+                                fault_retry_timeout.clear()
+                        except exceptions.TransferError as error:
+                            if not fault_retry_timeout.is_running:
+                                # Start the timeout on the first fault; the next scheduled poll retries.
+                                LOG.warning("Transfer error detected for core %d", self.core)
+                                fault_retry_timeout.start()
+                        except Exception as error:
+                            LOG.error("Unexpected service thread error for core %d: %s",
+                                    self.core, error, exc_info=self.session.log_tracebacks)
+                    else:
+                        if fault_retry_timeout.is_running:
+                            fault_retry_timeout.clear()
+
+            next_wake = min(rtt_poll_time, target_state_time)
+            wait_time = next_wake - time.monotonic()
+            if wait_time > 0.0:
+                self.shutdown_event.wait(wait_time)
+
+    def _stop_service_thread(self) -> None:
+        """@brief Stop the background service thread."""
+        self.shutdown_event.set()
+        service_thread = self._service_thread
+        if service_thread is None or threading.current_thread() is service_thread:
+            return
+
+        if service_thread.is_alive():
+            service_thread.join(1.0)
+            if service_thread.is_alive():
+                LOG.debug("Timed out waiting for service thread to stop for core %d", self.core)
+                return
+
+        self._service_thread = None
 
     def stop(self, wait=True):
         self.shutdown_event.set()
@@ -557,6 +679,11 @@ class GDBServer(threading.Thread):
                 self._cleanup_client_sessions()
             except Exception as e:
                 LOG.debug("Error cleaning up client sessions on port %d: %s", self.port, e, exc_info=self.session.log_tracebacks)
+
+            try:
+                self._stop_service_thread()
+            except Exception as e:
+                LOG.debug("Error stopping service thread for core %d: %s", self.core, e, exc_info=self.session.log_tracebacks)
 
             if self.rtt_server is not None:
                 try:
@@ -669,14 +796,14 @@ class GDBServer(threading.Thread):
 
     def notify_client_detached(self, client: GDBClientSession):
         """
-        Called when a client session detaches from target
+        Called when a client session detaches from target.
         """
         with self.lock, self.client_sessions_lock:
             # Mark client detached from program
+            was_attached = client.is_attached_to_target
             client.is_attached_to_target = False
-
-            if client is self._semihosting_client:
-                self._semihosting_client = None
+            client._awaiting_vstopped = False
+            self._release_active_run_client(client)
 
             # Client is detached from the target. If its socket connection is closed, remove it from the session list.
             if client in self.client_sessions and not client.is_socket_connected:
@@ -684,7 +811,7 @@ class GDBServer(threading.Thread):
                 self.client_sessions.remove(client)
 
             # Resume target if no client is attached to program
-            if not any(c.is_attached_to_target for c in self.client_sessions):
+            if was_attached and not any(c.is_attached_to_target for c in self.client_sessions):
                 self.thread_provider = None
                 self.did_init_thread_providers = False
                 self.first_run_after_reset_or_flash = True
@@ -880,9 +1007,18 @@ class GDBServer(threading.Thread):
 
         # In non-stop mode, if no threads are stopped we need to reply with OK.
         if client.non_stop and not self._is_halted:
+            # This query completes any previous stop sequence. Preserve ownership
+            # of an ongoing run that has not reported a stop yet.
+            if client._awaiting_vstopped:
+                client._awaiting_vstopped = False
+                self._release_active_run_client(client)
             return self.create_rsp_packet(b"OK")
 
-        return self.create_rsp_packet(self.get_t_response(client))
+        response = self.create_rsp_packet(self.get_t_response(client))
+        if client.non_stop:
+            # The synchronous stop reply starts a sequence completed by vStopped.
+            client._awaiting_vstopped = True
+        return response
 
     def _get_resume_step_addr(self, data):
         data = data.split(b'#')[0]
@@ -900,6 +1036,18 @@ class GDBServer(threading.Thread):
         return addr
 
     def resume(self, client, data):
+        if client.non_stop:
+            return self.create_rsp_packet(b'')
+        if not self._claim_active_run_client(client):
+            return self.create_rsp_packet(b'E01')
+
+        try:
+            return self._resume(client, data)
+        finally:
+            self._release_active_run_client(client)
+
+    def _resume(self, client, data):
+        """@brief Continue with run ownership claimed and self.lock held."""
         if data and data[0:1] in (b'c', b'C'):
             addr = self._get_resume_step_addr(data)
             if addr:
@@ -950,9 +1098,6 @@ class GDBServer(threading.Thread):
             self.lock.acquire()
 
             try:
-                if self.rtt_server:
-                    self.rtt_server.poll()
-
                 self._read_and_process_target_state(client=client)
 
                 # A successful target read clears any pending transfer-error retry.
@@ -991,37 +1136,48 @@ class GDBServer(threading.Thread):
 
         return self.create_rsp_packet(val)
 
-    def step(self, client, data, start=0, end=0):
-        if data and data[0:1] in (b's', b'S'):
+    def _execute_step(self, client: GDBClientSession, start=0, end=0) -> None:
+        """@brief Step once or over a range. Called with self.lock held."""
+        self.target.step(not self.step_into_interrupt, start, end, hook_cb=client.is_interrupted)
+
+    def step(self, client, data):
+        if not self._claim_active_run_client(client):
+            return self.create_rsp_packet(b'E01')
+
+        try:
             addr = self._get_resume_step_addr(data)
             if addr:
                 LOG.debug("Command: Step (addr=%d): Address is ignored", addr)
             else:
                 LOG.debug("Command: Step")
 
-        # Use the step hook to check for an interrupt event.
-        def step_hook():
-            # Note we don't clear the interrupt event here!
-            return client.is_interrupted()
-        self.trace_capture()
-        self.target.step(not self.step_into_interrupt, start, end, hook_cb=step_hook)
-        self.trace_flush()
+            self.trace_capture()
+            self._execute_step(client)
+            self.trace_flush()
 
-        # Clear and handle an interrupt.
-        if client.is_interrupted():
-            LOG.debug("Ctrl-C received during step")
-            client.interrupt_clear()
-            response = self.get_t_response(client, forceSignal=signals.SIGINT)
-        else:
-            response = self.get_t_response(client)
+            if client.is_interrupted():
+                LOG.debug("Ctrl-C received during step")
+                force_signal = signals.SIGINT
+                client.interrupt_clear()
+            else:
+                force_signal = None
+            return self.create_rsp_packet(self.get_t_response(client, forceSignal=force_signal))
+        finally:
+            self._release_active_run_client(client)
 
-        return self.create_rsp_packet(response)
+    def _send_stop_notification(self, client, forceSignal=None, data=None) -> None:
+        """@brief Send a stop notification and mark its vStopped acknowledgement pending.
 
-    def send_stop_notification(self, client, forceSignal=None):
-        LOG.debug("Notification: Stop")
-        data = self.get_t_response(client, forceSignal=forceSignal)
-        packet = b'%Stop:' + data + b'#' + checksum(data)
-        client.send(packet)
+        The caller must verify run ownership and that no stop reply is pending.
+        """
+        with self.lock:
+            LOG.debug("Notification: Stop")
+            if data is None:
+                data = self.get_t_response(client, forceSignal=forceSignal)
+            payload = b'Stop:' + data
+            packet = b'%' + payload + b'#' + checksum(payload)
+            client._awaiting_vstopped = True
+            client.send(packet)
 
     def v_command(self, client, data):
         cmd = data.split(b'#')[0]
@@ -1044,6 +1200,9 @@ class GDBServer(threading.Thread):
         elif b'Stopped' in cmd:
             # Because we only support one thread for now, we can just reply OK to vStopped.
             LOG.debug("Command: vStopped notification")
+            if client._awaiting_vstopped:
+                client._awaiting_vstopped = False
+                self._release_active_run_client(client)
             return self.create_rsp_packet(b"OK")
 
         LOG.debug("Command: v%s: Unknown command", to_str_safe(cmd))
@@ -1087,41 +1246,97 @@ class GDBServer(threading.Thread):
                 return self.create_rsp_packet(b'E01')
             thread_actions[currentThread] = default_action
 
-        if thread_actions[currentThread][0:1] in (b'c', b'C'):
+        action = thread_actions[currentThread]
+        if (client.non_stop and self._active_run_client is client and
+            action[0:1] in (b'c', b'C', b's', b'S', b'r')):
+            action_name = "continue" if action[0:1] in (b'c', b'C') else "step"
+            LOG.debug("Command: vCont (threadId=0x%08x, action=%s): Skipping; run already active for this client",
+                    currentThread, action_name)
+            return self.create_rsp_packet(b"OK")
+
+        if action[0:1] in (b'c', b'C'):
             LOG.debug("Command: vCont (threadId=0x%08x, action=continue)", currentThread)
             if client.non_stop:
-                self._resume_target()
+                if not self._claim_active_run_client(client):
+                    return self.create_rsp_packet(b'E01')
+                try:
+                    self._resume_target()
+                except Exception:
+                    self._release_active_run_client(client)
+                    raise
                 return self.create_rsp_packet(b"OK")
             else:
                 return self.resume(client, None)
-        elif thread_actions[currentThread][0:1] in (b's', b'S', b'r'):
+        elif action[0:1] in (b's', b'S', b'r'):
             start = 0
             end = 0
-            if thread_actions[currentThread][0:1] == b'r':
-                start, end = [int(addr, base=16) for addr in thread_actions[currentThread][1:].split(b',')]
+            if action[0:1] == b'r':
+                start, end = [int(addr, base=16) for addr in action[1:].split(b',')]
                 LOG.debug("Command: vCont (threadId=0x%08x, action=step, start=0x%08x, end=0x%08x)", currentThread, start, end)
             else:
                 LOG.debug("Command: vCont (threadId=0x%08x, action=step)", currentThread)
-
-            if client.non_stop:
+            if not self._claim_active_run_client(client):
+                return self.create_rsp_packet(b'E01')
+            release_run_client = True
+            try:
                 self.trace_capture()
-                self.target.step(not self.step_into_interrupt, start, end)
+                self._execute_step(client, start, end)
                 self.trace_flush()
+
+                if client.is_interrupted():
+                    force_signal = signals.SIGINT
+                    client.interrupt_clear()
+                else:
+                    force_signal = None
+
+                if not client.non_stop:
+                    return self.create_rsp_packet(self.get_t_response(client, forceSignal=force_signal))
+
                 client.send(self.create_rsp_packet(b"OK"))
-                self.send_stop_notification(client)
+                # Keep ownership until GDB acknowledges the stop with vStopped.
+                release_run_client = False
+                if not client._awaiting_vstopped:
+                    try:
+                        self._send_stop_notification(client, forceSignal=force_signal)
+                    except Exception as error:
+                        LOG.error("Error sending step stop notification: %s", error, exc_info=self.session.log_tracebacks)
                 return None
-            else:
-                return self.step(client, None, start, end)
-        elif thread_actions[currentThread] == b't':
+            finally:
+                if release_run_client:
+                    self._release_active_run_client(client)
+        elif action == b't':
             LOG.debug("Command: vCont (threadId=0x%08x, action=stop)", currentThread)
             # Must ignore t command in all-stop mode.
             if not client.non_stop:
                 return self.create_rsp_packet(b"")
+            if self._is_halted or client._awaiting_vstopped:
+                return self.create_rsp_packet(b"OK")
+            if client != self._active_run_client:
+                return self.create_rsp_packet(b'E01')
+
+            force_signal = None
+            stop_reply = None
+            try:
+                halted_by_request = self._request_stop(client)
+                force_signal = 0 if halted_by_request else None
+            except exceptions.TransferError as error:
+                LOG.error("Command: vCont (threadId=0x%08x, action=stop): Error stopping target: %s", currentThread, error, exc_info=self.session.log_tracebacks)
+                # The target may still be running; report signal zero to complete GDB's stop request.
+                stop_reply = b'S00'
+            except exceptions.Error as error:
+                LOG.error("Command: vCont (threadId=0x%08x, action=stop): Error stopping target: %s", currentThread, error, exc_info=self.session.log_tracebacks)
+                return self.create_rsp_packet(b'E01')
+
+            # Acknowledge vCont;t first; report the stop separately with %Stop.
             client.send(self.create_rsp_packet(b"OK"))
-            self._halt_target()
-            self.send_stop_notification(client, forceSignal=0)
+            try:
+                self._send_stop_notification(client, forceSignal=force_signal, data=stop_reply)
+            except Exception as error:
+                # The command was already acknowledged, so do not return a second response.
+                LOG.error("Error sending stop notification: %s", error, exc_info=self.session.log_tracebacks)
+            return None
         else:
-            LOG.error("Command: vCont (threadId=0x%08x, action='%s'): Unsupported action", currentThread, to_str_safe(thread_actions[currentThread]))
+            LOG.error("Command: vCont (threadId=0x%08x, action='%s'): Unsupported action", currentThread, to_str_safe(action))
 
     def flash_op(self, data):
         ops = data.split(b':')[0]
