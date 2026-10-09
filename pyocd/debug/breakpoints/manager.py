@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015-2019,2025 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 j4rvisstant
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +21,7 @@ from copy import copy
 from typing import (Dict, List, TYPE_CHECKING, Iterable, MutableSequence, Optional, Sequence, Tuple)
 
 from .provider import Breakpoint
+from ...core import exceptions
 from ...core.target import Target
 
 if TYPE_CHECKING:
@@ -46,6 +48,9 @@ class BreakpointManager:
     add/remove request is recorded for later. Then, before the target is stepped or resumed, the
     manager flushes breakpoint changes to the target. It is at this point when it decides which
     provider to use for each new breakpoint.
+
+    A caller that must guarantee a removal has reached the target before it returns control, for
+    instance because the session may end without a further step or resume, calls flush_removals().
     """
 
     ## Number of hardware breakpoints to try to keep available.
@@ -272,6 +277,50 @@ class BreakpointManager:
 
             # Flush all providers.
             self._flush_all()
+        finally:
+            self._ignore_notifications = False
+
+    def flush_removals(self) -> None:
+        """@brief Physically remove breakpoints whose removal is pending.
+
+        Only removals are committed; pending additions stay deferred until flush(). Nothing is
+        done unless the core is halted, since restoring memory or clearing a comparator under a
+        running core is not safe; such a removal is committed by the next flush() instead.
+
+        After this returns, the owning provider has executed the removal and the probe's queued
+        transfers have been drained, so the change cannot still be sitting in the host queue.
+
+        @exception Error A removal could not be committed. If a provider fails to remove a
+            breakpoint, that breakpoint stays pending and the next flush() asks the provider
+            again. If draining the queued transfers fails, the removals already handed to the
+            providers are not retried.
+        """
+        _, removed = self._get_updated_breakpoints()
+        if not removed:
+            return
+        if not self._core.is_halted():
+            LOG.debug("core not halted; deferring removal of %s", removed)
+            return
+
+        try:
+            # Ignore any notifications while we modify breakpoints.
+            self._ignore_notifications = True
+
+            LOG.debug("flushing removals=%s", removed)
+            for bp in removed:
+                assert bp.provider is not None
+                bp.provider.remove_breakpoint(bp)
+
+                # A provider may report failure by keeping the breakpoint rather than raising.
+                if bp.provider.find_breakpoint(bp.addr) is not None:
+                    raise exceptions.DebugError("failed to remove %s breakpoint at 0x%08x"
+                                                % (bp.type.name, bp.addr))
+
+                del self._breakpoints[bp.addr]
+
+            # Flush all providers, then make sure the removals are really on the wire.
+            self._flush_all()
+            self._core.flush()
         finally:
             self._ignore_notifications = False
 
