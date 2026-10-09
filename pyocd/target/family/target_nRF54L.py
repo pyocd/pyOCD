@@ -2,6 +2,7 @@
 # Copyright (c) 2006-2013 Arm Limited
 # Copyright (c) 2019 Monadnock Systems Ltd.
 # Copyright (c) 2024 Nordic Semiconductor ASA
+# Copyright (c) 2026 Jacob Siverskog
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -143,7 +144,13 @@ class NRF54L(CoreSightTarget):
             if self.session.options.get('auto_unlock'):
                 LOG.warning("%s APPROTECT enabled: will try to unlock via mass erase", self.part_number)
 
-                self.mass_erase()
+                if not self.mass_erase():
+                    LOG.error("%s: mass erase failed", self.part_number)
+                    raise exceptions.TargetError("unable to unlock device")
+                # Cached badness from create_ap run during AP lockout prevents memory accesses
+                # through the AHB-AP from succeeding.
+                self._discoverer._create_1_ap(AHB_AP_NUM)
+                self.fixup_rom_base()
         else:
             LOG.warning("%s is not in a secure state", self.part_number)
 
