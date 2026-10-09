@@ -1,8 +1,8 @@
 <?xml version="1.0" ?>
 <device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD_Schema_1_1.xsd">
-    <name>HC32F334</name>
+    <name>HC32F336</name>
     <version>1.0</version>
-    <description>HC32F334</description>
+    <description>HC32F336</description>
     <cpu>
         <name>CM4</name>
         <revision>r0p1</revision>
@@ -21,6 +21,7 @@
         <peripheral>
             <name>ADC1</name>
             <description>desc ADC1</description>
+            <groupName>ADC1</groupName>
             <baseAddress>0x40040000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -1017,6 +1018,7 @@
         <peripheral>
             <name>ADC2</name>
             <description>desc ADC2</description>
+            <groupName>ADC2</groupName>
             <baseAddress>0x40040400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -1981,6 +1983,7 @@
         <peripheral>
             <name>ADC3</name>
             <description>desc ADC3</description>
+            <groupName>ADC3</groupName>
             <baseAddress>0x40040800</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -2834,6 +2837,7 @@
         <peripheral>
             <name>AOS</name>
             <description>desc AOS</description>
+            <groupName>AOS</groupName>
             <baseAddress>0x40010800</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -4246,6 +4250,7 @@
         <peripheral>
             <name>CMP1</name>
             <description>desc CMP</description>
+            <groupName>CMP</groupName>
             <baseAddress>0x40038400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -4768,6 +4773,7 @@
         <peripheral derivedFrom="CMP1">
             <name>CMP2</name>
             <description>desc CMP</description>
+            <groupName>CMP</groupName>
             <baseAddress>0x40038500</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -4783,6 +4789,7 @@
         <peripheral derivedFrom="CMP1">
             <name>CMP3</name>
             <description>desc CMP</description>
+            <groupName>CMP</groupName>
             <baseAddress>0x4003B000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -4798,6 +4805,7 @@
         <peripheral>
             <name>CMU</name>
             <description>desc CMU</description>
+            <groupName>CMU</groupName>
             <baseAddress>0x40048000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -5417,6 +5425,7 @@
         <peripheral>
             <name>CRC</name>
             <description>desc CRC</description>
+            <groupName>CRC</groupName>
             <baseAddress>0x40008C00</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -5751,6 +5760,7 @@
         <peripheral>
             <name>CTC</name>
             <description>desc CTC</description>
+            <groupName>CTC</groupName>
             <baseAddress>0x40049C00</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -5901,6 +5911,7 @@
         <peripheral>
             <name>DAC1</name>
             <description>desc DAC</description>
+            <groupName>DAC</groupName>
             <baseAddress>0x40041000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -6123,6 +6134,7 @@
         <peripheral derivedFrom="DAC1">
             <name>DAC2</name>
             <description>desc DAC</description>
+            <groupName>DAC</groupName>
             <baseAddress>0x40041400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -6133,6 +6145,7 @@
         <peripheral>
             <name>DBGC</name>
             <description>desc DBGC</description>
+            <groupName>DBGC</groupName>
             <baseAddress>0xE0042000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -6373,6 +6386,7 @@
         <peripheral>
             <name>DMA</name>
             <description>desc DMA</description>
+            <groupName>DMA</groupName>
             <baseAddress>0x40053000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -10087,6 +10101,7 @@
         <peripheral>
             <name>EFM</name>
             <description>desc EFM</description>
+            <groupName>EFM</groupName>
             <baseAddress>0x40010400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -10837,6 +10852,7 @@
         <peripheral>
             <name>EMB0</name>
             <description>desc EMB</description>
+            <groupName>EMB</groupName>
             <baseAddress>0x40038600</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -11659,6 +11675,7 @@
         <peripheral derivedFrom="EMB0">
             <name>EMB1</name>
             <description>desc EMB</description>
+            <groupName>EMB</groupName>
             <baseAddress>0x40038620</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -11674,6 +11691,7 @@
         <peripheral derivedFrom="EMB0">
             <name>EMB2</name>
             <description>desc EMB</description>
+            <groupName>EMB</groupName>
             <baseAddress>0x40038640</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -11689,6 +11707,7 @@
         <peripheral derivedFrom="EMB0">
             <name>EMB3</name>
             <description>desc EMB</description>
+            <groupName>EMB</groupName>
             <baseAddress>0x40038660</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -11704,6 +11723,7 @@
         <peripheral derivedFrom="EMB0">
             <name>EMB4</name>
             <description>desc EMB</description>
+            <groupName>EMB</groupName>
             <baseAddress>0x40038680</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -11719,6 +11739,7 @@
         <peripheral derivedFrom="EMB0">
             <name>EMB5</name>
             <description>desc EMB</description>
+            <groupName>EMB</groupName>
             <baseAddress>0x400386A0</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -11734,6 +11755,7 @@
         <peripheral>
             <name>EMB6</name>
             <description>desc EMB</description>
+            <groupName>EMB</groupName>
             <baseAddress>0x400386C0</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -12528,6 +12550,7 @@
         <peripheral derivedFrom="EMB6">
             <name>EMB7</name>
             <description>desc EMB</description>
+            <groupName>EMB</groupName>
             <baseAddress>0x400386E0</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -12543,6 +12566,7 @@
         <peripheral derivedFrom="EMB6">
             <name>EMB8</name>
             <description>desc EMB</description>
+            <groupName>EMB</groupName>
             <baseAddress>0x40038700</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -12558,6 +12582,7 @@
         <peripheral>
             <name>FCM</name>
             <description>desc FCM</description>
+            <groupName>FCM</groupName>
             <baseAddress>0x40048400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -12835,6 +12860,7 @@
         <peripheral>
             <name>GPIO</name>
             <description>desc GPIO</description>
+            <groupName>GPIO</groupName>
             <baseAddress>0x40053800</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -23408,6 +23434,7 @@
         <peripheral>
             <name>HRPWM1</name>
             <description>desc HRPWM1</description>
+            <groupName>HRPWM1</groupName>
             <baseAddress>0x4003C000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -27944,6 +27971,7 @@
         <peripheral>
             <name>HRPWM2</name>
             <description>desc HRPWM</description>
+            <groupName>HRPWM</groupName>
             <baseAddress>0x4003C400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -32442,6 +32470,7 @@
         <peripheral derivedFrom="HRPWM2">
             <name>HRPWM3</name>
             <description>desc HRPWM</description>
+            <groupName>HRPWM</groupName>
             <baseAddress>0x4003C800</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -32472,6 +32501,7 @@
         <peripheral derivedFrom="HRPWM2">
             <name>HRPWM4</name>
             <description>desc HRPWM</description>
+            <groupName>HRPWM</groupName>
             <baseAddress>0x4003CC00</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -32502,6 +32532,7 @@
         <peripheral derivedFrom="HRPWM2">
             <name>HRPWM5</name>
             <description>desc HRPWM</description>
+            <groupName>HRPWM</groupName>
             <baseAddress>0x4003D000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -32532,6 +32563,7 @@
         <peripheral derivedFrom="HRPWM2">
             <name>HRPWM6</name>
             <description>desc HRPWM</description>
+            <groupName>HRPWM</groupName>
             <baseAddress>0x4003D400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -32562,6 +32594,7 @@
         <peripheral>
             <name>HRPWM_COMMON</name>
             <description>desc HRPWM_COMMON</description>
+            <groupName>HRPWM_COMMON</groupName>
             <baseAddress>0x4003C2F0</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -34526,6 +34559,7 @@
         <peripheral>
             <name>I2C</name>
             <description>desc I2C</description>
+            <groupName>I2C</groupName>
             <baseAddress>0x4003B400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -35383,6 +35417,7 @@
         <peripheral>
             <name>ICG</name>
             <description>desc ICG</description>
+            <groupName>ICG</groupName>
             <baseAddress>0x00000400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -35554,6 +35589,7 @@
         <peripheral>
             <name>INTC</name>
             <description>desc INTC</description>
+            <groupName>INTC</groupName>
             <baseAddress>0x40051000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -38343,6 +38379,7 @@
         <peripheral>
             <name>MCAN1</name>
             <description>desc MCAN</description>
+            <groupName>MCAN</groupName>
             <baseAddress>0x40071000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -42316,6 +42353,7 @@
         <peripheral derivedFrom="MCAN1">
             <name>MCAN2</name>
             <description>desc MCAN</description>
+            <groupName>MCAN</groupName>
             <baseAddress>0x40071400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -42336,6 +42374,7 @@
         <peripheral>
             <name>MCANRAM</name>
             <description>desc MCANRAM</description>
+            <groupName>MCANRAM</groupName>
             <baseAddress>0x40073800</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -42459,6 +42498,7 @@
         <peripheral>
             <name>MPU</name>
             <description>desc MPU</description>
+            <groupName>MPU</groupName>
             <baseAddress>0x40050000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -43640,6 +43680,7 @@
         <peripheral>
             <name>PERIC</name>
             <description>desc PERIC</description>
+            <groupName>PERIC</groupName>
             <baseAddress>0x40055400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -43828,6 +43869,7 @@
         <peripheral>
             <name>PLA</name>
             <description>desc PLA</description>
+            <groupName>PLA</groupName>
             <baseAddress>0x4004FC00</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -45193,6 +45235,7 @@
         <peripheral>
             <name>PWC</name>
             <description>desc PWC</description>
+            <groupName>PWC</groupName>
             <baseAddress>0x40048000</baseAddress>
             <alternatePeripheral>CMU</alternatePeripheral>
             <addressBlock>
@@ -46471,6 +46514,7 @@
         <peripheral>
             <name>RMU</name>
             <description>desc RMU</description>
+            <groupName>RMU</groupName>
             <baseAddress>0x4004CCE0</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -46906,6 +46950,7 @@
         <peripheral>
             <name>RTC</name>
             <description>desc RTC</description>
+            <groupName>RTC</groupName>
             <baseAddress>0x4004C000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -47335,6 +47380,7 @@
         <peripheral>
             <name>SPI</name>
             <description>desc SPI</description>
+            <groupName>SPI</groupName>
             <baseAddress>0x4001C000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -47706,6 +47752,7 @@
         <peripheral>
             <name>SRAMC</name>
             <description>desc SRAMC</description>
+            <groupName>SRAMC</groupName>
             <baseAddress>0x40050800</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -48052,6 +48099,7 @@
         <peripheral>
             <name>SWDT</name>
             <description>desc SWDT</description>
+            <groupName>SWDT</groupName>
             <baseAddress>0x40049400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -48165,6 +48213,7 @@
         <peripheral>
             <name>TMR01</name>
             <description>desc TMR0</description>
+            <groupName>TMR0</groupName>
             <baseAddress>0x40024000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -48500,6 +48549,7 @@
         <peripheral derivedFrom="TMR01">
             <name>TMR02</name>
             <description>desc TMR0</description>
+            <groupName>TMR0</groupName>
             <baseAddress>0x40024400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -48515,6 +48565,7 @@
         <peripheral>
             <name>TMR4</name>
             <description>desc TMR4</description>
+            <groupName>TMR4</groupName>
             <baseAddress>0x40038000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -51838,6 +51889,7 @@
         <peripheral>
             <name>TMR61</name>
             <description>desc TMR6</description>
+            <groupName>TMR6</groupName>
             <baseAddress>0x40039000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -53954,6 +54006,7 @@
         <peripheral derivedFrom="TMR61">
             <name>TMR62</name>
             <description>desc TMR6</description>
+            <groupName>TMR6</groupName>
             <baseAddress>0x40039400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -53984,6 +54037,7 @@
         <peripheral derivedFrom="TMR61">
             <name>TMR63</name>
             <description>desc TMR6</description>
+            <groupName>TMR6</groupName>
             <baseAddress>0x40039800</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -54014,6 +54068,7 @@
         <peripheral derivedFrom="TMR61">
             <name>TMR64</name>
             <description>desc TMR6</description>
+            <groupName>TMR6</groupName>
             <baseAddress>0x40039C00</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -54044,6 +54099,7 @@
         <peripheral>
             <name>TMR6_COMMON</name>
             <description>desc TMR6_COMMON</description>
+            <groupName>TMR6_COMMON</groupName>
             <baseAddress>0x40039300</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -54279,6 +54335,7 @@
         <peripheral>
             <name>TMRA1</name>
             <description>desc TMRA1</description>
+            <groupName>TMRA1</groupName>
             <baseAddress>0x4003A000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -55565,6 +55622,7 @@
         <peripheral>
             <name>TMRA2</name>
             <description>desc TMRA</description>
+            <groupName>TMRA</groupName>
             <baseAddress>0x4003A400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -56851,6 +56909,7 @@
         <peripheral derivedFrom="TMRA2">
             <name>TMRA3</name>
             <description>desc TMRA</description>
+            <groupName>TMRA</groupName>
             <baseAddress>0x4003A800</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -56871,6 +56930,7 @@
         <peripheral derivedFrom="TMRA2">
             <name>TMRA4</name>
             <description>desc TMRA</description>
+            <groupName>TMRA</groupName>
             <baseAddress>0x4003AC00</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -56891,6 +56951,7 @@
         <peripheral derivedFrom="TMRA2">
             <name>TMRA5</name>
             <description>desc TMRA</description>
+            <groupName>TMRA</groupName>
             <baseAddress>0x40026000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -56911,6 +56972,7 @@
         <peripheral>
             <name>USART1</name>
             <description>desc USART1</description>
+            <groupName>USART1</groupName>
             <baseAddress>0x4001CC00</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -57383,6 +57445,7 @@
         <peripheral>
             <name>USART2</name>
             <description>desc USART</description>
+            <groupName>USART</groupName>
             <baseAddress>0x4001D000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -57973,6 +58036,7 @@
         <peripheral derivedFrom="USART2">
             <name>USART3</name>
             <description>desc USART</description>
+            <groupName>USART</groupName>
             <baseAddress>0x4001D400</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -57993,6 +58057,7 @@
         <peripheral derivedFrom="USART2">
             <name>USART4</name>
             <description>desc USART</description>
+            <groupName>USART</groupName>
             <baseAddress>0x4001D800</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
@@ -58013,6 +58078,7 @@
         <peripheral>
             <name>WDT</name>
             <description>desc WDT</description>
+            <groupName>WDT</groupName>
             <baseAddress>0x40049000</baseAddress>
             <addressBlock>
                 <offset>0x0</offset>
