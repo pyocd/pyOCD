@@ -63,6 +63,9 @@ class RunSubcommand(SubcommandBase):
     def invoke(self) -> int:
         """@brief Handle 'run' subcommand."""
 
+        swv_reader = None
+        systemview = None
+
         # Create shared shutdown event for all RunServer threads
         self.shared_shutdown = threading.Event()
 
@@ -93,38 +96,52 @@ class RunSubcommand(SubcommandBase):
             LOG.error("Exception occurred while creating session: %s", e)
             return 1
 
-        timelimit_triggered = False
         with session:
-
             # Increase log level to INFO if it is still at the default WARNING level
             root_logger = logging.getLogger()
             if root_logger.level == logging.WARNING:
                 root_logger.setLevel(logging.INFO)
-            #
-            # ToDo: load support
-            #
-            # To simulate state after load, stop all cores before starting run servers
-            for _, core in session.board.target.cores.items():
-                core.halt()
 
-            rtt_config_list = {
-                core_number: RTTConfig(_session=session, _target=core_target, _core=core_number)
-                for core_number, core_target in session.board.target.cores.items()
-            }
+            # TODO: load support
 
-            systemview_config = SystemViewConfig(_session=session)
-            systemview_enabled = any(
-                cfg.has_rtt_config and cfg.num_systemview_channels > 0
-                for cfg in rtt_config_list.values()
-            )
-
-            if systemview_enabled:
-                self._systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list, systemview_config=systemview_config)
-            else:
-                self._systemview = None
-
-            swv_reader = None
             try:
+                # Process RTT configuration
+                rtt_config_list = {
+                    core_number: RTTConfig(_session=session, _target=core_target, _core=core_number)
+                    for core_number, core_target in session.board.target.cores.items()
+                    if not isinstance(core_target, GenericMemAPTarget)
+                }
+            except Exception as e:
+                LOG.warning("Exception occurred while processing RTT configuration: %s", e)
+
+            try:
+                # Process SystemView configuration
+                systemview_config = SystemViewConfig(_session=session)
+                if any(cfg.has_rtt_config and cfg.num_systemview_channels > 0 for cfg in rtt_config_list.values()):
+                    systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list,
+                                                 systemview_config=systemview_config)
+            except Exception as e:
+                LOG.warning("Exception occurred while processing SystemView configuration: %s", e)
+
+            # Check whether we are using the attach mode
+            attached = session.options.get("connect_mode") == 'attach'
+
+            try:
+                # Halt all cores if required
+                if attached:
+                    for core in session.board.target.cores.values():
+                        core.halt()
+
+                # Initialize SWV reader
+                if session.options.get("enable_swv"):
+                    if "swv_system_clock" not in session.options:
+                        LOG.warning("SWV not enabled; swv_system_clock option missing")
+                    else:
+                        sys_clock = int(session.options.get("swv_system_clock"))
+                        swo_clock = int(session.options.get("swv_clock"))
+                        swv_reader = SWVReader(session)
+                        swv_reader.init(sys_clock, swo_clock, sys.stdout)
+
                 # Start up the run servers
                 for core_number, core in session.board.target.cores.items():
                     # Don't create a server for CPU-less memory Access Port
@@ -139,35 +156,35 @@ class RunSubcommand(SubcommandBase):
                                            shutdown_event=self.shared_shutdown)
                     self._run_servers.append(run_server)
 
-                # Initialize SWVReader
-                if session.options.get("enable_swv"):
-                    if "swv_system_clock" not in session.options:
-                        LOG.warning("SWV not enabled; swv_system_clock option missing")
-                    else:
-                        sys_clock = int(session.options.get("swv_system_clock"))
-                        swo_clock = int(session.options.get("swv_clock"))
-                        swv_reader = SWVReader(session)
-                        swv_reader.init(sys_clock, swo_clock, sys.stdout)
+                # Reset the cores before starting the Run servers.
+                for core in session.board.target.cores.values():
+                    core.set_reset_catch()
+                session.board.target.reset()
+                for core in session.board.target.cores.values():
+                    core.clear_reset_catch()
 
-                # Reset the target and start RunServers
-                session.target.reset()
-                for run_server in self._run_servers:
-                    run_server.start()
-
-                # Trace Capture
+                # Start trace capture before running the target
                 if session.board.target.trace_enabled:
                     session.board.target.trace_capture()
+
+                # Resume target
+                for core in session.board.target.cores.values():
+                    core.resume()
+
+                # Start the Run servers
+                for run_server in self._run_servers:
+                    run_server.start()
 
                 # Wait for all servers to complete or timelimit to expire
                 start_time = time()
                 timelimit = self._args.timelimit
+
                 while any(server.is_alive() for server in self._run_servers):
                     # Check if timelimit has been exceeded
                     if timelimit is not None:
                         elapsed = time() - start_time
                         if elapsed >= timelimit:
                             LOG.info("Time limit of %.1f seconds reached; shutting down all Run servers", timelimit)
-                            timelimit_triggered = True
                             self.shutdown()
                             break
                     sleep(0.1)
@@ -179,20 +196,16 @@ class RunSubcommand(SubcommandBase):
             except Exception:
                 LOG.exception("Unhandled exception in 'run' subcommand")
                 self.shutdown()
-                return 1
+                raise
             finally:
-                if session.board.target.trace_enabled:
-                    session.board.target.trace_flush()
                 if swv_reader:
                     swv_reader.stop()
+                if session.board.target.trace_enabled:
+                    session.board.target.trace_flush()
+                if systemview:
+                    systemview.assemble_file()
 
-            if timelimit_triggered:
-                return 0
-            if any(getattr(server, "eot_flag", False) for server in self._run_servers):
-                return 0
-
-        LOG.warning("Run servers exited without EOT, reached timelimit or error; this is unexpected")
-        return 1
+        return 0
 
     def shutdown(self):
         self.shared_shutdown.set()
@@ -203,14 +216,12 @@ class RunSubcommand(SubcommandBase):
             if server.is_alive():
                 LOG.warning("Run server for core %d did not terminate cleanly", server.core)
 
-        # Generate SystemView output file
-        if self._systemview is not None:
-            self._systemview.assemble_file()
 
 class RunServer(threading.Thread):
 
     def __init__(self, session: Session, core: Optional[int] = None, rtt_config: "RTTConfig" = None,
-                 systemview_config: "SystemViewConfig" = None, enable_eot: bool = False, shutdown_event: Optional[threading.Event] = None):
+                 systemview_config: "SystemViewConfig" = None, enable_eot: bool = False,
+                 shutdown_event: Optional[threading.Event] = None):
         super().__init__(daemon=True)
         self._session = session
         self.eot_flag = False
@@ -327,7 +338,8 @@ class RunServer(threading.Thread):
                                 exc_info=self._session.log_tracebacks)
                     fault_retry_timeout.start()
             except exceptions.Error as e:
-                LOG.error("Error while target core %d running: %s; exiting Run server for core %d", self.core, e, self.core, exc_info=self._session.log_tracebacks)
+                LOG.error("Error while target core %d running: %s; exiting Run server for core %d",
+                          self.core, e, self.core, exc_info=self._session.log_tracebacks)
                 break
             finally:
                 sleep(0.001)
