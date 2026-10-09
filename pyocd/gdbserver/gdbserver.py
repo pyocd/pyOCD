@@ -2,6 +2,7 @@
 # Copyright (c) 2006-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2022 Clay McClure
+# Copyright (c) 2026 j4rvisstant
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -963,6 +964,8 @@ class GDBServer(threading.Thread):
             else:
                 LOG.debug("Command: Clear software breakpoint (addr=0x%08x)", addr)
                 self.target.remove_breakpoint(addr)
+                if not self._commit_breakpoint_removal(addr):
+                    return self.create_rsp_packet(b'E01')
             return self.create_rsp_packet(b"OK")
 
         # handle hardware breakpoint Z1/z1
@@ -975,6 +978,8 @@ class GDBServer(threading.Thread):
             else:
                 LOG.debug("Command: Clear hardware breakpoint (addr=0x%08x)", addr)
                 self.target.remove_breakpoint(addr)
+                if not self._commit_breakpoint_removal(addr):
+                    return self.create_rsp_packet(b'E01')
             return self.create_rsp_packet(b"OK")
 
         # handle hardware watchpoint Z2/z2/Z3/z3/Z4/z4
@@ -1007,6 +1012,27 @@ class GDBServer(threading.Thread):
             LOG.debug("Command: Clear %s watchpoint (addr=0x%08x)", _WP_NAMES[watchpoint_type], addr)
             self.target.remove_watchpoint(addr, size, watchpoint_type)
         return self.create_rsp_packet(b"OK")
+
+    def _commit_breakpoint_removal(self, addr: int) -> bool:
+        """@brief Commit pending breakpoint removals to the target before acknowledging gdb.
+
+        A removal that is acknowledged with OK while the core is halted must already have reached
+        the target, so a session that ends without a further resume or step cannot leave a deleted
+        breakpoint armed. Pending additions stay deferred until the next resume or step. A removal
+        that arrives while the core is running (non-stop mode) stays pending, as before.
+
+        @return True if OK may be sent, False if the removal failed and E01 must be sent.
+        """
+        bp_manager = getattr(self.target, 'bp_manager', None)
+        if bp_manager is None:
+            return True
+        try:
+            bp_manager.flush_removals()
+            return True
+        except exceptions.Error as e:
+            LOG.error("Command: Clear breakpoint (addr=0x%08x): failed to commit removal to target: %s",
+                      addr, e, exc_info=self.session.log_tracebacks)
+            return False
 
     def set_thread(self, client, data):
         op = data[0:1]
