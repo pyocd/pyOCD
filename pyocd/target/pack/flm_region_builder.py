@@ -171,6 +171,7 @@ class FlmFlashRegionBuilder:
             # even though there are subregions.
             region.attributes['page_size'] = page_size
             region.attributes['sector_size'] = sector_sizes[0][1]
+            region.attributes['erased_byte_value'] = pack_algo.flash_info.value_empty
 
     def _add_flash_subregions(
             self,
