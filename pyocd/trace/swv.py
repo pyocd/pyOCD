@@ -233,8 +233,10 @@ class SWVReader(threading.Thread):
             if data:
                 if self._raw_output is not None:
                     self._raw_output.write(data)
-                self._parser.parse(data)
-
+                try:
+                    self._parser.parse(data)
+                except Exception:
+                    pass
             sleep(0.001)
 
         self._session.probe.swo_stop()
