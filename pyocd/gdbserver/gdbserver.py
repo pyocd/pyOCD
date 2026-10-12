@@ -128,6 +128,15 @@ def escape(data):
             result.append(c)
     return bytes(result)
 
+def _parse_thread_id(value: bytes) -> int:
+    # Older GDB versions can send 32-bit thread IDs with bit 31 set as negative
+    # hexadecimal numbers. Recover the original unsigned ID so RTOS thread
+    # lookups succeed, while preserving the special selectors 0 and -1.
+    thread_id = int(value, 16)
+    if thread_id < -1:
+        thread_id += 0x100000000
+    return thread_id
+
 class GDBClientSession(threading.Thread):
     """@brief GDB client session thread.
 
@@ -1010,7 +1019,7 @@ class GDBServer(threading.Thread):
 
     def set_thread(self, client, data):
         op = data[0:1]
-        thread_id = int(data[1:-3], 16)
+        thread_id = _parse_thread_id(data[1:-3])
         LOG.debug("Command: Set thread (threadId=%s, operation=%s)",
                   ("0x%08x" % thread_id) if thread_id >= 0 else str(thread_id), to_str_safe(op))
 
@@ -1042,7 +1051,7 @@ class GDBServer(threading.Thread):
         return self.create_rsp_packet(b'OK')
 
     def is_thread_alive(self, client, data):
-        threadId = int(data[1:-3], 16)
+        threadId = _parse_thread_id(data[1:-3])
 
         if self.is_threading_enabled():
             isAlive = self.thread_provider.is_valid_thread_id(threadId)
@@ -1304,7 +1313,7 @@ class GDBServer(threading.Thread):
             args = op.split(b':')
             action = args[0]
             if len(args) > 1:
-                thread_id = int(args[1], 16)
+                thread_id = _parse_thread_id(args[1])
                 if thread_id == -1 or thread_id == 0:
                     thread_id = currentThread
                 thread_actions[thread_id] = action
