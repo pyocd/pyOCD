@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2020,2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -336,6 +336,22 @@ class TestFlmRegionBuilder:
         assert submap[3].sector_size == 0x4000
         assert submap[4].sector_size == 0x10000
         assert submap[5].sector_size == 0x20000
+
+    def test_single_sector_size_erased_value(self, builder: FlmFlashRegionBuilder, nrf5340appflm, monkeypatch):
+        monkeypatch.setattr(nrf5340appflm.flash_info, 'value_empty', 0x00)
+        flash = memory_map.FlashRegion(0, length=0x200000, flm=nrf5340appflm)
+        assert flash.erased_byte_value == 0xff
+        assert builder.finalise_region(flash)
+        assert not flash.has_subregions
+        assert flash.erased_byte_value == 0x00
+
+    def test_multiple_sector_size_erased_value(self, builder: FlmFlashRegionBuilder, stm32f42mflm, monkeypatch):
+        monkeypatch.setattr(stm32f42mflm.flash_info, 'value_empty', 0x00)
+        flash = memory_map.FlashRegion(0x08000000, length=0x200000, flm=stm32f42mflm)
+        assert builder.finalise_region(flash)
+        assert flash.has_subregions
+        assert flash.erased_byte_value == 0x00
+        assert all(subregion.erased_byte_value == 0x00 for subregion in flash.submap)
 
     def test_ram_select_default(self, builder: FlmFlashRegionBuilder, nrf5340appflm):
         flash = memory_map.FlashRegion(0, length=0x200000, flm=nrf5340appflm)

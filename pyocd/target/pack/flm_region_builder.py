@@ -167,10 +167,10 @@ class FlmFlashRegionBuilder:
         if create_subregions:
             self._add_flash_subregions(region, pack_algo, page_size, algo)
         else:
-            # Set attributes on parent flash region. The parent region still has to have these attributes
-            # even though there are subregions.
+            # Set parent flash region attributes without creating subregions.
             region.attributes['page_size'] = page_size
             region.attributes['sector_size'] = sector_sizes[0][1]
+            region.attributes['erased_byte_value'] = pack_algo.flash_info.value_empty
 
     def _add_flash_subregions(
             self,
@@ -228,3 +228,4 @@ class FlmFlashRegionBuilder:
         # even though there are subregions.
         region.attributes['page_size'] = page_size
         region.attributes['sector_size'] = max_sector_size
+        region.attributes['erased_byte_value'] = pack_algo.flash_info.value_empty
