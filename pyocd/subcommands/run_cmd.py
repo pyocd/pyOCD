@@ -318,6 +318,7 @@ class RunServer(threading.Thread):
                 self.core, stdio_info, rtt_status)
 
         eot_seen = False
+        rtt_poll_error = False
 
         fault_retry_timeout = Timeout(self._session.options.get('live.status_fault_retry_timeout'))
 
@@ -347,6 +348,13 @@ class RunServer(threading.Thread):
                 rtt_poll_time = now + self._RTT_POLL_INTERVAL
                 try:
                     self._rtt_server.poll()
+                    if rtt_poll_error:
+                        LOG.info("RTT poll recovered after error for core %d.", self.core)
+                        rtt_poll_error = False
+                except (exceptions.TransferError, exceptions.RTTError) as error:
+                    if not rtt_poll_error:
+                        LOG.warning("RTT poll failed for core %d: %s", self.core, error)
+                        rtt_poll_error = True
                 except Exception as error:
                     LOG.debug("RTT poll failed for core %d: %s", self.core, error, exc_info=self._session.log_tracebacks)
                 # Check for EOT after polling RTT.

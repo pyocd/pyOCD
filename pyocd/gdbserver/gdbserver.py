@@ -604,6 +604,8 @@ class GDBServer(threading.Thread):
 
     def _run_service_thread(self) -> None:
         """@brief Poll RTT, retry discovery, and read target state."""
+        rtt_poll_error = False
+
         fault_retry_timeout = Timeout(self.session.options.get('live.status_fault_retry_timeout'))
 
         now = time.monotonic()
@@ -632,6 +634,13 @@ class GDBServer(threading.Thread):
                         rtt_poll_time = now + self._RTT_POLL_INTERVAL
                         try:
                             self.rtt_server.poll()
+                            if rtt_poll_error:
+                                LOG.info("RTT poll recovered after error for core %d.", self.core)
+                                rtt_poll_error = False
+                        except (exceptions.TransferError, exceptions.RTTError) as error:
+                            if not rtt_poll_error:
+                                LOG.warning("RTT poll failed for core %d: %s", self.core, error)
+                                rtt_poll_error = True
                         except Exception as error:
                             LOG.debug("RTT poll failed for core %d: %s", self.core, error, exc_info=self.session.log_tracebacks)
                     else:
