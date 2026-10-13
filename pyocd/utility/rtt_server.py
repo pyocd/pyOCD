@@ -351,7 +351,8 @@ class RTTServer:
                 # Read from up channel
                 self.up_buffers[ch_idx] += self.control_block.up_channels[ch_idx].read()
             except (exceptions.TransferError, exceptions.RTTError) as e:
-                LOG.error("Error reading RTT up channel %d: %s", ch_idx, e)
+                LOG.debug("Error reading RTT up channel %d: %s", ch_idx, e)
+                raise
             try:
                 # Write to worker
                 bytes_written = worker.write_up_data(self.up_buffers[ch_idx])
@@ -370,7 +371,8 @@ class RTTServer:
                 bytes_out = self.control_block.down_channels[ch_idx].write(self.down_buffers[ch_idx])
                 self.down_buffers[ch_idx] = self.down_buffers[ch_idx][bytes_out:]
             except (exceptions.TransferError, exceptions.RTTError) as e:
-                LOG.error("Error writing RTT down channel %d: %s", ch_idx, e)
+                LOG.debug("Error writing RTT down channel %d: %s", ch_idx, e)
+                raise
 
     def poll(self):
         """@brief Reads from and writes to active RTT channels. """

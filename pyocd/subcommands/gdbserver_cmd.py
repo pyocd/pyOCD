@@ -235,7 +235,7 @@ class GdbserverSubcommand(SubcommandBase):
                 systemview_config = SystemViewConfig(_session=session)
                 if any(cfg.has_rtt_config and cfg.num_systemview_channels > 0 for cfg in rtt_config_list.values()):
                     systemview = SystemViewSVDat(session=session, rtt_configs=rtt_config_list,
-                                                    systemview_config=systemview_config)
+                                                 systemview_config=systemview_config)
             except Exception as e:
                 LOG.warning("Exception occurred while processing SystemView configuration: %s", e)
 
