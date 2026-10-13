@@ -680,8 +680,10 @@ class GDBServer(threading.Thread):
                             fault_retry_timeout.clear()
 
             wait_time = min(rtt_discovery_time, rtt_poll_time, target_state_time) - time.monotonic()
-            if wait_time > 0.0:
-                self.shutdown_event.wait(wait_time)
+            if wait_time <= 0.0:
+                # Give the client session thread time to acquire the lock and run.
+                wait_time = 0.001
+            self.shutdown_event.wait(wait_time)
 
     def _stop_service_thread(self) -> None:
         """@brief Stop the background service thread."""
