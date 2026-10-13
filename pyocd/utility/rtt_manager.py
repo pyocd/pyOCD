@@ -196,6 +196,12 @@ class RTTManager:
 
         self._rtt_server: Optional[RTTServer] = None
 
+        self._rtt_symbol_address = None
+        if self._rtt_config is not None and self._rtt_config.control_block is None:
+            # No RTT control block configuration
+            # Auto-detect via symbol "_SEGGER_RTT" lookup in the ELF file
+            self._rtt_symbol_address = self._find_segger_rtt_symbol()
+
     def _log_warning_once(self, message: str, *args) -> None:
         """@brief Log only the first warning passed to this helper."""
         if self._warning_logged:
@@ -238,7 +244,7 @@ class RTTManager:
                     return symbol_info.address
             return None
         except Exception as e:
-            self._log_warning_once("RTT for core %d: failed to get _SEGGER_RTT symbol address from ELF: %s", self._core, e)
+            LOG.debug("RTT for core %d: failed to get _SEGGER_RTT symbol address from ELF: %s", self._core, e)
             return None
 
     def start_server(self) -> Optional[RTTServer]:
@@ -287,10 +293,9 @@ class RTTManager:
                     self._log_warning_once("RTT for core %d: failed to find RTT control block with auto-detected address", self._core)
             return None
         else:
-            # Auto-detect via symbol "_SEGGER_RTT" lookup in the ELF file
-            address = self._find_segger_rtt_symbol()
+            address = self._rtt_symbol_address
             if address is None:
-                self._log_warning_once("RTT for core %d: failed to find _SEGGER_RTT symbol in ELF; cannot auto-detect RTT control block", self._core)
+                self._log_warning_once("RTT for core %d: no _SEGGER_RTT symbol available; cannot auto-detect RTT control block", self._core)
                 return None
             self._rtt_server = self._start_rtt_server(address, None)
             if self._rtt_server is not None:

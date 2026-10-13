@@ -391,8 +391,9 @@ class RunServer(threading.Thread):
                     break
 
             wait_time = min(rtt_discovery_time, rtt_poll_time, target_state_time) - monotonic()
-            if wait_time > 0.0:
-                self._shutdown_event.wait(wait_time)
+            if wait_time <= 0.0:
+                wait_time = 0.001
+            self._shutdown_event.wait(wait_time)
 
         LOG.debug("Exit Run server for core %d", self.core)
 
