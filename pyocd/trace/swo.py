@@ -175,7 +175,7 @@ class SWOParser:
                 c = (hdr >> 7) & 0x1
                 d = (hdr >> 4) & 0b111
                 # Local timestamp.
-                if (hdr & 0xf) == 0 and d not in (0x0, 0x3):
+                if (hdr & 0xf) == 0 and d not in (0x0, 0x7):
                     ts = 0
                     tc = 0
                     # Local timestamp packet format 1.
