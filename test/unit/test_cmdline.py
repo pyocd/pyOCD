@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2015,2018-2019,2026 Arm Limited
 # Copyright (c) 2022 Chris Reed
+# Copyright (c) 2026 Aamir Abdul Azeez
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
+from unittest.mock import Mock
+
 import pytest
 from pyocd.utility.compatibility import to_bytes_safe
 
@@ -26,6 +30,20 @@ from pyocd.utility.cmdline import (
     )
 from pyocd.core.target import Target
 from pyocd.target import normalise_target_type_name
+from pyocd.subcommands.commander_cmd import CommanderSubcommand
+
+
+class TestCommanderSubcommand:
+    @pytest.mark.parametrize("exit_code", [0, 1, 2, 3, 4])
+    def test_exit_code(self, monkeypatch, exit_code):
+        args = argparse.Namespace(commands=None)
+        commander = Mock()
+        commander.return_value.run.return_value = exit_code
+        monkeypatch.setattr("pyocd.subcommands.commander_cmd.PyOCDCommander", commander)
+
+        assert CommanderSubcommand(args).invoke() == exit_code
+        commander.assert_called_once_with(args, None)
+        commander.return_value.run.assert_called_once_with()
 
 class TestSplitCommandLine(object):
     def test_split(self):

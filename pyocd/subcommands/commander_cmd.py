@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 Aamir Abdul Azeez
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -72,8 +73,6 @@ class CommanderSubcommand(SubcommandBase):
             cmds = None
 
         # Enter REPL.
-        PyOCDCommander(self._args, cmds).run()
-
-        return 0
+        return PyOCDCommander(self._args, cmds).run()
 
 
