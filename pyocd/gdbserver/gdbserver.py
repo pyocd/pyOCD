@@ -1219,7 +1219,7 @@ class GDBServer(threading.Thread):
         """@brief Step until a visible halt or the end of a range. Called with self.lock held."""
         try:
             if self.target.skip_breakpoint_instruction(exclude_semihosting=self.enable_semihosting):
-                if start == end or not (start <= self.target.read_core_register('pc') < end):
+                if start == end or not (start <= self.target_context.read_core_register('pc') < end):
                     return
         except Exception:
             return
@@ -1229,7 +1229,7 @@ class GDBServer(threading.Thread):
             self.target.step(not self.step_into_interrupt, start, end, hook_cb=client.is_interrupted)
             if not (self.enable_semihosting and self._handle_semihosting(client=client)):
                 break
-            pc = self.target.read_core_register('pc')
+            pc = self.target_context.read_core_register('pc')
             if start == end or not (start <= pc < end):
                 break
         self.trace_flush()
