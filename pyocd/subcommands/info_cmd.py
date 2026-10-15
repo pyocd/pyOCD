@@ -21,6 +21,7 @@ from typing import List
 from .base import SubcommandBase
 from ..core.helpers import ConnectHelper
 from ..core.core_target import CoreTarget
+from ..probe.debug_probe import DebugProbe
 from ..utility.cmdline import convert_session_options
 
 LOG = logging.getLogger(__name__)
@@ -38,6 +39,15 @@ class InfoSubcommand(SubcommandBase):
         """@brief Add this subcommand to the subparsers object."""
         info_parser = argparse.ArgumentParser(description='info', add_help=False)
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, info_parser]
+
+    @staticmethod
+    def _format_frequency(frequency: float) -> str:
+        """@brief Format a frequency in Hz with an appropriate unit."""
+        if frequency >= 1000000:
+            return f"{frequency / 1000000:g}MHz"
+        elif frequency >= 1000:
+            return f"{frequency / 1000:g}kHz"
+        return f"{frequency:g}Hz"
 
     @staticmethod
     def _print_core(core: CoreTarget, show_core_number: bool) -> None:
@@ -98,16 +108,22 @@ class InfoSubcommand(SubcommandBase):
             assert session.target
 
             print(f"Debug Probe: {session.probe.description} [{session.probe.unique_id}]")
+            capabilities = [protocol.name for protocol in (DebugProbe.Protocol.SWD, DebugProbe.Protocol.JTAG)
+                            if protocol in session.probe.supported_wire_protocols]
+            if DebugProbe.Capability.SWO in session.probe.capabilities:
+                capabilities.append("SWO (UART)")
+            if capabilities:
+                print(f"  Capabilities: {', '.join(capabilities)}")
 
             protocol = session.probe.wire_protocol
             frequency = session.options.get('frequency')
-            if frequency >= 1000000:
-                frequency_text = f"{frequency / 1000000:g}MHz"
-            elif frequency >= 1000:
-                frequency_text = f"{frequency / 1000:g}kHz"
+            print(f"Debug Port: {protocol.name} [{self._format_frequency(frequency)}]")
+
+            if session.options.get('enable_swv'):
+                swo_frequency = session.options.get('swv_clock')
+                print(f"Trace Port: SWO (UART) [{self._format_frequency(swo_frequency)}]")
             else:
-                frequency_text = f"{frequency:g}Hz"
-            print(f"Debug Port: {protocol.name} [{frequency_text}]")
+                print("Trace Port: disabled")
 
             cores = session.target.cores
             if not cores:
