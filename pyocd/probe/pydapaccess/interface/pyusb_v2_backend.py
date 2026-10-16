@@ -34,7 +34,6 @@ from .common import (
     )
 from ..dap_access_api import DAPAccessIntf
 from ... import common
-from ....utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
 TRACE = LOG.getChild("trace")
@@ -173,8 +172,14 @@ class PyUSBv2(Interface):
             while not self.rx_stop_event.is_set():
                 self.read_sem.acquire()
                 if not self.rx_stop_event.is_set():
-                    read_data = self.ep_in.read(self.packet_size,
-                                                timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
+                    # Some probes append a ZLP after a full-size response. It is not
+                    # a CMSIS-DAP response, so retry without consuming another read token.
+                    while not self.rx_stop_event.is_set():
+                        read_data = self.ep_in.read(self.packet_size, timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
+                        if read_data:
+                            break
+                    else:
+                        break
 
                     # This trace log is commented out to reduce clutter, but left in to leave available
                     # when debugging rx_task issues.
@@ -193,8 +198,7 @@ class PyUSBv2(Interface):
         try:
             while not self.swo_stop_event.is_set():
                 try:
-                    data = self.ep_swo.read(self.ep_swo.wMaxPacketSize,
-                            timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
+                    data = self.ep_swo.read(self.ep_swo.wMaxPacketSize, timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
                     self.swo_data.put(data)
                 except usb.core.USBError:
                     pass
