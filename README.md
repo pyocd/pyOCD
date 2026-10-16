@@ -7,7 +7,7 @@ pyOCD
 
 ### News
 
-- The v0.45 release extends debug sequence support and introduces file-based RTT and SWV capture
+The v0.46 release adds enhanced trace support, GDB Server operation without a connected client, and the new pyocd `info` subcommand.
 
 See the [wiki news page](https://github.com/pyocd/pyOCD/wiki/News) for all recent news.
 
