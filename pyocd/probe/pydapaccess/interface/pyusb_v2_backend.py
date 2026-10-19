@@ -171,23 +171,20 @@ class PyUSBv2(Interface):
         try:
             while not self.rx_stop_event.is_set():
                 self.read_sem.acquire()
-                if not self.rx_stop_event.is_set():
-                    # Some probes append a ZLP after a full-size response. It is not
-                    # a CMSIS-DAP response, so retry without consuming another read token.
-                    while not self.rx_stop_event.is_set():
-                        read_data = self.ep_in.read(self.packet_size, timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
-                        if read_data:
-                            break
-                    else:
+                # Some probes append a ZLP after a full-size response. It is not
+                # a CMSIS-DAP response, so retry without consuming another read token.
+                while not self.rx_stop_event.is_set():
+                    read_data = self.ep_in.read(self.packet_size, timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
+                    if read_data:
+
+                        # This trace log is commented out to reduce clutter, but left in to leave available
+                        # when debugging rx_task issues.
+                        # if TRACE.isEnabledFor(logging.DEBUG):
+                        #     TRACE.debug("  USB IN < (%d) %s", len(read_data),
+                        #                 ' '.join([f'{i:02x}' for i in read_data]))
+
+                        self.rcv_data.put(read_data)
                         break
-
-                    # This trace log is commented out to reduce clutter, but left in to leave available
-                    # when debugging rx_task issues.
-                    # if TRACE.isEnabledFor(logging.DEBUG):
-                    #     TRACE.debug("  USB IN < (%d) %s", len(read_data),
-                    #                 ' '.join([f'{i:02x}' for i in read_data]))
-
-                    self.rcv_data.put(read_data)
         except Exception as err:
             TRACE.debug("rx_task exception: %s", err)
             self._read_thread_exception = err
