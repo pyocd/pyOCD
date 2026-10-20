@@ -55,6 +55,78 @@ The API and tools provide these features:
 Configuration and customization is supported through [config files](https://pyocd.io/docs/configuration),
 [user scripts](https://pyocd.io/docs/user_scripts), and the Python API.
 
+## CMSIS alignment
+
+We are moving towards common CMSIS tooling for pack management and CMSIS-Packs for new target support.
+These complementary changes let us share tooling and device information across the CMSIS ecosystem.
+
+### Moving pyOCD pack management towards `cpackget`
+
+As the CMSIS ecosystem evolves, we want to encourage pyOCD contributors to use **`cpackget` for
+CMSIS-Pack management** rather than relying on the built-in pack manager.
+
+The built-in pack manager in pyOCD will be deprecated in favor of the CMSIS-Toolbox approach. This aligns
+pyOCD with the broader CMSIS tool landscape and promotes a more consistent, interoperable development
+experience.
+
+This direction brings several benefits:
+
+- **Less duplication:** Reuse established tooling for CMSIS-Pack management instead of maintaining
+  overlapping functionality.
+
+- **Better interoperability:** Align workflows across CMSIS-Toolbox and the wider CMSIS ecosystem.
+
+- **A consistent development experience:** Support the broader family of CMSIS tools, including the
+  CMSIS Solution and CMSIS Debugger VS Code extensions.
+
+- **AI-ready information management:** Leverage structured CMSIS information through the CMSIS Developer
+  Assistant to support agentic AI workflows.
+
+Our goal is to let pyOCD focus on its core strengths in debugging and target interaction, while pack
+management follows the common CMSIS tooling approach.
+
+**For users:** Use `cpackget` when setting up new CMSIS-Toolbox workflows, and plan for the move away
+from pyOCD's built-in pack manager.
+
+**For contributors:** Please start using `cpackget` in your development workflows and take this direction
+into account when working on pack-related features, tests, and documentation. We should avoid introducing
+new dependencies on the built-in pack manager as we move towards its deprecation.
+
+See the [`cpackget` documentation](https://github.com/Open-CMSIS-Pack/cpackget) for installation and usage.
+
+### Supporting new targets through CMSIS-Packs
+
+We are moving towards **[CMSIS Device Family Packs (DFPs)](https://www.keil.arm.com/packs/?q=&pack-search=&contents=devices&sort_by=)
+as the preferred way to support new targets** in pyOCD, rather than adding new built-in target support.
+
+pyOCD already uses DFPs to obtain device memory maps, flash programming algorithms, and debug sequences.
+Using these descriptions directly lets silicon vendors and pack maintainers deliver device support
+through a standard format shared with other CMSIS tools.
+
+There are several benefits when using DFPs:
+
+- **Faster availability:** New device support and device-specific fixes can be delivered through pack
+  updates without waiting for a pyOCD release.
+
+- **More consistent device support:** Reuse the same memory maps, flash algorithms, and debug sequences
+  across pyOCD and other tools that support CMSIS-Packs.
+
+- **Support closer to the source:** Silicon vendors and pack maintainers can maintain device information
+  and fixes in their DFPs, where they can benefit users of multiple tools.
+
+- **Less duplication:** Reduce the need for separate Python target definitions and copied flash
+  algorithms in pyOCD, so development can focus on debugging and common pack support.
+
+**For users:** Use a DFP for your device when setting up new projects. See the
+[target support documentation](https://pyocd.io/docs/target_support) for how to select and use targets
+from packs.
+
+**For contributors:** Please take this direction into account when adding target support, tests, and
+documentation. Prefer adding or improving device support in DFPs and improving pyOCD's common pack support
+over adding new built-in target definitions.
+
+Thanks for helping keep pyOCD aligned with the evolving CMSIS ecosystem!
+
 ## Requirements
 
 - Python 3.9.0 or later.†
