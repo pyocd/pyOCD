@@ -1,5 +1,4 @@
-pyOCD
-=====
+# pyOCD
 
 [\[pyocd.io\]](https://pyocd.io/) [\[Docs\]](https://pyocd.io/docs) [\[Slack\]](https://join.slack.com/t/pyocd/shared_invite/zt-wmy3zvg5-nRLj1GBWYh708TVfIx9Llg) [\[Mailing list\]](https://groups.google.com/g/pyocd) [\[CI results\]](https://dev.azure.com/pyocd/pyocd/_build?definitionId=1&_a=summary)
 
@@ -41,65 +40,58 @@ The `pyocd` command line tool gives you total control over your device with thes
 
 The API and tools provide these features:
 
--  halt, step, resume control
--  read/write memory
--  read/write core registers
--  set/remove hardware and software breakpoints
--  set/remove watchpoints
--  write to flash memory
--  load binary, hex, or ELF files into flash
--  reset control
--  access CoreSight DP and APs
--  SWO and SWV
--  and more!
+- halt, step, resume control
+- read/write memory
+- read/write core registers
+- set/remove hardware and software breakpoints
+- set/remove watchpoints
+- write to flash memory
+- load binary, hex, or ELF files into flash
+- reset control
+- access CoreSight DP and APs
+- SWO and SWV
+- and more!
 
 Configuration and customization is supported through [config files](https://pyocd.io/docs/configuration),
 [user scripts](https://pyocd.io/docs/user_scripts), and the Python API.
 
-
-Requirements
-------------
+## Requirements
 
 - Python 3.9.0 or later.†
 - macOS, Linux, Windows 7 or newer, or FreeBSD
-- A recent version of [libusb](https://libusb.info/). See [libusb installation](#libusb-installation) for details.
+- A recent version of [libusb](https://libusb.info/).
 - Microcontroller with an Arm Cortex-M CPU
 - Supported debug probe
-  - [CMSIS-DAP](https://arm-software.github.io/CMSIS_5/DAP/html/index.html) v1 (HID) or v2 (WinUSB), including:
-    - Atmel EDBG/nEDBG
-    - Atmel-ICE
-    - Cypress KitProg3 or MiniProg4
-    - [DAPLink](https://github.com/ARMmbed/DAPLink) based debug probe, either on-board or standalone
-    - Keil ULINKplus
-    - NXP LPC-LinkII
-    - NXP MCU-Link
-    - WCH-Link (1a86:8011, 2a86:8011 and others)
-  - [PE Micro](https://pemicro.com/) Cyclone and Multilink
-  - Raspberry Pi Picoprobe
-  - SEGGER J-Link
-  - STLinkV2 or STLinkV3, either on-board or the standalone versions
+    - [CMSIS-DAP](https://arm-software.github.io/CMSIS_5/DAP/html/index.html) v1 (HID) or v2 (WinUSB), including:
+        - Atmel EDBG/nEDBG
+        - Atmel-ICE
+        - Cypress KitProg3 or MiniProg4
+        - [DAPLink](https://github.com/ARMmbed/DAPLink) based debug probe, either on-board or standalone
+        - Keil ULINKplus
+        - NXP LPC-LinkII
+        - NXP MCU-Link
+        - WCH-Link (1a86:8011, 2a86:8011 and others)
+    - [PE Micro](https://pemicro.com/) Cyclone and Multilink
+    - Raspberry Pi Picoprobe
+    - SEGGER J-Link
+    - STLinkV2 or STLinkV3, either on-board or the standalone versions
 
 † Version [0.29](https://github.com/pyocd/pyOCD/releases/tag/v0.29.0) is the last version to support Python 2.
 
-Status
-------
+## Status
 
 PyOCD is beta quality.
 
 The Python API is considered stable for version 0.x, but will be changed in version 1.0.
 
-
-Documentation
--------------
+## Documentation
 
 The pyOCD documentation is available on the [pyocd.io website](https://pyocd.io/docs).
 
 In addition to user guides, you can generate reference documentation using Doxygen with the
 supplied [config file](docs/Doxyfile).
 
-
-Installing
-----------
+## Installing
 
 **The full installation guide is available [in the documentation](https://pyocd.io/docs/installing).**
 
@@ -109,8 +101,8 @@ For notes about installing and using on non-x86 systems such as Raspberry Pi, se
 The latest stable version of pyOCD may be installed via [pip](https://pip.pypa.io/en/stable/index.html)
 as follows:
 
-```
-$ python3 -mpip install -U pyocd
+```sh
+python3 -m pip install -U pyocd
 ```
 
 _Note: depending on your system, you may need to use `python` instead of `python3`._
@@ -121,24 +113,24 @@ The latest pyOCD package is available [on PyPI](https://pypi.python.org/pypi/pyO
 To install the latest prerelease version from the HEAD of the `develop` branch, you can do
 the following:
 
-```
-$ python3 -mpip install --pre -U git+https://github.com/pyocd/pyOCD.git@develop
+```sh
+python3 -m pip install --pre -U git+https://github.com/pyocd/pyOCD.git@develop
 ```
 
 You can also install directly from the source by cloning the git repository and running:
 
-```
-$ python3 pip install .
+```sh
+python3 -m pip install .
 ```
 
 Note that, depending on your operating system, you may run into permissions issues running these commands.
 You have a few options here:
 
 1. Under Linux, run with `sudo -H` to install pyOCD and dependencies globally. On macOS, installing with sudo
-    should never be required, although sometimes permissions can become modified such that installing without
-    using sudo fails.
-3. Specify the `--user` option to install local to your user account.
-4. Run the command in a [virtualenv](https://virtualenv.pypa.io/en/latest/)
+   should never be required, although sometimes permissions can become modified such that installing without
+   using sudo fails.
+2. Specify the `--user` option to install local to your user account.
+3. Run the command in a [virtualenv](https://virtualenv.pypa.io/en/latest/)
    local to a specific project working set.
 
 ### udev rules on Linux
@@ -158,16 +150,12 @@ See the [target support documentation](https://pyocd.io/docs/target_support) for
 the MCU(s) you are using have built-in support, and how to install support for additional MCUs via
 CMSIS-Packs.
 
-
-Using GDB
----------
+## Using GDB
 
 See the [GDB setup](https://pyocd.io/docs/gdb_setup) documentation for a guide for setting up
 and using pyocd with gdb and IDEs.
 
-
-Community resources
--------------------
+## Community resources
 
 Join the pyOCD community!
 
@@ -181,9 +169,7 @@ Join the pyOCD community!
 In order to foster a healthy and safe environment, we expect contributors and all members of the community to
 follow our [Code of Conduct](https://github.com/pyocd/pyOCD/tree/main/CODE_OF_CONDUCT.md).
 
-
-Contributions
--------------
+## Contributions
 
 We welcome contributions in any area, even if you just create an issue. If you would like to get involved but
 aren't sure what to start with, just ask on
@@ -196,9 +182,7 @@ Guide](https://pyocd.io/docs/developers_guide) has instructions on how to set up
 
 New pull requests should be [created](https://github.com/pyocd/pyOCD/pull/new) against the `develop` branch. (You have to change the "base" to `develop`.)
 
-
-License
--------
+## License
 
 PyOCD is licensed with the permissive Apache 2.0 license. See the
 [LICENSE](https://github.com/pyocd/pyOCD/tree/main/LICENSE) file for the full text of the license. All
