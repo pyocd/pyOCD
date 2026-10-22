@@ -469,7 +469,7 @@ class _Command(object):
         """
         assert self.get_empty() is False
         self._data_encoded = True
-        if self._block_allowed:
+        if self._block_allowed and (self._read_count > 1 or self._write_count > 1):
             data = self._encode_transfer_block_data()
         else:
             data = self._encode_transfer_data()
@@ -480,7 +480,7 @@ class _Command(object):
         """
         assert self.get_empty() is False
         assert self._data_encoded is True
-        if self._block_allowed:
+        if self._block_allowed and (self._read_count > 1 or self._write_count > 1):
             data = self._decode_transfer_block_data(data)
         else:
             data = self._decode_transfer_data(data)
