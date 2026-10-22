@@ -61,6 +61,10 @@ class RTTSubcommand(SubcommandBase):
                                  help="Down channel ID.")
         rtt_options.add_argument("-d", "--log-file", type=str, default=None,
                                  help="Log file name. When specified, logging mode is enabled.")
+        rtt_options.add_argument("-l", "--line-mode", action="store_true",
+                                 help="Line-buffered input. Keystrokes are buffered on the host "
+                                      "and only sent to the target when Enter is pressed; "
+                                      "backspace and ctrl-U edit the pending line.")
 
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, rtt_parser]
 
@@ -174,6 +178,8 @@ class RTTSubcommand(SubcommandBase):
     def viewer_loop(self, up_chan, down_chan, kb):
         # byte array to send via RTT
         cmd = bytes()
+        # characters typed but not yet sent (line mode only)
+        line = ""
 
         while True:
             # poll at most 1000 times per second to limit CPU use
@@ -191,11 +197,31 @@ class RTTSubcommand(SubcommandBase):
 
                 if ord(c) == 27: # process ESC
                     break
-                elif c.isprintable() or c == '\n':
-                    print(c, end="", flush=True)
 
-                # add char to buffer
-                cmd += c.encode("utf-8")
+                if self._args.line_mode:
+                    # Hold the line on the host and only send it once the user
+                    # presses Enter, to support targets expecting line-based commands.
+                    if c in ("\r", "\n"):
+                        print("", flush=True)
+                        # submit the line, terminated by the character typed
+                        cmd += (line + c).encode("utf-8")
+                        line = ""
+                    elif c in ("\b", "\x7f"):  # backspace / delete
+                        if line:
+                            line = line[:-1]
+                            print("\b \b", end="", flush=True)
+                    elif c == "\x15":  # ctrl-U, kill line
+                        print("\b \b" * len(line), end="", flush=True)
+                        line = ""
+                    elif c.isprintable():
+                        line += c
+                        print(c, end="", flush=True)
+                else:
+                    if c.isprintable() or c == '\n':
+                        print(c, end="", flush=True)
+
+                    # add char to buffer
+                    cmd += c.encode("utf-8")
 
             # write buffer to target
             if not cmd:
