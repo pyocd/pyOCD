@@ -34,7 +34,6 @@ from .common import (
     )
 from ..dap_access_api import DAPAccessIntf
 from ... import common
-from ....utility.timeout import Timeout
 
 LOG = logging.getLogger(__name__)
 TRACE = LOG.getChild("trace")
@@ -172,17 +171,20 @@ class PyUSBv2(Interface):
         try:
             while not self.rx_stop_event.is_set():
                 self.read_sem.acquire()
-                if not self.rx_stop_event.is_set():
-                    read_data = self.ep_in.read(self.packet_size,
-                                                timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
+                # Some probes append a ZLP after a full-size response. It is not
+                # a CMSIS-DAP response, so retry without consuming another read token.
+                while not self.rx_stop_event.is_set():
+                    read_data = self.ep_in.read(self.packet_size, timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
+                    if read_data:
 
-                    # This trace log is commented out to reduce clutter, but left in to leave available
-                    # when debugging rx_task issues.
-                    # if TRACE.isEnabledFor(logging.DEBUG):
-                    #     TRACE.debug("  USB IN < (%d) %s", len(read_data),
-                    #                 ' '.join([f'{i:02x}' for i in read_data]))
+                        # This trace log is commented out to reduce clutter, but left in to leave available
+                        # when debugging rx_task issues.
+                        # if TRACE.isEnabledFor(logging.DEBUG):
+                        #     TRACE.debug("  USB IN < (%d) %s", len(read_data),
+                        #                 ' '.join([f'{i:02x}' for i in read_data]))
 
-                    self.rcv_data.put(read_data)
+                        self.rcv_data.put(read_data)
+                        break
         except Exception as err:
             TRACE.debug("rx_task exception: %s", err)
             self._read_thread_exception = err
@@ -193,8 +195,7 @@ class PyUSBv2(Interface):
         try:
             while not self.swo_stop_event.is_set():
                 try:
-                    data = self.ep_swo.read(self.ep_swo.wMaxPacketSize,
-                            timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
+                    data = self.ep_swo.read(self.ep_swo.wMaxPacketSize, timeout=self.DEFAULT_USB_TIMEOUT_MS).tobytes()
                     self.swo_data.put(data)
                 except usb.core.USBError:
                     pass
