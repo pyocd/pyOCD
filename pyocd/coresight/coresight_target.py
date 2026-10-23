@@ -61,6 +61,7 @@ class CoreSightTarget(SoCTarget):
         self._trace_buffer_sinks: Optional[TraceBufferSinks] = None
 
         self.session.context_state.is_performing_pre_reset = False
+        self.session.context_state.halt_on_reset = False
 
     @property
     def aps(self) -> Dict["APAddressBase", "AccessPort"]:

@@ -1621,6 +1621,7 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         - [15:8] reset type: 0=error, 1=hw, 2=SYSRESETREQ, 3=VECTRESET
         - [16] connect under reset?
         - [17] pre-connect reset?
+        - [18] halt after reset?
         """
         ctype = 1 if self._session.command not in ('load', 'erase') else 2
         ctype |= self.RESET_TYPE_MAP.get(self._session.options.get('reset_type'), 0) << 8
@@ -1634,6 +1635,8 @@ class CbuildRunDebugSequenceDelegate(DebugSequenceDelegate):
         # pre_connect() method.
         if self._session.context_state.is_performing_pre_reset:
             ctype |= 1 << 17
+        if self._session.context_state.halt_on_reset:
+            ctype |= 1 << 18
         return ctype
 
     def get_traceout(self) -> int:
