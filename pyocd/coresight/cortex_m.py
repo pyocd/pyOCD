@@ -1124,7 +1124,11 @@ class CortexM(CoreTarget, CoreSightCoreComponent): # lgtm[py/multiple-calls-to-i
         self.set_reset_catch(reset_type)
 
         # Perform the reset.
-        self.reset(reset_type)
+        self.session.context_state.halt_on_reset = True
+        try:
+            self.reset(reset_type)
+        finally:
+            self.session.context_state.halt_on_reset = False
 
         # Wait until the unit resets. If emulated reset is used then it will have already halted
         # for us.
