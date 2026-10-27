@@ -810,9 +810,11 @@ class DebugPort(DelegateHavingMixIn):
         try:
             result_cb = self.probe.read_dp(addr & DPADDR_MASK, now=False)
         except exceptions.TargetError as error:
-            self._handle_error(error, num)
-            if did_lock:
-                self.unlock()
+            try:
+                self._handle_error(error, num)
+            finally:
+                if did_lock:
+                    self.unlock()
             raise
         except Exception:
             if did_lock:
@@ -930,9 +932,11 @@ class DebugPort(DelegateHavingMixIn):
             did_lock = self._select_ap(addr)
             result_cb = self.probe.read_ap(addr, now=False)
         except exceptions.TargetError as error:
-            self._handle_error(error, num)
-            if did_lock:
-                self.unlock()
+            try:
+                self._handle_error(error, num)
+            finally:
+                if did_lock:
+                    self.unlock()
             raise
         except Exception:
             if did_lock:
@@ -1003,9 +1007,11 @@ class DebugPort(DelegateHavingMixIn):
             TRACE.debug("read_ap_multiple:%06d (addr=0x%08x, count=%i)", num, addr, count)
             result_cb = self.probe.read_ap_multiple(addr, count, now=False)
         except exceptions.TargetError as error:
-            self._handle_error(error, num)
-            if did_lock:
-                self.unlock()
+            try:
+                self._handle_error(error, num)
+            finally:
+                if did_lock:
+                    self.unlock()
             raise
         except Exception:
             if did_lock:
