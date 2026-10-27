@@ -328,6 +328,7 @@ class DebugPort(DelegateHavingMixIn):
         self._probe_supports_apv2_addresses: bool = False
         self._have_probe_capabilities: bool = False
         self._did_check_version: bool = False
+        self._debug_port_setup_done: bool = False
         self._log_dp_info: bool = True
 
         # DPv3 attributes
@@ -461,6 +462,7 @@ class DebugPort(DelegateHavingMixIn):
         return cst.call_pre_discovery_debug_sequence('DebugPortStop')
 
     def _connect(self) -> None:
+        self._debug_port_setup_done = False
         try:
             # Connect the probe.
             probe_conn = ProbeConnector(self.probe)
@@ -478,6 +480,8 @@ class DebugPort(DelegateHavingMixIn):
             LOG.error("%s", err)
             raise exceptions.Error(
                 "Target not detected. Check connection to target. Potentially reduce debug clock.") from err
+        finally:
+            self._debug_port_setup_done = True
         assert self.dpidr
 
         # Report on DP version.
@@ -1037,6 +1041,9 @@ class DebugPort(DelegateHavingMixIn):
             self.write_reg(DP_ABORT, ABORT_DAPABORT)
         elif isinstance(error, exceptions.TransferProtocolError):
             if self.probe.wire_protocol == DebugProbe.Protocol.SWD:
+                self._swd_reset()
+        elif isinstance(error, exceptions.TransferError):
+            if self._debug_port_setup_done and self.probe.wire_protocol == DebugProbe.Protocol.SWD:
                 self._swd_reset()
 
     def clear_sticky_err(self) -> None:
