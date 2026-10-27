@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2013-2021 Arm Limited
+# Copyright (c) 2026 Quincy.W
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -146,6 +147,8 @@ from . import target_STM32H7B0xx
 from . import target_Air001
 from . import target_Air32F103xx
 from . import target_AMA3B1KK
+from . import target_G32R501xx
+from . import target_G32R502xx
 
 ## @brief Dictionary of all builtin targets.
 #
@@ -359,4 +362,7 @@ BUILTIN_TARGETS = {
           'air32f103xe': target_Air32F103xx.Air32F103xE,
           'air32f103xg': target_Air32F103xx.Air32F103xG,
           'ama3b1kk_kbr': target_AMA3B1KK.AMA3B1KK_KBR,
+          'g32r501xx': target_G32R501xx.G32R501xx,
+          'g32r501dxx': target_G32R501xx.G32R501Dxx,
+          'g32r502xx': target_G32R502xx.G32R502xx,
          }
