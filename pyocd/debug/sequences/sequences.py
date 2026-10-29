@@ -341,6 +341,7 @@ class DebugSequence(DebugSequenceNode):
         - [15:8] reset type: 0=error, 1=hw, 2=SYSRESETREQ, 3=VECTRESET
         - [16] connect under reset?
         - [17] pre-connect reset?
+        - [18] halt after reset?
     - __traceout
         - [0] SWO enabled?
         - [1] parallel trace enabled?
