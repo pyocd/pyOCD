@@ -35,6 +35,7 @@ from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.ap import (APAddressBase, APv1Address, AccessPort, MEM_AP)
 from ...coresight.dap import ADIVersion
 from ...probe.debug_probe import DebugProbe
+from ...utility.conversion import u32_to_float32, u64_to_float64
 from .delegates import DebugSequenceFunctionsDelegate
 from .sequences import DebugSequenceRuntimeError
 
@@ -43,6 +44,9 @@ if TYPE_CHECKING:
     from ...core.memory_interface import MemoryInterface
 
 LOG = logging.getLogger(__name__)
+
+MESSAGE = LOG.getChild("message")
+MESSAGE.setLevel(logging.INFO)
 
 
 @dataclass
@@ -603,9 +607,51 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
         1: logging.WARNING,
         2: logging.ERROR,
     }
-    def message(self, type: int, format: str, *args: int) -> None:
-        level = self._MESSAGE_LEVEL_MAP.get(type, 2) # default to error for invalid type
-        LOG.log(level, format % args)
+    _MESSAGE_FORMAT = re.compile(r"%(?:(0?)([0-9]*)(?:\.([0-9]+))?(ll[uxXob]|Lf|[uxXobfs])|%)|%")
+
+    def message(self, type: int, format: str, *args: Union[int, str]) -> int:
+        arguments = iter(args)
+
+        def replace(match: re.Match) -> str:
+            zero, width, precision, specifier = match.groups()
+            if match.group(0) == '%%':
+                return '%'
+            if specifier is None:
+                raise ValueError("unsupported or incomplete format specifier")
+            value = next(arguments)
+            if specifier == 's':
+                if not isinstance(value, str):
+                    raise TypeError("%s requires a string argument")
+                text = value if precision is None else value[:int(precision)]
+            else:
+                if not isinstance(value, int):
+                    raise TypeError(f"%{specifier} requires an integer argument")
+                bits = 64 if specifier.startswith(('ll', 'L')) else 32
+                value &= (1 << bits) - 1
+                conversion = specifier[-1]
+                if conversion == 'f':
+                    # Sequence arguments carry floating point values as integer bit patterns.
+                    float_value = u64_to_float64(value) if bits == 64 else u32_to_float32(value)
+                    return f"{float_value:{zero}{width}.{precision or '6'}f}"
+                text = f"{value:{'d' if conversion == 'u' else conversion}}"
+                if precision is not None:
+                    text = text.rjust(int(precision), '0')
+            return text.rjust(int(width), zero or ' ') if width else text
+
+        try:
+            text = self._MESSAGE_FORMAT.sub(replace, format)
+            if next(arguments, None) is not None:
+                raise ValueError("too many arguments")
+
+            level = self._MESSAGE_LEVEL_MAP.get(type, logging.ERROR)
+            MESSAGE.log(level, text)
+        except StopIteration:
+            LOG.error("Not enough arguments for Message format: %s", format)
+        except (ValueError, TypeError) as err:
+            LOG.error("Invalid Message format: %s", format)
+            LOG.debug("Message %s: %s", format, err)
+
+        return 0
 
     def loaddebuginfo(self, file: str) -> int:
         # Return 1 to indicate failure.
