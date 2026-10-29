@@ -53,6 +53,9 @@ NodeType = Union[LarkTree, LarkToken, int]
 class DebugSequenceError(exceptions.Error):
     pass
 
+class DebugSequenceMessageError(DebugSequenceError):
+    pass
+
 class DebugSequenceSemanticError(DebugSequenceError):
     pass
 

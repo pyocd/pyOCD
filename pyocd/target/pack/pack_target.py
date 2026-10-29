@@ -32,7 +32,7 @@ from ...coresight.coresight_target import CoreSightTarget
 from ...coresight.cortex_m import CortexM
 from ...debug.sequences.delegates import DebugSequenceDelegate, TraceSetup
 from ...debug.sequences.functions import DebugSequenceCommonFunctions
-from ...debug.sequences.sequences import (Block, DebugSequence, DebugSequenceExecutionContext)
+from ...debug.sequences.sequences import (Block, DebugSequence, DebugSequenceExecutionContext, DebugSequenceMessageError)
 from ...debug.sequences.default_sequences import DefaultDebugSequences
 from ...debug.sequences.scope import Scope
 from ...debug.svd.loader import SVDFile
@@ -318,6 +318,8 @@ class PackDebugSequenceDelegate(DebugSequenceDelegate):
         with context:
             try:
                 executed_scope = seq.execute(context)
+            except DebugSequenceMessageError:
+                executed_scope = None
             except exceptions.Error as err:
                 prefix = f"Error while running debug sequence '{name}'"
                 if pname:

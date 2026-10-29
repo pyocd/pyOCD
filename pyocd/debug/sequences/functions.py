@@ -37,7 +37,7 @@ from ...coresight.dap import ADIVersion
 from ...probe.debug_probe import DebugProbe
 from ...utility.conversion import u32_to_float32, u64_to_float64
 from .delegates import DebugSequenceFunctionsDelegate
-from .sequences import DebugSequenceRuntimeError
+from .sequences import DebugSequenceRuntimeError, DebugSequenceMessageError
 
 if TYPE_CHECKING:
     from ...coresight.dap import DebugPort
@@ -645,6 +645,11 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
             level = self._MESSAGE_LEVEL_MAP.get(type, logging.ERROR)
             MESSAGE.log(level, text)
+            if level == logging.ERROR:
+                if self._get_ignore_errors():
+                    LOG.debug("Message error ignored because __errorcontrol is set")
+                    return 0
+                raise DebugSequenceMessageError(text)
         except StopIteration:
             LOG.error("Not enough arguments for Message format: %s", format)
         except (ValueError, TypeError) as err:
