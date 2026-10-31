@@ -1,5 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2026 Arm Limited
+# Copyright (c) 2026 Firat Hajiyev
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -101,11 +102,7 @@ class InfoSubcommand(SubcommandBase):
             return 1
 
         try:
-            # Initialising the board performs DP/AP and ROM table discovery,
-            # which provides the target and core information reported below.
-            session.open()
             assert session.probe
-            assert session.target
 
             print(f"Debug Probe: {session.probe.description} [{session.probe.unique_id}]")
             capabilities = [protocol.name for protocol in (DebugProbe.Protocol.SWD, DebugProbe.Protocol.JTAG)
@@ -114,6 +111,11 @@ class InfoSubcommand(SubcommandBase):
                 capabilities.append("SWO (UART)")
             if capabilities:
                 print(f"  Capabilities: {', '.join(capabilities)}")
+
+            # Initialising the board performs DP/AP and ROM table discovery,
+            # which provides the target and core information reported below.
+            session.open()
+            assert session.target
 
             protocol = session.probe.wire_protocol
             frequency = session.options.get('frequency')
