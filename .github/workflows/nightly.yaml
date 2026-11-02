@@ -16,11 +16,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest, ubuntu-24.04-arm]
+        os: [windows-latest, ubuntu-24.04, macos-latest, ubuntu-24.04-arm]
         include:
           - os: windows-latest
             artifact_name: pyocd-windows
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             artifact_name: pyocd-linux
           - os: macos-latest
             artifact_name: pyocd-macos
