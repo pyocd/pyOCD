@@ -105,6 +105,7 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
         self._flash_filler: int = self._FILLER
         self._flash_algorithm_loader: Optional[Callable] = None
         self._placeholders_cache: Optional[Dict[str, str]] = None
+        self._python_interpreter_path: Optional[str] = None
         self._buffer_manager = _SequenceBufferManager(self._get_sequence_scope)
 
     @property
@@ -1013,23 +1014,30 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
         split_args = shlex.split(args.replace('\\"', '"'), posix=True) if args else []
         split_args = [self._expand_placeholders(arg) for arg in split_args]
 
-        interpreter_path = shutil.which("python3") or shutil.which("python")
-        if interpreter_path is None:
-            raise DebugSequenceRuntimeError("could not locate system Python interpreter;" \
-                                            "ensure 'python3'/'python' is available in PATH")
+        if self._python_interpreter_path is None:
+            # Search for 'python' on Windows and 'python3' on other platforms.
+            interpreter = "python" if os.name == "nt" else "python3"
+            interpreter_path = shutil.which(interpreter)
+            if interpreter_path is None:
+                raise DebugSequenceRuntimeError(f"could not locate '{interpreter}' in PATH")
+            try:
+                # Check if the interpreter is Python 3 by running a small inline script.
+                subprocess.run([interpreter_path, "-c", "import sys; sys.exit(sys.version_info.major != 3)"],
+                               timeout=5, check=True, capture_output=True)
+            except (OSError, subprocess.SubprocessError) as err:
+                raise DebugSequenceRuntimeError(f"'{interpreter_path}' is not a working external Python 3 interpreter") from err
+            self._python_interpreter_path = interpreter_path
 
-        cmd = [interpreter_path, str(script_path), *split_args]
+        cmd = [self._python_interpreter_path, str(script_path), *split_args]
 
         try:
             result = subprocess.run(cmd, cwd=cwd, timeout=timeout_s, check=False, capture_output=True)
             LOG.debug("Python script stdout:\n%s", result.stdout.decode(errors='replace'))
             return int(result.returncode)
         except FileNotFoundError as err:
-            raise DebugSequenceRuntimeError(
-                f"failed to run python script '{script_path}': {err}") from err
+            raise DebugSequenceRuntimeError(f"failed to run python script '{script_path}': {err}") from err
         except subprocess.TimeoutExpired as err:
-            raise DebugSequenceRuntimeError(
-                f"python script '{script_path}' timed out after {timeout_s}s") from err
+            raise DebugSequenceRuntimeError(f"python script '{script_path}' timed out after {timeout_s}s") from err
 
     def filepathexists(self, path: str, timeout: int) -> int:
         """@brief Check for existence of a file path.
