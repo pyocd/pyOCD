@@ -16,16 +16,70 @@
 
 import argparse
 import logging
-from typing import List
+from typing import List, cast
 
 from .base import SubcommandBase
+from ..core.session import Session
 from ..core.helpers import ConnectHelper
 from ..core.core_target import CoreTarget
+from ..coresight.dap import ProbeConnector
 from ..probe.debug_probe import DebugProbe
+from ..probe.shared_probe_proxy import SharedDebugProbeProxy
 from ..utility.cmdline import convert_session_options
 
-LOG = logging.getLogger(__name__)
+class _InfoProbeProxy(SharedDebugProbeProxy):
+    """@brief Report probe information before the session creates its board and target."""
 
+    @staticmethod
+    def _format_frequency(frequency: float) -> str:
+        """@brief Format a frequency in Hz with an appropriate unit."""
+        if frequency >= 1000000:
+            return f"{frequency / 1000000:g}MHz"
+        elif frequency >= 1000:
+            return f"{frequency / 1000:g}kHz"
+        return f"{frequency:g}Hz"
+
+    def _probe_info(self) -> None:
+        """@brief Display probe and port information before target selection."""
+
+        print(f"Debug Probe: {self.description} [{self.unique_id}]")
+        capabilities = [protocol.name for protocol in (DebugProbe.Protocol.SWD, DebugProbe.Protocol.JTAG)
+                        if protocol in self.supported_wire_protocols]
+        if DebugProbe.Capability.SWO in self.capabilities:
+            capabilities.append("SWO (UART)")
+        if capabilities:
+            print(f"  Capabilities: {', '.join(capabilities)}")
+
+        assert self.session
+        frequency = self.session.options.get('frequency')
+
+        self.set_clock(frequency)
+        ProbeConnector(cast(DebugProbe, self)).connect()
+
+        protocol = self.wire_protocol
+        if protocol is not None:
+            print(f"Debug Port: {protocol.name} [{self._format_frequency(frequency)}]")
+
+        if self.session.options.get('enable_swv'):
+            swo_frequency = self.session.options.get('swv_clock')
+            print(f"Trace Port: SWO (UART) [{self._format_frequency(swo_frequency)}]")
+        else:
+            print("Trace Port: disabled")
+
+    def create_associated_board(self):
+        # Session options and the user script are loaded before this constructor hook is called.
+        self.open()
+        self._probe_info()
+        return self.probe.create_associated_board()
+
+    def release(self) -> None:
+        """@brief Disconnect and close the probe after session cleanup."""
+        try:
+            if self.probe.is_open and self.probe.wire_protocol is not None:
+                self.probe.disconnect()
+        finally:
+            if self.probe.is_open:
+                self.probe.close()
 
 class InfoSubcommand(SubcommandBase):
     """@brief `pyocd info` subcommand."""
@@ -41,16 +95,7 @@ class InfoSubcommand(SubcommandBase):
         return [cls.CommonOptions.COMMON, cls.CommonOptions.CONNECT, info_parser]
 
     @staticmethod
-    def _format_frequency(frequency: float) -> str:
-        """@brief Format a frequency in Hz with an appropriate unit."""
-        if frequency >= 1000000:
-            return f"{frequency / 1000000:g}MHz"
-        elif frequency >= 1000:
-            return f"{frequency / 1000:g}kHz"
-        return f"{frequency:g}Hz"
-
-    @staticmethod
-    def _print_core(core: CoreTarget, show_core_number: bool) -> None:
+    def _print_core_info(core: CoreTarget, show_core_number: bool) -> None:
         """@brief Display the information and detected features of a core."""
         core_label = "CPU core"
         if show_core_number:
@@ -80,58 +125,48 @@ class InfoSubcommand(SubcommandBase):
 
     def invoke(self) -> int:
         """@brief Handle the 'info' subcommand."""
-        session = ConnectHelper.session_with_chosen_probe(
+        # Unset the logging level for debug sequence messages
+        logging.getLogger('pyocd.debug.sequences.functions.message').setLevel(logging.NOTSET)
+
+        probe = ConnectHelper.choose_probe(blocking=False, unique_id=self._args.unique_id)
+        if probe is None:
+            return 1
+
+        probe_proxy = _InfoProbeProxy(probe)
+
+        session = None
+        try:
+            session = Session(cast(DebugProbe, probe_proxy),
                             project_dir=self._args.project_dir,
                             config_file=self._args.config,
                             user_script=self._args.script,
                             no_config=self._args.no_config,
                             pack=self._args.pack,
                             cbuild_run=self._args.cbuild_run,
-                            unique_id=self._args.unique_id,
                             target_override=self._args.target_override,
                             frequency=self._args.frequency,
-                            blocking=False,
                             connect_mode=self._args.connect_mode,
                             command=self._args.cmd,
                             options=convert_session_options(self._args.options),
                             option_defaults=self._modified_option_defaults(),
                             )
-        if session is None:
-            LOG.error("No target device available")
-            return 1
 
-        try:
             # Initialising the board performs DP/AP and ROM table discovery,
             # which provides the target and core information reported below.
             session.open()
-            assert session.probe
             assert session.target
-
-            print(f"Debug Probe: {session.probe.description} [{session.probe.unique_id}]")
-            capabilities = [protocol.name for protocol in (DebugProbe.Protocol.SWD, DebugProbe.Protocol.JTAG)
-                            if protocol in session.probe.supported_wire_protocols]
-            if DebugProbe.Capability.SWO in session.probe.capabilities:
-                capabilities.append("SWO (UART)")
-            if capabilities:
-                print(f"  Capabilities: {', '.join(capabilities)}")
-
-            protocol = session.probe.wire_protocol
-            frequency = session.options.get('frequency')
-            print(f"Debug Port: {protocol.name} [{self._format_frequency(frequency)}]")
-
-            if session.options.get('enable_swv'):
-                swo_frequency = session.options.get('swv_clock')
-                print(f"Trace Port: SWO (UART) [{self._format_frequency(swo_frequency)}]")
-            else:
-                print("Trace Port: disabled")
 
             cores = session.target.cores
             if not cores:
                 print("CPU Core: None discovered")
             else:
                 for core in cores.values():
-                    self._print_core(core, show_core_number=(len(cores) > 1))
+                    self._print_core_info(core, show_core_number=(len(cores) > 1))
         finally:
-            session.close()
+            try:
+                if session is not None:
+                    session.close()
+            finally:
+                probe_proxy.release()
 
         return 0
