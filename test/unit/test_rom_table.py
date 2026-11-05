@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020,2026 Arm Limited
+# Copyright (c) 2019-2026 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -381,3 +381,22 @@ class TestRomTable:
         assert ahb.part == 0x9e3
         assert ahb.archid == 0xa17
 
+
+def test_cortex_m42_placeholder_ids_preserve_starmc3_detection():
+    from pyocd.coresight.core_ids import (
+        ARM_CortexM42, ARM_China_StarMC3, CPUID_CORTEX_M42, CPUID_ARM_CHINA, CORE_TYPE_NAME,
+    )
+    from pyocd.coresight.component_ids import (
+        ARM_CHINA_ID, CORTEX_M42_COMPONENT_MAP, CORTEX_M42_DESIGNER, CORTEX_M42_PART, COMPONENT_MAP,
+    )
+
+    assert (CPUID_CORTEX_M42, ARM_CortexM42) == (CPUID_ARM_CHINA, ARM_China_StarMC3)
+    assert CORE_TYPE_NAME[(CPUID_CORTEX_M42, ARM_CortexM42)] == 'Star-MC3'
+    assert (CORTEX_M42_DESIGNER, CORTEX_M42_PART) == (ARM_CHINA_ID, 0xd25)
+    assert len(CORTEX_M42_COMPONENT_MAP) == 9
+    for key, candidate in CORTEX_M42_COMPONENT_MAP.items():
+        existing = COMPONENT_MAP[key]
+        assert existing.product == 'Star-MC3'
+        assert candidate.product == 'Cortex-M42'
+        assert candidate.name == existing.name
+        assert candidate.factory == existing.factory

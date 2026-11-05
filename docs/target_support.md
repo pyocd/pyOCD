@@ -9,6 +9,15 @@ In addition, because pyOCD dynamically inspects the target's debug infrastructur
 debug functionality is enabled for any target that correctly implement the CoreSight architecture.
 
 
+## Cortex-M42 identifier placeholders
+
+Cortex-M42 support is prepared using the STAR-MC3 CPUID and CoreSight identifiers
+as temporary placeholders. Replace the marked constants in `core_ids.py` and
+`component_ids.py` when the Cortex-M42 identifiers are confirmed. Shared IDs
+continue to display STAR-MC3 and select its existing component factories; they
+cannot distinguish the two processors. This preparation does not add a device
+memory map or flash algorithm.
+
 ## Target types
 
 When pyOCD connects to a device, it needs to know what type of device (target) it is controlling.

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2019-2020 Arm Limited
+# Copyright (c) 2019-2026 Arm Limited
 # Copyright (c) 2022 Chris Reed
 # Copyright (c) 2025 Arm Technology (China) Co. Ltd.
 # SPDX-License-Identifier: Apache-2.0
@@ -42,6 +42,11 @@ ARM_CortexM55 = 0xD22
 ARM_CortexM85 = 0xD23
 ARM_China_StarMC1 = 0x132
 ARM_China_StarMC3 = 0xD25
+
+# TODO: replace these Cortex-M42 placeholders with confirmed CPUID values.
+# Until then, use STAR-MC3 and preserve its name for the shared identifier.
+CPUID_CORTEX_M42 = CPUID_ARM_CHINA
+ARM_CortexM42 = ARM_China_StarMC3
 # pylint: enable=invalid_name
 
 ## @brief User-friendly names for core types.
@@ -63,6 +68,9 @@ CORE_TYPE_NAME: Dict[Tuple[int, int], str] = {
         (CPUID_ARM_CHINA,  ARM_China_StarMC1): "Star-MC1",
         (CPUID_ARM_CHINA,  ARM_China_StarMC3): "Star-MC3",
     }
+
+# Do not relabel STAR-MC3 while the Cortex-M42 identifiers are placeholders.
+CORE_TYPE_NAME.setdefault((CPUID_CORTEX_M42, ARM_CortexM42), "Cortex-M42")
 
 class CoreArchitecture(Enum):
     """@brief CPU architectures."""

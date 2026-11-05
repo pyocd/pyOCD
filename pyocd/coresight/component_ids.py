@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2021 Arm Limited
+# Copyright (c) 2015-2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2025 Arm Technology (China) Co. Ltd.
 # SPDX-License-Identifier: Apache-2.0
@@ -45,6 +45,10 @@ SYSTEM_CLASS = 0xf # CoreLink, PrimeCell, or other system component with no stan
 #  [6:0]  ID
 ARM_ID = 0x43b
 ARM_CHINA_ID = 0xa75
+# TODO: replace these Cortex-M42 placeholders with confirmed CoreSight IDs.
+CORTEX_M42_DESIGNER = ARM_CHINA_ID
+CORTEX_M42_PART = 0xd25  # STAR-MC3
+
 FSL_ID = 0x00e
 STM_ID = 0x020
 
@@ -273,3 +277,13 @@ COMPONENT_MAP: Dict[Tuple[int, int, Optional[int], Optional[int], int], CmpInfo]
     (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x13, 0x4a13) : CmpInfo('ETM',       'Star-MC3', None                ),
     }
 
+
+# Cortex-M42 reuses the STAR-MC3 components. Keep the original product names
+# on ID collisions until the placeholder designer and part are confirmed.
+CORTEX_M42_COMPONENT_MAP = {
+    (CORTEX_M42_DESIGNER, cls, CORTEX_M42_PART, devtype, archid): info._replace(product='Cortex-M42')
+    for (designer, cls, part, devtype, archid), info in COMPONENT_MAP.items()
+    if designer == ARM_CHINA_ID and part == 0xd25
+}
+for key, info in CORTEX_M42_COMPONENT_MAP.items():
+    COMPONENT_MAP.setdefault(key, info)
