@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015-2021 Arm Limited
+# Copyright (c) 2015-2021,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2025 Arm Technology (China) Co. Ltd.
 # SPDX-License-Identifier: Apache-2.0
@@ -262,14 +262,13 @@ COMPONENT_MAP: Dict[Tuple[int, int, Optional[int], Optional[int], int], CmpInfo]
     (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd24, 0x00, 0x2a04) : CmpInfo('SCS',       'M52',      CortexM_v8M.factory ),
     (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd24, 0x11, 0)      : CmpInfo('TPIU',      'M52',      TPIU.factory        ),
     (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd24, 0x13, 0x4a13) : CmpInfo('ETM',       'M52',      None                ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x16, 0x0a06) : CmpInfo('PMU',       'Star-MC3', None                ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x00, 0x0a07) : CmpInfo('EWIC',      'Star-MC3', None                ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x43, 0x1a01) : CmpInfo('ITM',       'Star-MC3', ITM.factory         ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x00, 0x1a02) : CmpInfo('DWT',       'Star-MC3', DWTv2.factory       ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x00, 0x1a03) : CmpInfo('BPU',       'Star-MC3', FPB.factory         ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x14, 0x1a14) : CmpInfo('CTI',       'Star-MC3', None                ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x00, 0x2a04) : CmpInfo('SCS',       'Star-MC3', CortexM_v8M.factory ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x11, 0)      : CmpInfo('TPIU',      'Star-MC3', TPIU.factory        ),
-    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x13, 0x4a13) : CmpInfo('ETM',       'Star-MC3', None                ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x16, 0x0a06) : CmpInfo('PMU',       'M42',      None                ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x00, 0x0a07) : CmpInfo('EWIC',      'M42',      None                ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x43, 0x1a01) : CmpInfo('ITM',       'M42',      ITM.factory         ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x00, 0x1a02) : CmpInfo('DWT',       'M42',      DWTv2.factory       ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x00, 0x1a03) : CmpInfo('BPU',       'M42',      FPB.factory         ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x14, 0x1a14) : CmpInfo('CTI',       'M42',      None                ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x00, 0x2a04) : CmpInfo('SCS',       'M42',      CortexM_v8M.factory ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x11, 0)      : CmpInfo('TPIU',      'M42',      TPIU.factory        ),
+    (ARM_CHINA_ID, CORESIGHT_CLASS, 0xd25, 0x13, 0x4a13) : CmpInfo('ETM',       'M42',      None                ),
     }
-
