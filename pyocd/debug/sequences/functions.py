@@ -987,7 +987,8 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
         try:
             result = subprocess.run(cmd, cwd=cwd, timeout=timeout_s, check=False, capture_output=True)
-            LOG.debug("Application stdout:\n%s", result.stdout.decode(errors='replace'))
+            if result.stdout:
+                LOG.debug("Application stdout:\n%s", result.stdout.decode(errors='replace'))
             return int(result.returncode)
         except FileNotFoundError as err:
             raise DebugSequenceRuntimeError(f"failed to run application '{app_path}': {err}") from err
@@ -1032,7 +1033,10 @@ class DebugSequenceCommonFunctions(DebugSequenceFunctionsDelegate):
 
         try:
             result = subprocess.run(cmd, cwd=cwd, timeout=timeout_s, check=False, capture_output=True)
-            LOG.debug("Python script stdout:\n%s", result.stdout.decode(errors='replace'))
+            if result.stdout:
+                LOG.debug("Python script stdout:\n%s", result.stdout.decode(errors='replace'))
+            if result.stderr:
+                LOG.debug("Python script stderr:\n%s", result.stderr.decode(errors='replace'))
             return int(result.returncode)
         except FileNotFoundError as err:
             raise DebugSequenceRuntimeError(f"failed to run python script '{script_path}': {err}") from err
