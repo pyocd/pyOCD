@@ -1,4 +1,5 @@
 # Copyright (c) 2018-2019, Arm Limited and affiliates.
+# Copyright (c) 2026 Yahya Kayaal
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -146,7 +147,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
                     vendor_id = vendor_file.read().strip()
             except OSError as e:
                 LOG.debug(
-                    "Failed to read vendor id file %s weith error:",
+                    "Failed to read vendor id file %s with error: %s",
                     vendor_id_file_paths,
                     e,
                 )
@@ -156,7 +157,7 @@ class StlinkDetectLinuxGeneric(StlinkDetectBase):
                     product_id = product_file.read().strip()
             except OSError as e:
                 LOG.debug(
-                    "Failed to read product id file %s weith error:",
+                    "Failed to read product id file %s with error: %s",
                     product_id_file_paths,
                     e,
                 )
