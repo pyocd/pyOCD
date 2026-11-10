@@ -403,6 +403,12 @@ class nRF91ModemFirmwareUpdateCommand(CommandBase):
         if len(args) == 0 or not args[-1].endswith(".zip"):
             raise exceptions.CommandError(f"invalid argument")
         self.file_path = args[-1]
+        if not os.path.isfile(self.file_path):
+            # The command line splitter breaks words at characters such as '+',
+            # and Nordic's DECT NR+ packages are named "mfw-nr+_...zip".
+            raise exceptions.CommandError(
+                f"modem firmware file not found: {self.file_path} "
+                "(quote paths that contain characters such as '+')")
         for a in args:
             if a == '-f':
                 self.needs_update = True
@@ -412,7 +418,14 @@ class nRF91ModemFirmwareUpdateCommand(CommandBase):
         if not self.needs_update:
             try:
                 ModemUpdater(self.context.session).verify(self.file_path)
-            except:
+            except exceptions.TargetError as e:
+                # Only a firmware mismatch means an update is needed. Any other
+                # error (bad file, no response from the modem) is reported as is
+                # instead of being hidden behind a second, failing programming
+                # attempt.
+                if not str(e).startswith(("checksum mismatch", "Error while verifying")):
+                    raise
+                LOG.info("modem firmware differs (%s), programming", e)
                 self.needs_update = True
         if self.needs_update:
             ModemUpdater(self.context.session).program_and_verify(self.file_path)
@@ -660,31 +673,58 @@ class ModemUpdater(object):
 
     def program_and_verify(self, mfw_zip: str):
         """@brief Program and verify modem firmware from ZIP file."""
-        self._setup_device()
-        self._process_zip_file(mfw_zip)
+        try:
+            self._setup_device()
+            self._process_zip_file(mfw_zip)
 
-        LOG.info("programming modem firmware..")
-        self._total_data_size = sum(r[1]-r[0] for s in self._segments for r in s.segments())
-        for s in self._segments:
-            self._program_segment(s)
-        self._progress(1.0)
-        LOG.info("modem firmware programmed.")
+            LOG.info("programming modem firmware..")
+            self._total_data_size = sum(r[1]-r[0] for s in self._segments for r in s.segments())
+            for s in self._segments:
+                self._program_segment(s)
+            self._progress(1.0)
+            LOG.info("modem firmware programmed.")
 
-        LOG.info("verifying modem firmware..")
-        self._verify()
-        LOG.info("modem firmware verified.")
+            LOG.info("verifying modem firmware..")
+            self._verify()
+            LOG.info("modem firmware verified.")
+        finally:
+            self._finish()
 
     def verify(self, mfw_zip: str):
         """@brief Just verify modem firmware from ZIP file."""
-        self._setup_device()
-        self._process_zip_file(mfw_zip)
+        try:
+            self._setup_device()
+            self._process_zip_file(mfw_zip)
 
-        LOG.info("verifying modem firmware..")
-        self._verify()
-        LOG.info("modem firmware verified.")
+            LOG.info("verifying modem firmware..")
+            self._verify()
+            LOG.info("modem firmware verified.")
+        finally:
+            self._finish()
+
+    def _finish(self):
+        """@brief take the modem out of DFU mode, also after an error"""
+        # The modem stays in its DFU bootloader until the device is reset. If it
+        # is left there (the commander does not resume or reset on exit), the
+        # next update attempt gets no response and fails with "wait for events
+        # timed out".
+        try:
+            self._target.reset()
+        except exceptions.Error as e:
+            LOG.warning("reset after modem DFU failed: %s", e)
 
     def _setup_device(self):
         """@brief initialize device to use modem DFU"""
+        # Power-cycle the debug domain first. If debug power has stayed requested
+        # since an earlier modem DFU (a second DFU in the same session, e.g.
+        # verify then program, or a previous commander session, which keeps the
+        # debug port powered on exit), the modem does not answer and the update
+        # fails with "wait for events timed out".
+        dp = self._target.dp
+        dp.power_down_debug()
+        sleep(0.05)
+        dp.power_up_debug()
+
         # init UICR.HFXOSR if necessary
         if self._target.read32(0x00FF801C) == 0xFFFFFFFF:
             LOG.warning("UICR.HFXOSR is not set, setting it to 0x0E")
