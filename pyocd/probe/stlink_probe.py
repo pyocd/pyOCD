@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020,2022,2026 Arm Limited
 # Copyright (c) 2021-2023 Chris Reed
+# Copyright (c) 2026 alwaysmy
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,9 +94,11 @@ class StlinkProbe(DebugProbe):
 
                         # Some STLink probes provide an MSD volume, but not the mbed.htm file.
                         # We can live without the board ID, so just ignore any error.
+                        # A present but unparsable mbed.htm leaves target_id_mbed_htm set to None,
+                        # so also catch the TypeError raised by slicing None.
                         try:
                             this_board_id = info['target_id_mbed_htm'][0:4]
-                        except KeyError:
+                        except (KeyError, TypeError):
                             # No board ID is available for this board.
                             StlinkProbe._mbed_board_id_cache[usb_id] = None
                         else:
