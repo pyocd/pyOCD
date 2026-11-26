@@ -6,6 +6,7 @@
 # Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2025 Morten Engelhardt Olsen
 # Copyright (c) 2026 Microchip Technology Inc.
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +21,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from copy import deepcopy
 from dataclasses import (dataclass, field)
 from xml.etree.ElementTree import (ElementTree, Element)
 import zipfile
@@ -526,12 +528,10 @@ class CmsisPackDescription:
     def _extract_debugs(self) -> List[Element]:
         """@brief Extract debug elements.
 
-        If the debug element does not have a 'Pname' element, its identifier is set to "*" to
-        represent that it applies to all processors.
-
-        Otherwise, the identifier is the element's 'Pname' attribute combined with 'Punit' if
-        present. When 'Pname' is detected and a "*" key is in the map, the map is cleared before
-        adding the current element.
+        Debug elements without a 'Pname' attribute provide common settings for all processors.
+        Named connections are identified by 'Pname' combined with 'Punit' if present.
+        Common attributes are inherited by each named connection. At each hierarchy
+        level, processor-specific attributes override common attributes regardless of XML order.
 
         Attributes:
         - `__dp`: optional int
@@ -545,24 +545,25 @@ class CmsisPackDescription:
 
         Can have `<datapatch>` elements as children.
         """
-        def filter(map: Dict, elem: Element) -> None:
-            if 'Pname' in elem.attrib:
-                name = elem.attrib['Pname']
-                unit = elem.attrib.get('Punit', 0)
-                name += str(unit)
+        common: Optional[Element] = None
+        connections: Dict[str, Element] = {}
+        for state in self._state_stack:
+            # Process defaults first so their position relative to named elements is irrelevant.
+            for elem in state.debugs:
+                if 'Pname' not in elem.attrib:
+                    common = self._inherit_attributes(deepcopy(elem), common)
+                    for connection in connections.values():
+                        connection.attrib.update(elem.attrib)
 
-                if '*' in map:
-                    map.clear()
+            for elem in state.debugs:
+                if 'Pname' in elem.attrib:
+                    name = elem.attrib['Pname'] + str(elem.attrib.get('Punit', 0))
+                    connection = deepcopy(elem)
+                    self._inherit_attributes(connection, connections.get(name))
+                    self._inherit_attributes(connection, common)
+                    connections[name] = connection
 
-                map[name] = self._inherit_attributes(elem, map.get(name))
-            else:
-                # No processor name was provided, so this debug element applies to
-                # all processors (well, there should only be one in this case).
-                new_elem = self._inherit_attributes(elem, map.get('*'))
-                map.clear()
-                map['*'] = new_elem
-
-        return self._extract_items('debugs', filter)
+        return list(connections.values()) or ([common] if common is not None else [])
 
     def _extract_sequences(self) -> List[Element]:
         """@brief Extract debug sequence elements.
