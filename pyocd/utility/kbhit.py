@@ -6,6 +6,7 @@
 # MIT License
 # 
 # Copyright (c) 2021 Simon D. Levy
+# Copyright (c) 2026 Solarboaters
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -86,11 +87,17 @@ class KBHit:
 
     def getch(self):
         ''' Returns a keyboard character after kbhit() has been called.
+            Returns an empty string for Windows extended keys.
             Should not be called in the same program as getarrow().
         '''
                 
         if os.name == 'nt':
-            return msvcrt.getch().decode('utf-8')
+            c = msvcrt.getwch()
+            if c in ('\x00', '\xe0'):
+                # Extended keys have a second code unit, not text input.
+                msvcrt.getwch()
+                return ''
+            return c
         
         else:
             return sys.stdin.read(1)
