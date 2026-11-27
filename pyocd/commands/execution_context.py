@@ -417,8 +417,10 @@ class CommandExecutionContext:
             elif first_char == '!':
                 return CommandInvocation(cmdline[1], [], self.handle_system)
 
-        # Split command into words.
-        args = split_command_line(cmdline)
+        # The command line has already been split into words by _split_commands(), which also removed
+        # quotes and escapes. Splitting again would break quoted arguments that contain operator
+        # characters, e.g. a path like "mfw-nr+_nrf91x1_1.0.1.zip" would become three words.
+        args = list(cmdline)
         cmd = args[0].lower()
         args = args[1:]
 
