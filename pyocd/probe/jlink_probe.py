@@ -262,7 +262,8 @@ class JLinkProbe(DebugProbe):
             # Connect if a device name was supplied.
             device_name = self.session.options.get('jlink.device')
             if device_name is not None:
-                self._link.connect(device_name)
+                # pylink defaults to automatic speed selection, overriding the session clock.
+                self._link.connect(device_name, speed=int(self.session.options.get('frequency')) // 1000)
 
             self._link.coresight_configure()
             self._protocol = protocol
