@@ -243,6 +243,20 @@ class CortexM_LPC5500(CortexM_v8M):
 
     def reset_and_halt(self, reset_type=None):
         """@brief Perform a reset and stop the core on the reset handler. """
+
+        # Reset the chip via the debug mailbox, re-enable debug access, and
+        # halt the core before any AHB-AP access. Running firmware can cause
+        # AHB bus contention that results in SWD WAIT/FAULT ACK failures.
+        # The debug mailbox has a dedicated path that bypasses the AHB bus.
+        target = self.session.target
+        dm_ap = target.aps.get(DM_AP)
+        if dm_ap is not None:
+            try:
+                target.unlock(dm_ap)
+                self.halt()
+            except exceptions.Error as err:
+                LOG.debug("debug mailbox pre-reset failed: %s", err)
+
         halt_only = False
         catch_mode = 0
 
