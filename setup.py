@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2012-2020 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +17,7 @@
 # limitations under the License.
 
 import os
+import time
 from setuptools import setup
 import zipfile
 from pathlib import Path
@@ -36,7 +38,15 @@ svd_zip_path = svd_dir_path / "svd_data.zip"
 if svd_data_dir_path.exists():
     with zipfile.ZipFile(svd_zip_path, 'w', zipfile.ZIP_DEFLATED) as svd_zip:
         for svd_file in sorted(svd_data_dir_path.iterdir()):
-            svd_zip.write(svd_file, svd_file.name)
+            if 'SOURCE_DATE_EPOCH' in os.environ:
+                # ZIP timestamps cannot represent dates earlier than 1980.
+                epoch = max(315532800, int(os.environ['SOURCE_DATE_EPOCH']))
+                info = zipfile.ZipInfo(svd_file.name, time.gmtime(epoch)[:6])
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.external_attr = 0o100644 << 16
+                svd_zip.writestr(info, svd_file.read_bytes())
+            else:
+                svd_zip.write(svd_file, svd_file.name)
 elif not svd_zip_path.exists():
     raise RuntimeError("neither the source SVD data directory nor built svd_data.zip exist")
 
