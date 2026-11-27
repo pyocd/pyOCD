@@ -6,6 +6,7 @@
 # Copyright (C) 2022 Samuel Dewan
 # Copyright (C) 2022 Zhengji Li
 # Copyright (C) 2024 Laurens Miers
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -188,6 +189,9 @@ class RTTSubcommand(SubcommandBase):
             # try to fetch character
             if kb.kbhit():
                 c: str = kb.getch()
+
+                if not c:
+                    continue
 
                 if ord(c) == 27: # process ESC
                     break
