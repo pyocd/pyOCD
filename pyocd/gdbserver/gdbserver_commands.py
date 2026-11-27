@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2020,2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,9 +55,11 @@ class ThreadsCommand(CommandBase):
             gdbserver.thread_provider.invalidate()
             self.context.write("Threads flushed")
         elif self.action == 'enable':
+            gdbserver.thread_reporting_enabled = True
             gdbserver.thread_provider.read_from_target = True
             self.context.write("Threads enabled")
         elif self.action == 'disable':
+            gdbserver.thread_reporting_enabled = False
             gdbserver.thread_provider.read_from_target = False
             self.context.write("Threads disabled")
         elif self.action == 'status':

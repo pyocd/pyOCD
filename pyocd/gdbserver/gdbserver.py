@@ -2,6 +2,7 @@
 # Copyright (c) 2006-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
 # Copyright (c) 2022 Clay McClure
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -362,6 +363,8 @@ class GDBServer(threading.Thread):
         else:
             self.target_context = self.board.target.get_target_context(core=core)
         self.thread_provider = None
+        # Preserve the user's thread-awareness choice across resets and first resumes.
+        self.thread_reporting_enabled = True
         self.did_init_thread_providers = False
         self.first_run_after_reset_or_flash = True
 
@@ -1135,7 +1138,7 @@ class GDBServer(threading.Thread):
 
         if self.first_run_after_reset_or_flash:
             self.first_run_after_reset_or_flash = False
-            if self.thread_provider is not None:
+            if self.thread_provider is not None and self.thread_reporting_enabled:
                 self.thread_provider.read_from_target = True
 
         rsp = b''
@@ -1922,7 +1925,8 @@ class GDBServer(threading.Thread):
         return b'<?xml version="1.0"?><!DOCTYPE feature SYSTEM "threads.dtd">' + tostring(root)
 
     def is_threading_enabled(self):
-        return (self.thread_provider is not None) and self.thread_provider.is_enabled \
+        return self.thread_reporting_enabled and (self.thread_provider is not None) \
+            and self.thread_provider.read_from_target and self.thread_provider.is_enabled \
             and (self.thread_provider.current_thread is not None)
 
     def is_target_in_reset(self):
