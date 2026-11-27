@@ -34,6 +34,8 @@ class SWOParser:
     A SWOParser instance can be reused for multiple SWO sessions. If a break in SWO data streaming
     occurs, the reset() method should be called before passing further data to parse().
     """
+    MAX_PENDING_EVENTS = 1024
+
     def __init__(self, core: "CoreTarget", sink: Optional["TraceEventSink"] = None) -> None:
         self.reset()
         self._core = core
@@ -73,6 +75,17 @@ class SWOParser:
         for value in data:
             self._parser.send(value)
             self._bytes_parsed += 1
+
+    def flush(self) -> None:
+        """@brief Emit buffered events using their last known target timestamps.
+
+        Use when a timestamp does not arrive within the reader's timeout, or at end of stream.
+        An incomplete packet is retained, so parsing can resume on the next input chunk.
+        """
+        if self._pending_data_trace is not None:
+            self._pending_events.append(self._pending_data_trace)
+            self._pending_data_trace = None
+        self._flush_events()
 
     def _flush_events(self) -> None:
         """@brief Send all pending events to event sink."""
@@ -125,6 +138,8 @@ class SWOParser:
 
         # Handle merging data trace events.
         if self._merge_data_trace_events(event):
+            if len(self._pending_events) >= self.MAX_PENDING_EVENTS:
+                self._flush_events()
             return
 
         if isinstance(event, events.TraceTimestamp):
@@ -136,7 +151,7 @@ class SWOParser:
             if isinstance(event, events.TraceOverflow):
                 flush = True
 
-        if flush:
+        if flush or len(self._pending_events) >= self.MAX_PENDING_EVENTS:
             self._flush_events()
 
     def _parse(self) -> Generator[None, int, None]:

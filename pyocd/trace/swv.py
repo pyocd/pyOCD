@@ -19,7 +19,7 @@
 import logging
 from pathlib import Path
 import threading
-from time import sleep
+from time import monotonic, sleep
 from typing import (Optional, TextIO, TYPE_CHECKING)
 
 from .sink import (TraceDataSink, TraceEventSink)
@@ -228,6 +228,7 @@ class SWVReader(threading.Thread):
             pass
         self._session.probe.swo_start(self._swo_clock)
 
+        next_flush = monotonic() + 1.0
         while not self._shutdown_event.is_set():
             data = self._session.probe.swo_read()
             if data:
@@ -237,8 +238,15 @@ class SWVReader(threading.Thread):
                     self._parser.parse(data)
                 except Exception:
                     pass
+            # Firmware may omit timestamp packets entirely. Flush even while the probe is idle
+            # so short printf messages are not held indefinitely.
+            now = monotonic()
+            if now >= next_flush:
+                self._parser.flush()
+                next_flush = now + 1.0
             sleep(0.001)
 
+        self._parser.flush()
         self._session.probe.swo_stop()
 
     def _reset_handler(self, notification: "Notification") -> None:
