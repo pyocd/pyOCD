@@ -15,8 +15,11 @@
 # limitations under the License.
 
 import logging
+from time import sleep
 
 from ...coresight.cortex_m import CortexM
+from ...utility.timeout import Timeout
+from ...core.target import Target
 
 LOG = logging.getLogger(__name__)
 
@@ -51,3 +54,27 @@ class AMA3BFamily(CortexM):
         else:
             LOG.debug("normal_set_reset_catch")
             super().set_reset_catch(reset_type)
+
+    def reset_and_halt(self, reset_type=None):
+        # Save CortexM.DEMCR
+        demcr = self.read_memory(CortexM.DEMCR)
+
+        # Clear the reset vector catch and make sure DWT and ITM blocks are enabled.
+        self.write32(CortexM.DEMCR, (demcr & ~CortexM.DEMCR_VC_CORERESET) | CortexM.DEMCR_TRCENA)
+
+        super().reset_and_halt(reset_type)
+
+        # restore reset vector catch setting
+        self.write_memory(CortexM.DEMCR, demcr)
+
+    def reset(self, reset_type=None):
+        # Save CortexM.DEMCR
+        demcr = self.read_memory(CortexM.DEMCR)
+
+        # Clear the reset vector catch and make sure DWT and ITM blocks are enabled.
+        self.write32(CortexM.DEMCR, (demcr & ~CortexM.DEMCR_VC_CORERESET) | CortexM.DEMCR_TRCENA)
+
+        super().reset(reset_type)
+
+        # restore reset vector catch setting
+        self.write_memory(CortexM.DEMCR, demcr)
