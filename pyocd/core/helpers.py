@@ -2,6 +2,7 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -260,6 +261,10 @@ class ConnectHelper:
 
         @return Either None or a Session instance.
         """
+        # Probe discovery can depend on session options, before a probe is selected.
+        # Keep this options-only session alive until the probe's session is created.
+        _ = Session(None, options=options, **kwargs)
+
         # Choose a probe.
         probe = ConnectHelper.choose_probe(
                     blocking=blocking,
