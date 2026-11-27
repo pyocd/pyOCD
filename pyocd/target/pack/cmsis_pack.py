@@ -6,6 +6,7 @@
 # Copyright (c) 2021-2023 Chris Reed
 # Copyright (c) 2025 Morten Engelhardt Olsen
 # Copyright (c) 2026 Microchip Technology Inc.
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -518,10 +519,25 @@ class CmsisPackDescription:
             size = int(elem.attrib['size'], base=0)
             memrange = (start, size)
 
-            # An algo with the same range as an existing algo will override the previous.
+            # Within one level, do not let an optional alternative replace a default.
+            previous = map.get(memrange)
+            if (previous is not None and _get_bool_attribute(previous, 'default')
+                    and not _get_bool_attribute(elem, 'default')):
+                return
             map[memrange] = elem
 
-        return self._extract_items('algos', filter)
+        # CMSIS-Pack gives lower hierarchy levels precedence for the same range.
+        # Choose defaults within each level before applying those overrides.
+        algorithms = {}
+        for state in self._state_stack:
+            level_algorithms = {}
+            for elem in state.algos:
+                try:
+                    filter(level_algorithms, elem)
+                except (KeyError, ValueError) as err:
+                    LOG.debug("error parsing CMSIS-Pack %s: %s", self.pack_name, err)
+            algorithms.update(level_algorithms)
+        return list(algorithms.values())
 
     def _extract_debugs(self) -> List[Element]:
         """@brief Extract debug elements.
