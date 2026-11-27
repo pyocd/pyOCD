@@ -2,6 +2,7 @@
 # pyOCD debugger
 # Copyright (c) 2018-2019,2025 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 from time import sleep
 import colorama
 import prettytable
@@ -295,6 +297,10 @@ class ConnectHelper:
                     has_target = ((target_type_name in TARGET)
                                 or is_pack_target_available(target_type_name, Session.get_current()))
                     target_mark = ("✖︎", "✔︎")[has_target]
+                    try:
+                        target_mark.encode(getattr(sys.stdout, 'encoding', None) or 'utf-8')
+                    except UnicodeEncodeError:
+                        target_mark = ('x', '+')[has_target]
                     target_color = colorama.Fore.LIGHTGREEN_EX if has_target else colorama.Fore.RED
                     target_type_desc = f"{target_color}{target_mark} {target_type_name}"
                 else:
