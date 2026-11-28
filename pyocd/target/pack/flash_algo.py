@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2017-2019,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -105,17 +106,19 @@ class PackFlashAlgo:
         symbols: Dict[str, int] = {}
         symbols.update(self._extract_symbols(self.REQUIRED_SYMBOLS, required=True))
         symbols.update(self._extract_symbols(self.EXTRA_SYMBOLS))
-        self.symbols = symbols
 
         ro_rw_zi = self._find_sections(self.SECTIONS_TO_FIND)
         ro_rw_zi = self._algo_fill_missing_sections(ro_rw_zi)
 
         sect_ro, sect_rw, sect_zi = ro_rw_zi
-        self.ro_start = sect_ro.start
+        # The generated blob and entry points are relative to the code section,
+        # even when the position-independent FLM was linked at a nonzero origin.
+        self.symbols = {name: address - sect_ro.start for name, address in symbols.items()}
+        self.ro_start = 0
         self.ro_size = sect_ro.length
-        self.rw_start = sect_rw.start
+        self.rw_start = sect_rw.start - sect_ro.start
         self.rw_size = sect_rw.length
-        self.zi_start = sect_zi.start
+        self.zi_start = sect_zi.start - sect_ro.start
         self.zi_size = sect_zi.length
 
         self.algo_data = self._create_algo_bin(ro_rw_zi)
@@ -290,8 +293,6 @@ class PackFlashAlgo:
         s_ro, s_rw, s_zi = ro_rw_zi
         if s_ro is None:
             raise FlashAlgoException("RO section is missing")
-        elif s_ro.start != 0:
-            raise FlashAlgoException("RO section must start at 0x0, but starts at 0x%x" % s_ro.start)
         if s_rw is None:
             # Create a dummy RW section
             s_rw = MemoryRange(start=(s_ro.start + s_ro.length), length=0)
@@ -304,12 +305,15 @@ class PackFlashAlgo:
         """Create a binary blob of the flash algo which can execute from ram"""
         sect_ro, sect_rw, sect_zi = ro_rw_zi
         assert sect_ro and sect_rw and sect_zi
-        algo_size = max(sect_ro.end, sect_rw.end, sect_zi.end) + 1
+        if sect_rw.start < sect_ro.start or sect_zi.start < sect_ro.start:
+            raise FlashAlgoException("RW and ZI sections must not precede the RO section")
+        algo_size = max(sect_ro.end, sect_rw.end, sect_zi.end) + 1 - sect_ro.start
         algo_data = bytearray(algo_size)
         for section in (sect_ro, sect_rw):
             if hasattr(section, "data"):
                 assert len(section.data) == section.length
-                algo_data[section.start : section.start + section.length] = section.data
+                offset = section.start - sect_ro.start
+                algo_data[offset : offset + section.length] = section.data
         return algo_data
 
 
