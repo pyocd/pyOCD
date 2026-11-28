@@ -28,6 +28,7 @@ from pyocd.utility.cmdline import (
     VECTOR_CATCH_CHAR_MAP,
     convert_session_options,
     )
+from pyocd.__main__ import PyOCDTool
 from pyocd.core.target import Target
 from pyocd.target import normalise_target_type_name
 from pyocd.subcommands.commander_cmd import CommanderSubcommand
@@ -44,6 +45,27 @@ class TestCommanderSubcommand:
         assert CommanderSubcommand(args).invoke() == exit_code
         commander.assert_called_once_with(args, None)
         commander.return_value.run.assert_called_once_with()
+
+@pytest.mark.parametrize("command", ["commander", "erase", "load", "gdbserver", "info", "reset", "rtt", "run"])
+class TestConnectMode:
+    @pytest.mark.parametrize("mode", ["under_reset", "asdf"])
+    def test_reject_invalid_mode(self, command, mode, capsys):
+        parser = PyOCDTool().build_parser()
+        with pytest.raises(SystemExit) as error:
+            parser.parse_args([command, "--connect", mode])
+        assert error.value.code == 2
+        diagnostic = capsys.readouterr().err
+        assert "invalid choice" in diagnostic
+        assert mode in diagnostic
+        assert "under-reset" in diagnostic
+
+    def test_supported_modes_and_default(self, command):
+        parser = PyOCDTool().build_parser()
+        assert parser.parse_args([command]).connect_mode is None
+        for mode in ("halt", "pre-reset", "under-reset", "attach"):
+            assert parser.parse_args([command, "--connect", mode]).connect_mode == mode
+            assert parser.parse_args([command, "-M", mode]).connect_mode == mode
+
 
 class TestSplitCommandLine(object):
     def test_split(self):
