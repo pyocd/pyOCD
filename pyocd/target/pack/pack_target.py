@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2017-2020,2025-2026 Arm Limited
 # Copyright (c) 2021-2022 Chris Reed
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+from json import JSONDecodeError
 import os
 from typing import (cast, Callable, Dict, IO, Iterable, List, Optional, Set, Type, Union, TYPE_CHECKING)
 
@@ -56,6 +58,20 @@ except ImportError:
 
 LOG = logging.getLogger(__name__)
 
+def get_pack_index(cache: "cmsis_pack_manager.Cache") -> Dict:
+    """Read the managed-pack index without blocking built-in targets on corrupt JSON.
+
+    Leave the damaged file intact so it can be inspected. Commands that need the
+    index can rebuild it through the normal empty-index download path.
+    """
+    try:
+        return cache.index
+    except JSONDecodeError as err:
+        LOG.error("Ignoring invalid CMSIS-Pack index '%s': %s. "
+                    "Run 'pyocd pack update' to rebuild it.", cache.index_path, err)
+        return {}
+
+
 class ManagedPacksStub:
     @staticmethod
     def get_installed_packs(cache: Optional[object] = None) -> List:
@@ -84,7 +100,7 @@ class ManagedPacksImpl:
             cache = cmsis_pack_manager.Cache(True, True)
         results = []
         # packs_for_devices() returns only unique packs.
-        for pack in cache.packs_for_devices(cache.index.values()):
+        for pack in cache.packs_for_devices(get_pack_index(cache).values()):
             # Generate full path to the .pack file.
             pack_path = os.path.join(cache.data_path, pack.get_pack_name())
 

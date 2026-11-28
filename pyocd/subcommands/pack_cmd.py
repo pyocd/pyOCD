@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2026 Arm Limited
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,9 +48,11 @@ class PackSubcommandBase(SubcommandBase):
         return cmsis_pack_manager.Cache(verbosity < 0, False)
 
     def _get_matches(self, cache: "cmsis_pack_manager.Cache") -> Set[str]:
-        if not cache.index:
+        index = pack_target.get_pack_index(cache)
+        if not index:
             LOG.info("No pack index present, downloading now...")
             cache.cache_descriptors()
+            index = cache.index
 
         # Find matching part numbers.
         matches = set()
@@ -58,7 +61,7 @@ class PackSubcommandBase(SubcommandBase):
             # Strip the end-of-string anchor (\Z or \z depending on Python version) so pat.search()
             # can do a substring match rather than a full-string match.
             pat = re.compile(re.sub(r'\\[Zz]$', '', fnmatch.translate(pattern)), re.IGNORECASE)
-            results = {name for name in cache.index.keys() if pat.search(name)}
+            results = {name for name in index.keys() if pat.search(name)}
             matches.update(results)
 
         if not matches:
