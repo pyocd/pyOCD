@@ -1,6 +1,7 @@
 # pyOCD debugger
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2025 Arm Limited
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +34,7 @@ class ListSubcommand(SubcommandBase):
 
     NAMES = ['list']
     HELP = "List information about probes, targets, or boards."
-    DEFAULT_LOG_LEVEL = logging.ERROR
+    DEFAULT_LOG_LEVEL = logging.WARNING
 
     ## @brief Map to convert plugin groups to user friendly names.
     PLUGIN_GROUP_NAMES = {
