@@ -282,8 +282,8 @@ class ConnectHelper:
         pt.align = 'l'
         pt.header = True
         pt.border = True
-        pt.hrules = prettytable.HEADER
-        pt.vrules = prettytable.NONE
+        pt.hrules = getattr(prettytable, "HRuleStyle", prettytable).HEADER
+        pt.vrules = getattr(prettytable, "VRuleStyle", prettytable).NONE
 
         for index, probe in enumerate(probes):
             try:
