@@ -3,6 +3,7 @@
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2022 Toshiba Electronic Devices & Storage Corporation
 # Copyright (c) 2025 Norbert Hipfl
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -171,9 +172,8 @@ class CMSISDAPProtocol(object):
             in the DAP_Info command documentation, an int is returned. Otherwise either a string is returned, or
             None if the returned info value length is 0.
         @exception DAPAccessIntf.DeviceError Raised under these conditions:
-            - Response packet is for a different command.
+            - Response packet is truncated or is for a different command.
             - An int-type info was requested, but the returned value length is not 1, 2, or 4.
-            - A string-type info was requested, but the returned value length is greater than the response packet size minus response header and terminating null byte on the string.
         """
         assert type(id_) is DAPAccessIntf.ID
 
@@ -183,11 +183,15 @@ class CMSISDAPProtocol(object):
         self.interface.write(cmd)
 
         resp = self.interface.read()
+        if len(resp) < 2:
+            raise DAPAccessIntf.DeviceError("truncated DAP_INFO response header")
         if resp[0] != Command.DAP_INFO:
             # Response is to a different command
             raise DAPAccessIntf.DeviceError("expected DAP_INFO")
 
         resp_len = resp[1]
+        if resp_len > (len(resp) - 2):
+            raise DAPAccessIntf.DeviceError("invalid DAP_INFO response length for %s" % id_.name)
 
         # Integer values
         if id_ in INTEGER_INFOS:
@@ -203,8 +207,6 @@ class CMSISDAPProtocol(object):
         # String values. They are sent as C strings with a terminating null char, so we strip it out.
         if resp_len == 0:
             return None
-        if resp_len > (len(resp) - 2):
-            raise DAPAccessIntf.DeviceError("invalid DAP_INFO response length for %s" % id_.name)
         return bytearray(resp[2:2 + resp_len - 1]).decode('utf-8', 'replace')
 
     def set_led(self, type, enabled):
