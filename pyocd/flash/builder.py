@@ -2,6 +2,7 @@
 # Copyright (c) 2015-2019,2025-2026 Arm Limited
 # Copyright (c) 2021 Chris Reed
 # Copyright (c) 2023 Brian Pugh
+# Copyright (c) 2026 Andrew Jessop
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -757,7 +758,16 @@ class FlashBuilder(MemoryBuilder):
 
         # Analyze unknown pages using either CRC32 analyzer or partial reads.
         if any(page.same is None for page in self.page_list):
-            if self.flash.get_flash_info().crc_supported:
+            # The analyzer packs each page as a 16-bit size exponent and a
+            # 16-bit address divided by size. Fall back to reads if any command
+            # cannot represent its page, rather than overflowing/truncating it.
+            can_encode_pages = all(
+                page.size > 0 and (page.size & (page.size - 1)) == 0
+                and page.addr % page.size == 0
+                and 0 <= page.addr // page.size <= 0xffff
+                for page in self.page_list if page.same is None
+            )
+            if self.flash.get_flash_info().crc_supported and can_encode_pages:
                 self._analyze_pages_with_crc32(fast_verify)
                 self.perf.analyze_type = FlashBuilder.FLASH_ANALYSIS_CRC32
             elif self.flash.region.is_readable:
