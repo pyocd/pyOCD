@@ -4,6 +4,7 @@
 # Copyright (c) 2023 Marian Muller Rebeyrol
 # Copyright (c) 2026 Christophe Dufaza
 # Copyright (c) 2026 Aditya Nikam
+# Copyright (c) 2026 Solarboaters
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -86,7 +87,8 @@ class JLinkProbe(DebugProbe):
                 return None
             for info in jlink.connected_emulators():
                 sn = cls._format_serial_number(info.SerialNumber)
-                if sn == unique_id:
+                # USB serial strings can pad the SDK's numeric serial number with zeros.
+                if sn == unique_id or (unique_id.startswith('0') and sn == (unique_id.lstrip('0') or '0')):
                     return cls(sn)
             return None
         except JLinkException as exc:
