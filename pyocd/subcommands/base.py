@@ -168,8 +168,8 @@ class SubcommandBase:
         else:
             pt.header = True
         pt.border = True
-        pt.hrules = prettytable.HEADER
-        pt.vrules = prettytable.NONE
+        pt.hrules = getattr(prettytable, "HRuleStyle", prettytable).HEADER
+        pt.vrules = getattr(prettytable, "VRuleStyle", prettytable).NONE
         return pt
 
     def _modified_option_defaults(self) -> Dict[str, Any]:
