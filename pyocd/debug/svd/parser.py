@@ -2,6 +2,7 @@
 # Copyright 2015 Paul Osborne <osbpau@gmail.com>
 # Copyright (c) 2019 Arm Ltd
 # Copyright (c) 2021 Chris Reed
+# Copyright (c) 2026 Andrew Jessop
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from contextlib import nullcontext
 from xml.etree import ElementTree as ET
 import re
 
@@ -71,7 +73,15 @@ class SVDParser(object):
 
     @classmethod
     def for_xml_file(cls, path, remove_reserved=False):
-        return cls(ET.parse(path), remove_reserved)
+        # Some vendor packs put whitespace before the XML declaration. Remove only
+        # that prefix, leaving the declared encoding and XML contents unchanged.
+        with nullcontext(path) if hasattr(path, 'read') else open(path, 'rb') as source:
+            data = source.read()
+        if isinstance(data, bytes):
+            data = re.sub(br'\A[ \t\r\n]+(?=<\?xml[ \t\r\n])', b'', data, count=1)
+        else:
+            data = re.sub(r'\A[ \t\r\n]+(?=<\?xml[ \t\r\n])', '', data, count=1)
+        return cls(ET.ElementTree(ET.fromstring(data)), remove_reserved)
 
     def __init__(self, tree, remove_reserved=False):
         self.remove_reserved = remove_reserved
