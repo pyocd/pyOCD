@@ -93,6 +93,7 @@ class SubcommandBase:
         CONNECT_GROUP.add_argument("-W", "--no-wait", action="store_true",
             help="Do not wait for a probe to be connected if none are available.")
         CONNECT_GROUP.add_argument("-M", "--connect", dest="connect_mode", metavar="MODE",
+            choices=("halt", "pre-reset", "under-reset", "attach"),
             help="Select connect mode from one of (halt, pre-reset, under-reset, attach).")
 
     @classmethod
