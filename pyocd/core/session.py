@@ -270,7 +270,7 @@ class Session(Notifier):
 
             if configPath is not None:
                 try:
-                    with open(configPath, 'r') as configFile:
+                    with open(configPath, 'rb') as configFile:
                         LOG.debug("Loading config from: %s", configPath)
                         config = yaml.safe_load(configFile)
                         # Allow an empty config file.
@@ -375,7 +375,7 @@ class Session(Notifier):
 
             if loggingConfigPath is not None:
                 try:
-                    with open(loggingConfigPath, 'r') as configFile:
+                    with open(loggingConfigPath, 'rb') as configFile:
                         config = yaml.safe_load(configFile)
                         LOG.debug("Using logging configuration from: %s", config)
                 except IOError as err:
@@ -600,8 +600,8 @@ class Session(Notifier):
 
         if script_path is not None:
             try:
-                # Read the script source.
-                with open(script_path, 'r') as script_file:
+                # Let compile() honour Python source encodings instead of the locale.
+                with open(script_path, 'rb') as script_file:
                     LOG.debug("Loading user script: %s", script_path)
                     script_source = script_file.read()
 
